@@ -3,6 +3,7 @@ import { logger } from "firebase-functions/v2";
 import { env } from "../config/env";
 import { fetchDealById, updateDealProperties } from "../hubspot/deals";
 import { upsertDealFromHubspot } from "../firestore/dealsRepository";
+import { getConcesionario } from "../firestore/concesionariosRepository";
 
 interface SyncWebhookBody {
   dealId?: string;
@@ -64,10 +65,17 @@ export const syncDealWebhook = onRequest(
     const { isNewConcesionario } = await upsertDealFromHubspot(deal);
 
     if (isNewConcesionario) {
-      const url = `${env.payDeskBaseUrl}/c/${encodeURIComponent(deal.concesionarioId)}`;
-      await updateDealProperties(dealId, { paydeskUrl: url });
+      // First time we see this store: hand HubSpot the login URL and the
+      // store's código so the notification workflow can pass them on. The
+      // NIP is generated in the admin panel and delivered separately — it
+      // never touches HubSpot.
+      const concesionario = await getConcesionario(deal.concesionarioId);
+      await updateDealProperties(dealId, {
+        paydeskUrl: env.payDeskBaseUrl,
+        ...(concesionario?.codigo ? { paydeskCodigo: concesionario.codigo } : {}),
+      });
       logger.info(
-        `syncDealWebhook: created paydesk page for concesionario ${deal.concesionarioId}`,
+        `syncDealWebhook: registered concesionario ${deal.concesionarioId}`,
       );
     }
 

@@ -1,0 +1,17 @@
+/** A store as shown in the admin catalog. Credential *status* only — never the NIP or its hash. */
+export interface AdminConcesionario {
+  concesionarioId: string;
+  /** Raw HubSpot Kiosco value, e.g. `#0046 - TEQ CR`. Shown so the team can match rows against HubSpot. */
+  kiosco: string;
+  nombre: string;
+  numero: string | null;
+  codigo: string;
+  tieneNip: boolean;
+  /** Epoch millis, or null if a NIP was never issued. */
+  nipActualizadoEn: number | null;
+  ultimoAccesoEn: number | null;
+  bloqueado: boolean;
+}
+
+/** Logical field name → HubSpot internal property name. */
+export type FieldDictionary = Record<string, string>;

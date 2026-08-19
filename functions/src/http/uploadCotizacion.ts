@@ -4,6 +4,7 @@ import { parseMultipart } from "./multipart";
 import { getDeal, patchDealFields } from "../firestore/dealsRepository";
 import { uploadDealFile } from "../hubspot/files";
 import { updateDealProperties } from "../hubspot/deals";
+import { verifyBearerToken } from "../auth/requestAuth";
 
 /**
  * Handles the "Nueva cotización" module (section 5.2): file
@@ -21,6 +22,12 @@ export const uploadCotizacion = onRequest(
       return;
     }
 
+    const auth = await verifyBearerToken(req);
+    if (!auth?.concesionarioId) {
+      res.status(401).json({ error: "Inicia sesión para continuar" });
+      return;
+    }
+
     const { fields, file } = await parseMultipart(req);
     const { dealId, fechaEntregaAcordada, montoTotalCompra } = fields;
 
@@ -30,7 +37,9 @@ export const uploadCotizacion = onRequest(
     }
 
     const deal = await getDeal(dealId);
-    if (!deal) {
+    // Same response whether the deal is missing or belongs to another
+    // store — a store shouldn't be able to probe for other stores' deals.
+    if (!deal || deal.concesionarioId !== auth.concesionarioId) {
       res.status(404).json({ error: "Solicitud no encontrada" });
       return;
     }

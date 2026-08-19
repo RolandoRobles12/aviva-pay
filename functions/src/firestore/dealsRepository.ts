@@ -1,16 +1,12 @@
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { formatKioscoDisplay } from "../concesionario/identity";
-import type { PayDeskDeal, PayDeskConcesionario } from "../types/deal";
+import { ensureConcesionario } from "./concesionariosRepository";
+import type { PayDeskDeal } from "../types/deal";
 
-const DEALS_COLLECTION = "paydesk_deals";
-const CONCESIONARIOS_COLLECTION = "paydesk_concesionarios";
+const COLLECTION = "paydesk_deals";
 
 export function dealsCollection() {
-  return getFirestore().collection(DEALS_COLLECTION);
-}
-
-export function concesionariosCollection() {
-  return getFirestore().collection(CONCESIONARIOS_COLLECTION);
+  return getFirestore().collection(COLLECTION);
 }
 
 export async function getDeal(dealId: string): Promise<PayDeskDeal | null> {
@@ -28,19 +24,12 @@ export async function getDealsByConcesionario(
   return snap.docs.map((doc) => doc.data() as PayDeskDeal);
 }
 
-export async function getConcesionario(
-  concesionarioId: string,
-): Promise<PayDeskConcesionario | null> {
-  const snap = await concesionariosCollection().doc(concesionarioId).get();
-  return snap.exists ? (snap.data() as PayDeskConcesionario) : null;
-}
-
 /**
- * Upserts a deal document from freshly-fetched HubSpot data, and makes sure
- * its concesionario document exists too. Returns `isNewConcesionario: true`
- * only the first time we ever see this concesionarioId — that's the signal
- * used to trigger the "send the page URL" notification (section 9), since
- * a concesionario should only be notified once, not on every new deal.
+ * Upserts a deal document from freshly-fetched HubSpot data, creating the
+ * store's document if this is the first deal we've seen for that Kiosco.
+ * Returns `isNewConcesionario: true` only on that first sight — the signal
+ * used to trigger the "notify the store" workflow (section 9), since a
+ * store should only be notified once, not on every new deal.
  */
 export async function upsertDealFromHubspot(
   data: Omit<PayDeskDeal, "actualizadoEn" | "creadoEn">,
@@ -57,32 +46,19 @@ export async function upsertDealFromHubspot(
     { merge: true },
   );
 
-  let isNewConcesionario = false;
-  if (data.concesionarioId && data.kiosco) {
-    const concesionarioRef = concesionariosCollection().doc(
-      data.concesionarioId,
-    );
-    const existingConcesionario = await concesionarioRef.get();
-    isNewConcesionario = !existingConcesionario.exists;
-
-    const { nombre, numero } = formatKioscoDisplay(data.kiosco);
-
-    await concesionarioRef.set(
-      {
-        concesionarioId: data.concesionarioId,
-        kiosco: data.kiosco,
-        nombre,
-        numero,
-        actualizadoEn: FieldValue.serverTimestamp(),
-        ...(isNewConcesionario
-          ? { creadoEn: FieldValue.serverTimestamp() }
-          : {}),
-      },
-      { merge: true },
-    );
+  if (!data.concesionarioId || !data.kiosco) {
+    return { isNewConcesionario: false };
   }
 
-  return { isNewConcesionario };
+  const { nombre, numero } = formatKioscoDisplay(data.kiosco);
+  const { isNew } = await ensureConcesionario({
+    concesionarioId: data.concesionarioId,
+    kiosco: data.kiosco,
+    nombreSugerido: nombre,
+    numero,
+  });
+
+  return { isNewConcesionario: isNew };
 }
 
 export async function patchDealFields(
@@ -96,5 +72,3 @@ export async function patchDealFields(
       { merge: true },
     );
 }
-
-export type { PayDeskConcesionario };

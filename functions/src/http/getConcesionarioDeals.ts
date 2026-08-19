@@ -1,37 +1,28 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { getAuth } from "firebase-admin/auth";
-import {
-  getConcesionario,
-  getDealsByConcesionario,
-} from "../firestore/dealsRepository";
-
-interface GetConcesionarioDealsRequest {
-  concesionarioId?: string;
-}
+import { getConcesionario } from "../firestore/concesionariosRepository";
+import { getDealsByConcesionario } from "../firestore/dealsRepository";
 
 /**
- * Callable function the frontend invokes on page load with the
- * concesionarioId from the URL (section 6: "La página nunca lee Firestore
- * directo desde el cliente"). Returns the store's display name plus every
- * deal synced for it, and a short-lived custom auth token scoped to that
- * single concesionarioId (custom claim), which the client then uses to
- * open a direct Firestore query listener for realtime updates (section 6).
- * The Firestore security rules (see firestore.rules) only allow a query
- * filtered to that exact concesionarioId — so this never allows
- * enumerating other stores' deals.
+ * Returns the signed-in store's deals plus its display name.
+ *
+ * The concesionarioId comes from the caller's auth token claim — set by
+ * loginConcesionario after checking the código and NIP — never from the
+ * request body, so a client can't ask for another store's data by
+ * changing a parameter.
  */
-export const getConcesionarioDeals = onCall<GetConcesionarioDealsRequest>(
+export const getConcesionarioDeals = onCall(
   { region: "us-central1" },
   async (request) => {
-    const concesionarioId = request.data?.concesionarioId;
-    if (!concesionarioId || typeof concesionarioId !== "string") {
-      throw new HttpsError("invalid-argument", "concesionarioId is required");
+    const concesionarioId = request.auth?.token?.concesionarioId as
+      | string
+      | undefined;
+
+    if (!concesionarioId) {
+      throw new HttpsError("unauthenticated", "Inicia sesión para continuar.");
     }
 
     const concesionario = await getConcesionario(concesionarioId);
     if (!concesionario) {
-      // Deliberately generic: don't reveal whether the id is malformed vs.
-      // simply not synced yet.
       throw new HttpsError(
         "not-found",
         "No se encontró información para este concesionario.",
@@ -40,18 +31,13 @@ export const getConcesionarioDeals = onCall<GetConcesionarioDealsRequest>(
 
     const deals = await getDealsByConcesionario(concesionarioId);
 
-    const authToken = await getAuth().createCustomToken(
-      `paydesk:${concesionarioId}`,
-      { concesionarioId },
-    );
-
     return {
       concesionario: {
+        concesionarioId: concesionario.concesionarioId,
         nombre: concesionario.nombre,
         numero: concesionario.numero,
       },
       deals,
-      authToken,
     };
   },
 );

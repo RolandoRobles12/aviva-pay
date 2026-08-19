@@ -1,14 +1,17 @@
 /**
- * Field dictionary: maps every logical field Aviva Pay Desk needs to its
- * real HubSpot internal property name.
+ * Default field dictionary: maps every logical field Aviva Pay Desk needs
+ * to its HubSpot internal property name.
+ *
+ * These are the *defaults*. The dictionary in effect lives in Firestore and
+ * is editable from the admin panel (see
+ * firestore/fieldDictionaryRepository.ts); anything the stored document
+ * doesn't define falls back to the value here. That fallback is what keeps
+ * a deployment working when code adds a field the stored document predates.
  *
  * STATUS: PLACEHOLDER. The names on the right are NOT real HubSpot internal
  * names yet — they mirror the labels used in the requirement doc (section 7,
- * "Modelo de datos") so the rest of the codebase has something to compile
- * against. Replace the values below with the real internal property names
- * from the HubSpot field dictionary once it's ready; nothing else in this
- * codebase should need to change, since every read/write of a HubSpot deal
- * property goes through this map (see hubspot/deals.ts).
+ * "Modelo de datos") so the codebase has something to compile against. They
+ * can be filled in either here or from the admin panel.
  */
 
 export const HUBSPOT_DEAL_PROPERTIES = {
@@ -52,13 +55,14 @@ export const HUBSPOT_DEAL_PROPERTIES = {
   desembolsoFecha: "TODO_desembolso_fecha",
 
   // --- Notificación (section 9) ---
-  // Written by the sync function onto the triggering deal the first time a
-  // given concesionario's Firestore doc is created, so a second HubSpot
-  // workflow can enroll on "property is known" and notify that deal's
-  // associated contact with the page URL. TODO: confirm this is the right
-  // trigger mechanism, and which contact actually receives it, with the
-  // HubSpot workflow owner.
+  // Written onto the triggering deal the first time a given store is seen,
+  // so a second HubSpot workflow can enroll on "property is known" and
+  // send that store the login link and its código. The NIP is never
+  // written to HubSpot — it's generated in the admin panel and delivered
+  // to the store out of band. TODO: confirm the trigger mechanism and the
+  // recipient contact with the HubSpot workflow owner.
   paydeskUrl: "TODO_paydesk_url",
+  paydeskCodigo: "TODO_paydesk_codigo",
 } as const;
 
 export type HubspotDealPropertyKey = keyof typeof HUBSPOT_DEAL_PROPERTIES;
@@ -72,7 +76,3 @@ export const HUBSPOT_PIPELINE = {
   },
 } as const;
 
-/** The list of deal properties requested from HubSpot on every sync. */
-export const HUBSPOT_DEAL_PROPERTY_LIST: string[] = Object.values(
-  HUBSPOT_DEAL_PROPERTIES,
-);

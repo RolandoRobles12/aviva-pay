@@ -1,12 +1,8 @@
-import { createHmac } from "crypto";
-import { env } from "../config/env";
-
 /**
  * In HubSpot the concesionario is the deal's "Kiosco" property: a
  * multiple-checkbox field whose options look like `#0046 - TEQ CR`
  * (order number, store abbreviation, "CR" for Construrama). This module
- * turns that raw value into the two things the rest of the app needs:
- * a URL-safe opaque id, and something a human can actually read.
+ * turns that raw value into the pieces the rest of the app needs.
  */
 
 /**
@@ -32,36 +28,35 @@ export function parseKioscoValue(raw: string | null | undefined): {
 }
 
 /**
- * Derives the opaque id that identifies a concesionario in its page URL.
+ * Firestore document id for a store, derived from its Kiosco value:
+ * `#0046 - TEQ CR` → `0046-teq-cr`.
  *
- * The raw Kiosco value can't be used directly: `#0046 - TEQ CR` contains a
- * `#` (a URL fragment delimiter) and spaces, and its numbering is
- * sequential across ~481 stores — so anyone could enumerate every store's
- * page by counting up. Since the whole access model rests on the URL not
- * being guessable (requirement section 8), the id is an HMAC of the Kiosco
- * value under a secret salt: stable for a given store, but not derivable
- * without the salt.
- *
- * Deterministic by design — no lookup table, no write race when two deals
- * for a new store sync at the same time.
+ * Deterministic, so concurrent syncs for a newly-seen store converge on
+ * the same document without a lookup table or a write race. This id never
+ * appears in a URL — concesionarios authenticate with a código and NIP
+ * (see http/loginConcesionario.ts), so it doesn't need to be unguessable,
+ * and being readable makes the admin catalog and logs easier to follow.
  */
 export function deriveConcesionarioId(kioscoValue: string): string {
-  return createHmac("sha256", env.payDeskIdSalt)
-    .update(kioscoValue)
-    .digest("base64url")
-    .slice(0, 22);
+  return kioscoValue
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // strip accents
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 /**
- * Turns `#0046 - TEQ CR` into something presentable for the store's own
- * page header. The raw option text is internal HubSpot nomenclature and
- * reads as noise to a concesionario, so we split it into a name and a
- * store number shown as secondary detail.
+ * Splits `#0046 - TEQ CR` into the store number and a fallback display
+ * name. The raw option text is internal HubSpot nomenclature and reads as
+ * noise to a concesionario, so the page shows a name plus the store
+ * number as secondary detail.
  *
- * TODO: `TEQ` is an internal abbreviation whose expansion we don't have.
- * If Aviva has a catalog mapping these codes to real store names
- * ("Construrama Tequila", etc.), feed it in here — that's the name the
- * concesionario would actually recognize.
+ * `nombre` here is only a starting point: `TEQ` is an internal
+ * abbreviation whose expansion we don't have, so the admin catalog lets
+ * the team override it with the store's real name (see
+ * http/admin/updateConcesionario.ts). That override is what the store
+ * actually sees.
  */
 export function formatKioscoDisplay(kioscoValue: string): {
   nombre: string;

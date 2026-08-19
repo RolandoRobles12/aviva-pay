@@ -1,9 +1,7 @@
 import { logger } from "firebase-functions/v2";
 import { getHubspotClient } from "./client";
-import {
-  HUBSPOT_DEAL_PROPERTIES,
-  HUBSPOT_DEAL_PROPERTY_LIST,
-} from "../config/fields";
+import type { HubspotDealPropertyKey } from "../config/fields";
+import { getFieldDictionary } from "../firestore/fieldDictionaryRepository";
 import {
   deriveConcesionarioId,
   parseKioscoValue,
@@ -41,12 +39,13 @@ export async function fetchDealById(
   dealId: string,
 ): Promise<Omit<PayDeskDeal, "actualizadoEn" | "creadoEn"> | null> {
   const hubspot = getHubspotClient();
+  const p = await getFieldDictionary();
 
   let response;
   try {
     response = await hubspot.crm.deals.basicApi.getById(
       dealId,
-      HUBSPOT_DEAL_PROPERTY_LIST,
+      Object.values(p),
     );
   } catch (err: unknown) {
     const status = (err as { code?: number })?.code;
@@ -55,7 +54,6 @@ export async function fetchDealById(
   }
 
   const props = response.properties as RawProperties;
-  const p = HUBSPOT_DEAL_PROPERTIES;
 
   const kiosco = parseKioscoValue(props[p.kiosco]);
   if (kiosco.all.length > 1) {
@@ -102,19 +100,19 @@ export async function fetchDealById(
 /**
  * Writes a partial set of logical fields back to the HubSpot deal (section
  * 3.1 "Escritura de vuelta hacia HubSpot", section 9). Callers pass logical
- * keys from HUBSPOT_DEAL_PROPERTIES; this translates them to real property
- * names before calling the API.
+ * field names; this translates them to real HubSpot property names via the
+ * field dictionary before calling the API.
  */
 export async function updateDealProperties(
   dealId: string,
-  values: Partial<Record<keyof typeof HUBSPOT_DEAL_PROPERTIES, string>>,
+  values: Partial<Record<HubspotDealPropertyKey, string>>,
 ): Promise<void> {
   const hubspot = getHubspotClient();
+  const dictionary = await getFieldDictionary();
   const properties: Record<string, string> = {};
 
   for (const [logicalKey, value] of Object.entries(values)) {
-    const hubspotProperty =
-      HUBSPOT_DEAL_PROPERTIES[logicalKey as keyof typeof HUBSPOT_DEAL_PROPERTIES];
+    const hubspotProperty = dictionary[logicalKey as HubspotDealPropertyKey];
     if (hubspotProperty && value !== undefined) {
       properties[hubspotProperty] = value;
     }
