@@ -6,9 +6,17 @@
  */
 export type UploadStatus = "pendiente" | "completado";
 
+export interface PayDeskConcesionario {
+  /** Store name as shown in the page header, e.g. `Construrama TEQ`. */
+  nombre: string;
+  /** Store number, e.g. `0046`. */
+  numero: string | null;
+}
+
 export interface PayDeskDeal {
   dealId: string;
   concesionarioId: string | null;
+  kiosco: string | null;
   cliente: string | null;
   fechaSolicitud: string | null;
   montoAprobado: number | null;

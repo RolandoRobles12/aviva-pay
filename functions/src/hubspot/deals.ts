@@ -1,9 +1,13 @@
+import { logger } from "firebase-functions/v2";
 import { getHubspotClient } from "./client";
 import {
   HUBSPOT_DEAL_PROPERTIES,
   HUBSPOT_DEAL_PROPERTY_LIST,
 } from "../config/fields";
-import { getConcesionarioIdForDeal } from "./associations";
+import {
+  deriveConcesionarioId,
+  parseKioscoValue,
+} from "../concesionario/identity";
 import type { PayDeskDeal, UploadStatus } from "../types/deal";
 
 type RawProperties = Record<string, string | null | undefined>;
@@ -52,11 +56,21 @@ export async function fetchDealById(
 
   const props = response.properties as RawProperties;
   const p = HUBSPOT_DEAL_PROPERTIES;
-  const concesionarioId = await getConcesionarioIdForDeal(dealId);
+
+  const kiosco = parseKioscoValue(props[p.kiosco]);
+  if (kiosco.all.length > 1) {
+    logger.warn(
+      `fetchDealById: deal ${dealId} has ${kiosco.all.length} Kioscos selected ` +
+        `(${kiosco.all.join(", ")}); using the first one`,
+    );
+  }
 
   return {
     dealId,
-    concesionarioId,
+    concesionarioId: kiosco.primary
+      ? deriveConcesionarioId(kiosco.primary)
+      : null,
+    kiosco: kiosco.primary,
     cliente: props[p.cliente] ?? null,
     fechaSolicitud: toIsoDate(props[p.fechaSolicitud]),
     montoAprobado: toNumber(props[p.montoAprobado]),

@@ -1,4 +1,5 @@
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { formatKioscoDisplay } from "../concesionario/identity";
 import type { PayDeskDeal, PayDeskConcesionario } from "../types/deal";
 
 const DEALS_COLLECTION = "paydesk_deals";
@@ -27,11 +28,11 @@ export async function getDealsByConcesionario(
   return snap.docs.map((doc) => doc.data() as PayDeskDeal);
 }
 
-export async function concesionarioExists(
+export async function getConcesionario(
   concesionarioId: string,
-): Promise<boolean> {
+): Promise<PayDeskConcesionario | null> {
   const snap = await concesionariosCollection().doc(concesionarioId).get();
-  return snap.exists;
+  return snap.exists ? (snap.data() as PayDeskConcesionario) : null;
 }
 
 /**
@@ -43,7 +44,6 @@ export async function concesionarioExists(
  */
 export async function upsertDealFromHubspot(
   data: Omit<PayDeskDeal, "actualizadoEn" | "creadoEn">,
-  concesionarioNombre: string | null,
 ): Promise<{ isNewConcesionario: boolean }> {
   const dealRef = dealsCollection().doc(data.dealId);
   const existingDeal = await dealRef.get();
@@ -58,17 +58,21 @@ export async function upsertDealFromHubspot(
   );
 
   let isNewConcesionario = false;
-  if (data.concesionarioId) {
+  if (data.concesionarioId && data.kiosco) {
     const concesionarioRef = concesionariosCollection().doc(
       data.concesionarioId,
     );
     const existingConcesionario = await concesionarioRef.get();
     isNewConcesionario = !existingConcesionario.exists;
 
+    const { nombre, numero } = formatKioscoDisplay(data.kiosco);
+
     await concesionarioRef.set(
       {
         concesionarioId: data.concesionarioId,
-        nombre: concesionarioNombre,
+        kiosco: data.kiosco,
+        nombre,
+        numero,
         actualizadoEn: FieldValue.serverTimestamp(),
         ...(isNewConcesionario
           ? { creadoEn: FieldValue.serverTimestamp() }

@@ -68,10 +68,51 @@ h3 {
   padding: 2.5rem 1.25rem 4rem;
 }
 
+.concesionario-page__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--verde-musgo) 12%, transparent);
+}
+
+.concesionario-page__title {
+  margin-top: 1.75rem;
+  font-size: 1.5rem;
+  color: var(--verde-musgo);
+}
+
 .concesionario-page__subtitle {
-  color: var(--verde-pino);
-  margin-top: 0;
+  color: color-mix(in srgb, var(--negro-off) 65%, transparent);
+  margin-top: 0.35rem;
   font-weight: 500;
+  max-width: 55ch;
+}
+
+/* Which store you're looking at — the Kiosco value is internal HubSpot
+   nomenclature (`#0046 - TEQ CR`), so the page shows a cleaned-up name
+   with the store number as secondary detail. */
+.store-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  background: var(--verde-esmeralda);
+  color: var(--verde-musgo);
+  padding: 0.5rem 0.9rem;
+  border-radius: 10px;
+  line-height: 1.25;
+}
+
+.store-badge__nombre {
+  font-weight: 700;
+}
+
+.store-badge__numero {
+  font-size: 0.8rem;
+  font-weight: 500;
+  opacity: 0.8;
 }
 
 .deals-table-wrapper {
