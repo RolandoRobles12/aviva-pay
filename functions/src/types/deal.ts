@@ -7,14 +7,17 @@ export type UploadStatus = "pendiente" | "completado";
  * into the types the frontend needs (dates as ISO strings, numbers as
  * numbers) by hubspot/deals.ts.
  *
- * `concesionarioId` identifies the Construrama store the deal belongs to,
- * read from a property on the deal itself. The page groups deals by this
- * field so a store sees every one of their clients' solicitudes in a
- * single table (one page per concesionario, not one page per deal).
+ * `concesionarioId` is the opaque, URL-safe id derived from the deal's
+ * Kiosco value (see concesionario/identity.ts); `kiosco` keeps the raw
+ * HubSpot value for traceability. The page groups deals by
+ * `concesionarioId` so a store sees every one of their clients'
+ * solicitudes in a single table (one page per concesionario, not one page
+ * per deal).
  */
 export interface PayDeskDeal {
   dealId: string;
   concesionarioId: string | null;
+  kiosco: string | null;
   cliente: string | null;
   fechaSolicitud: string | null; // ISO date
   montoAprobado: number | null;
@@ -41,13 +44,19 @@ export interface PayDeskDeal {
 
 /**
  * Shape of a `paydesk_concesionarios/{concesionarioId}` document — one per
- * Construrama store, the store's identifier as the document ID. Exists
- * mainly to detect "first deal ever synced for this concesionario", which
- * is when the notification workflow (section 9) should fire with the page
- * URL.
+ * Construrama store, keyed by the opaque id. Holds the store's display
+ * name (shown in the page header so the concesionario can confirm they're
+ * looking at their own store) and detects "first deal ever synced for this
+ * store", which is when the notification workflow (section 9) fires.
  */
 export interface PayDeskConcesionario {
   concesionarioId: string;
+  /** Raw HubSpot Kiosco value, e.g. `#0046 - TEQ CR`. Internal, never shown to the store. */
+  kiosco: string;
+  /** Human-readable store name, e.g. `Construrama TEQ`. */
+  nombre: string;
+  /** Store number from the Kiosco option, e.g. `0046`. */
+  numero: string | null;
   actualizadoEn: FirebaseFirestore.Timestamp;
   creadoEn: FirebaseFirestore.Timestamp;
 }

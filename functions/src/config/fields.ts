@@ -13,13 +13,18 @@
 
 export const HUBSPOT_DEAL_PROPERTIES = {
   // --- Concesionario ---
-  // Identifies which Construrama store/branch this deal belongs to. A plain
-  // deal property (text or dropdown) — confirmed there's no separate
-  // HubSpot object (Company or otherwise) representing the concesionario.
-  // The Pay Desk page groups deals by this value and uses it as the page's
-  // URL segment (/c/:concesionarioId), so whatever this property's value
-  // looks like (store name, code, etc.) ends up directly in the URL.
-  concesionarioId: "TODO_concesionario",
+  // The "Kiosco" property on the deal: which Construrama store the
+  // solicitud belongs to. Confirmed there's no Company (or other HubSpot
+  // object) representing the concesionario — it's a plain deal property.
+  //
+  // Field type is *multiple checkboxes* (~481 options like `#0046 - TEQ
+  // CR`), so HubSpot returns it semicolon-separated — see
+  // concesionario/identity.ts, which parses it and derives both the URL id
+  // and the display name.
+  //
+  // TODO: confirm the internal name. The label is "Kiosco", so it is
+  // probably `kiosco`, but HubSpot doesn't guarantee label === internal name.
+  kiosco: "TODO_kiosco",
 
   // --- Datos base de la solicitud ---
   cliente: "TODO_cliente",

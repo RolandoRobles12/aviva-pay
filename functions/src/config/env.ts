@@ -25,4 +25,13 @@ export const env = {
   get payDeskBaseUrl(): string {
     return process.env.PAYDESK_BASE_URL ?? "https://pay.avivacredito.com";
   },
+  /**
+   * Secret salt used to derive each concesionario's opaque page id from its
+   * Kiosco value (see concesionario/identity.ts). Must stay secret — anyone
+   * holding it can compute every store's URL from the public HubSpot option
+   * list. Rotating it invalidates every existing Pay Desk link.
+   */
+  get payDeskIdSalt(): string {
+    return required("PAYDESK_ID_SALT");
+  },
 };

@@ -22,11 +22,23 @@ El requerimiento (sección 2) dice "una página web... por cada solicitud de cr�
 Esto significa que la URL de la página identifica a la **tienda**, no a un deal individual:
 
 - Ruta del frontend: `/c/:concesionarioId`.
-- `concesionarioId` sale de una **propiedad del deal** (`HUBSPOT_DEAL_PROPERTIES.concesionarioId`) que nombra la tienda de Construrama. No se usa el objeto Company de HubSpot ni ningún otro objeto — confirmado con el negocio: el concesionario se identifica con un campo en el deal.
+- La tienda sale de la propiedad **"Kiosco"** del deal (`HUBSPOT_DEAL_PROPERTIES.kiosco`). No se usa el objeto Company de HubSpot ni ningún otro objeto — confirmado con el negocio: el concesionario se identifica con un campo en el deal, y cada tienda tiene un concesionario distinto (el corte es 1 tienda = 1 página).
 - Cada deal sincronizado guarda su `concesionarioId` en `paydesk_deals/{dealId}` para poder hacer la query "todos los deals de esta tienda".
-- Existe además `paydesk_concesionarios/{concesionarioId}` — un documento por tienda, usado únicamente para saber si ya se le notificó (ver más abajo) y como ancla de las reglas de Firestore.
+- Existe además `paydesk_concesionarios/{concesionarioId}` — un documento por tienda, con el nombre a mostrar, usado para saber si ya se le notificó (ver más abajo) y como ancla de las reglas de Firestore.
 
-Nota: como el valor de esa propiedad termina directo en la URL, conviene que sea un identificador estable y no adivinable (ver "Pendientes conocidos").
+## El valor de "Kiosco" y por qué no se usa tal cual
+
+La propiedad Kiosco es de tipo **multiple checkboxes**, con ~481 opciones cuyo texto es nomenclatura interna: `#0046 - TEQ CR` (número de tienda, abreviatura, `CR` = Construrama). Eso trae dos problemas, ambos resueltos en `functions/src/concesionario/identity.ts`:
+
+**1. No sirve como identificador de URL.** El `#` es delimitador de fragmento en una URL, el valor trae espacios, y la numeración es secuencial de `#0001` a `#0481` — cualquiera podría recorrer todas las tiendas contando. Como el control de acceso se sostiene justamente en que la URL no sea adivinable (sección 8), el `concesionarioId` es un **HMAC-SHA256 del valor de Kiosco** bajo un salt secreto (`PAYDESK_ID_SALT`), truncado a 22 caracteres base64url. Es determinístico —misma tienda, mismo id, sin tabla de lookup ni condición de carrera cuando dos deals nuevos sincronizan a la vez— pero no derivable sin el salt.
+
+> Rotar `PAYDESK_ID_SALT` invalida todas las URLs ya enviadas a los concesionarios. Tratar como secreto.
+
+**2. No sirve para mostrarle a la tienda.** `#0046 - TEQ CR` no le dice nada a un concesionario. La página muestra `Construrama TEQ` con `Tienda 0046` como dato secundario, derivado del valor crudo. El valor original se guarda en Firestore (`kiosco`) para trazabilidad, pero nunca se muestra.
+
+> **Pendiente:** `TEQ` es una abreviatura interna cuya expansión no tenemos. Si Aviva tiene un catálogo de códigos → nombres reales de tienda ("Construrama Tequila", etc.), conectarlo en `formatKioscoDisplay()` — ese es el nombre que el concesionario realmente reconocería.
+
+Como es un campo *multi-checkbox*, HubSpot puede devolver varios valores separados por `;`. Una solicitud pertenece a una sola tienda, así que se toma el primero y se deja un `logger.warn` cuando llegan varios — pendiente confirmar con el admin de HubSpot si eso puede pasar legítimamente.
 
 ## Componentes
 
@@ -79,8 +91,10 @@ Todos los nombres de propiedades de HubSpot están centralizados en **`functions
 
 ## Pendientes conocidos
 
-- Diccionario de campos real (`functions/src/config/fields.ts`).
-- **Qué valor lleva la propiedad de tienda**: si es un nombre legible ("Construrama Caysma Norte") termina visible y adivinable en la URL, lo que choca con el modelo de acceso de la sección 8 ("identificador no enumerable ni predecible"). Si es así, conviene generar un identificador opaco por tienda (guardado en Firestore, mapeado al nombre) y usar ese en la URL. Decisión pendiente con negocio/seguridad.
+- Diccionario de campos real (`functions/src/config/fields.ts`), incluido el nombre interno de la propiedad "Kiosco".
+- Catálogo de códigos de tienda (`TEQ`, `TEO`, `FER`…) → nombres reales, para `formatKioscoDisplay()`.
+- Confirmar con el admin de HubSpot si un deal puede tener más de un Kiosco marcado (hoy se toma el primero y se loguea el caso).
+- Generar `PAYDESK_ID_SALT` y guardarlo como secreto de Cloud Functions.
 - Confirmar pipeline/stage IDs de HubSpot (`HUBSPOT_PIPELINE` en `fields.ts`).
 - Confirmar con el dueño del workflow de HubSpot: cómo se dispara la notificación (sección 9) y a qué contacto de la tienda le llega.
 - Definir con seguridad/negocio el nivel de exposición aceptable del modelo sin login (sección 8) antes de producción.

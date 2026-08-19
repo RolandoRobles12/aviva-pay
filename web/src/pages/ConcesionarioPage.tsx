@@ -6,7 +6,7 @@ import {
   db,
   getConcesionarioDealsCallable,
 } from "../lib/firebase";
-import type { PayDeskDeal } from "../types/deal";
+import type { PayDeskConcesionario, PayDeskDeal } from "../types/deal";
 import { DealsTable } from "../components/DealsTable";
 import { Modal } from "../components/Modal";
 import { CotizacionUploadForm } from "../components/CotizacionUploadForm";
@@ -15,7 +15,11 @@ import { ComprobanteUploadForm } from "../components/ComprobanteUploadForm";
 type LoadState =
   | { status: "loading" }
   | { status: "error"; message: string }
-  | { status: "ready"; deals: PayDeskDeal[] };
+  | {
+      status: "ready";
+      concesionario: PayDeskConcesionario;
+      deals: PayDeskDeal[];
+    };
 
 type ActiveModal =
   | { type: "cotizacion"; dealId: string }
@@ -35,11 +39,11 @@ export function ConcesionarioPage() {
     (async () => {
       try {
         const result = await getConcesionarioDealsCallable({ concesionarioId });
-        const { deals, authToken } = result.data;
+        const { concesionario, deals, authToken } = result.data;
         await authenticateForConcesionario(authToken);
         if (cancelled) return;
 
-        setState({ status: "ready", deals });
+        setState({ status: "ready", concesionario, deals });
 
         const dealsQuery = query(
           collection(db, "paydesk_deals"),
@@ -48,6 +52,7 @@ export function ConcesionarioPage() {
         unsubscribe = onSnapshot(dealsQuery, (snap) => {
           setState({
             status: "ready",
+            concesionario,
             deals: snap.docs.map((doc) => doc.data() as PayDeskDeal),
           });
         });
@@ -80,12 +85,25 @@ export function ConcesionarioPage() {
 
   return (
     <main className="concesionario-page">
-      <h1 className="brand-mark">
-        <span className="brand-mark__aviva">Aviva</span>
-        <span className="brand-mark__product">Pay Desk</span>
-      </h1>
+      <header className="concesionario-page__header">
+        <div className="brand-mark">
+          <span className="brand-mark__aviva">Aviva</span>
+          <span className="brand-mark__product">Pay Desk</span>
+        </div>
+        <div className="store-badge">
+          <span className="store-badge__nombre">{state.concesionario.nombre}</span>
+          {state.concesionario.numero && (
+            <span className="store-badge__numero">
+              Tienda {state.concesionario.numero}
+            </span>
+          )}
+        </div>
+      </header>
+
+      <h1 className="concesionario-page__title">Solicitudes de tus clientes</h1>
       <p className="concesionario-page__subtitle">
-        Estatus de tus solicitudes de crédito
+        Consulta el avance de cada crédito y sube la cotización y el
+        comprobante de entrega cuando corresponda.
       </p>
 
       <DealsTable
