@@ -40,16 +40,30 @@ export const HUBSPOT_DEAL_PROPERTIES = {
 
   // --- Desembolso ---
   desembolsoFecha: "TODO_desembolso_fecha",
-
-  // --- Notificación (section 9) ---
-  // Written by the sync function the first time a deal's Firestore doc is
-  // created, so a second HubSpot workflow can enroll on "property is known"
-  // and send the concesionario the page URL. TODO: confirm this is the
-  // right trigger mechanism with the HubSpot workflow owner.
-  paydeskUrl: "TODO_paydesk_url",
 } as const;
 
 export type HubspotDealPropertyKey = keyof typeof HUBSPOT_DEAL_PROPERTIES;
+
+/**
+ * The concesionario is the HubSpot company associated with the deal (not a
+ * deal property) — see hubspot/associations.ts. `nombre` uses HubSpot's
+ * standard "name" property, which is real (not a placeholder).
+ */
+export const HUBSPOT_COMPANY_PROPERTIES = {
+  nombre: "name",
+
+  // --- Notificación (section 9) ---
+  // Written by the sync function the first time a concesionario's Firestore
+  // doc is created, so a second HubSpot workflow can enroll on "property is
+  // known" and send the concesionario the page URL. TODO: confirm this is
+  // the right trigger mechanism, and which contact actually receives it,
+  // with the HubSpot workflow owner.
+  paydeskUrl: "TODO_paydesk_url",
+} as const;
+
+export const HUBSPOT_COMPANY_PROPERTY_LIST: string[] = Object.values(
+  HUBSPOT_COMPANY_PROPERTIES,
+);
 
 /** HubSpot deal pipeline/stage this project watches (section 9). TODO: confirm real pipeline/stage IDs. */
 export const HUBSPOT_PIPELINE = {

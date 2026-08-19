@@ -2,6 +2,7 @@ import { initializeApp } from "firebase/app";
 import { getAuth, signInWithCustomToken } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
+import type { PayDeskDeal } from "../types/deal";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -17,12 +18,12 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const functions = getFunctions(app);
 
-export const getDealStatusCallable = httpsCallable<
-  { dealId: string },
-  { deal: unknown; authToken: string }
->(functions, "getDealStatus");
+export const getConcesionarioDealsCallable = httpsCallable<
+  { concesionarioId: string },
+  { deals: PayDeskDeal[]; authToken: string }
+>(functions, "getConcesionarioDeals");
 
-/** Signs the client into the scoped custom token so Firestore rules allow reading this one deal (see firestore.rules). */
-export async function authenticateForDeal(authToken: string) {
+/** Signs the client into the scoped custom token so Firestore rules allow reading this concesionario's deals (see firestore.rules). */
+export async function authenticateForConcesionario(authToken: string) {
   await signInWithCustomToken(auth, authToken);
 }

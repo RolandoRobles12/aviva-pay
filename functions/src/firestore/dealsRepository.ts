@@ -1,10 +1,15 @@
-import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
-import type { PayDeskDeal } from "../types/deal";
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import type { PayDeskDeal, PayDeskConcesionario } from "../types/deal";
 
-const COLLECTION = "paydesk_deals";
+const DEALS_COLLECTION = "paydesk_deals";
+const CONCESIONARIOS_COLLECTION = "paydesk_concesionarios";
 
 export function dealsCollection() {
-  return getFirestore().collection(COLLECTION);
+  return getFirestore().collection(DEALS_COLLECTION);
+}
+
+export function concesionariosCollection() {
+  return getFirestore().collection(CONCESIONARIOS_COLLECTION);
 }
 
 export async function getDeal(dealId: string): Promise<PayDeskDeal | null> {
@@ -12,29 +17,68 @@ export async function getDeal(dealId: string): Promise<PayDeskDeal | null> {
   return snap.exists ? (snap.data() as PayDeskDeal) : null;
 }
 
+/** All deals belonging to one concesionario, for the status table (section 5.1). */
+export async function getDealsByConcesionario(
+  concesionarioId: string,
+): Promise<PayDeskDeal[]> {
+  const snap = await dealsCollection()
+    .where("concesionarioId", "==", concesionarioId)
+    .get();
+  return snap.docs.map((doc) => doc.data() as PayDeskDeal);
+}
+
+export async function concesionarioExists(
+  concesionarioId: string,
+): Promise<boolean> {
+  const snap = await concesionariosCollection().doc(concesionarioId).get();
+  return snap.exists;
+}
+
 /**
- * Upserts a deal document from freshly-fetched HubSpot data. Returns
- * `true` when this is the document's first write (used by the sync webhook
- * to decide whether to trigger the "send the URL to the concesionario"
- * notification described in section 9).
+ * Upserts a deal document from freshly-fetched HubSpot data, and makes sure
+ * its concesionario document exists too. Returns `isNewConcesionario: true`
+ * only the first time we ever see this concesionarioId — that's the signal
+ * used to trigger the "send the page URL" notification (section 9), since
+ * a concesionario should only be notified once, not on every new deal.
  */
 export async function upsertDealFromHubspot(
   data: Omit<PayDeskDeal, "actualizadoEn" | "creadoEn">,
-): Promise<{ isNew: boolean }> {
-  const ref = dealsCollection().doc(data.dealId);
-  const existing = await ref.get();
-  const isNew = !existing.exists;
+  concesionarioNombre: string | null,
+): Promise<{ isNewConcesionario: boolean }> {
+  const dealRef = dealsCollection().doc(data.dealId);
+  const existingDeal = await dealRef.get();
 
-  await ref.set(
+  await dealRef.set(
     {
       ...data,
       actualizadoEn: FieldValue.serverTimestamp(),
-      ...(isNew ? { creadoEn: FieldValue.serverTimestamp() } : {}),
+      ...(existingDeal.exists ? {} : { creadoEn: FieldValue.serverTimestamp() }),
     },
     { merge: true },
   );
 
-  return { isNew };
+  let isNewConcesionario = false;
+  if (data.concesionarioId) {
+    const concesionarioRef = concesionariosCollection().doc(
+      data.concesionarioId,
+    );
+    const existingConcesionario = await concesionarioRef.get();
+    isNewConcesionario = !existingConcesionario.exists;
+
+    await concesionarioRef.set(
+      {
+        concesionarioId: data.concesionarioId,
+        nombre: concesionarioNombre,
+        actualizadoEn: FieldValue.serverTimestamp(),
+        ...(isNewConcesionario
+          ? { creadoEn: FieldValue.serverTimestamp() }
+          : {}),
+      },
+      { merge: true },
+    );
+  }
+
+  return { isNewConcesionario };
 }
 
 export async function patchDealFields(
@@ -49,4 +93,4 @@ export async function patchDealFields(
     );
 }
 
-export type { Timestamp };
+export type { PayDeskConcesionario };

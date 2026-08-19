@@ -1,12 +1,14 @@
 /**
  * Mirrors functions/src/types/deal.ts (the Firestore document shape
- * returned by the getDealStatus callable). Kept as a plain duplicate for
- * now since frontend and functions aren't in a shared package yet.
+ * returned by the getConcesionarioDeals callable). Kept as a plain
+ * duplicate for now since frontend and functions aren't in a shared
+ * package yet.
  */
 export type UploadStatus = "pendiente" | "completado";
 
 export interface PayDeskDeal {
   dealId: string;
+  concesionarioId: string | null;
   cliente: string | null;
   fechaSolicitud: string | null;
   montoAprobado: number | null;

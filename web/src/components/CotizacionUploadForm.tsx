@@ -5,9 +5,11 @@ import { uploadCotizacion } from "../lib/uploads";
 export function CotizacionUploadForm({
   dealId,
   onUploaded,
+  onCancel,
 }: {
   dealId: string;
   onUploaded: () => void;
+  onCancel: () => void;
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [fechaEntregaAcordada, setFechaEntregaAcordada] = useState("");
@@ -36,15 +38,21 @@ export function CotizacionUploadForm({
   return (
     <form className="upload-form" onSubmit={handleSubmit}>
       <h3>Nueva cotización</h3>
-      <label>
-        Archivo (PDF, imagen o XML)
+
+      <label className="upload-form__dropzone">
         <input
           type="file"
           accept=".pdf,.xml,image/*"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           required
         />
+        <span aria-hidden>⬆️</span>
+        <strong>{file ? file.name : "Subir cotización"}</strong>
+        <span className="upload-form__hint">
+          PDF, imagen o XML · Haz clic o arrastra el archivo aquí
+        </span>
       </label>
+
       <label>
         Fecha de entrega acordada
         <input
@@ -66,9 +74,14 @@ export function CotizacionUploadForm({
         />
       </label>
       {error && <p className="form-error">{error}</p>}
-      <button type="submit" disabled={submitting}>
-        {submitting ? "Subiendo..." : "Guardar cotización"}
-      </button>
+      <div className="upload-form__actions">
+        <button type="button" className="button-secondary" onClick={onCancel} disabled={submitting}>
+          Cancelar
+        </button>
+        <button type="submit" disabled={submitting}>
+          {submitting ? "Subiendo..." : "Guardar cotización"}
+        </button>
+      </div>
     </form>
   );
 }

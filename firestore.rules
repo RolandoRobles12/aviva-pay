@@ -1,19 +1,30 @@
 rules_version = '2';
 
-// Aviva Pay Desk has no user accounts. A concesionario reaches a page via an
-// unguessable deal URL (see docs/ARCHITECTURE.md). To allow realtime updates
-// without ever letting the client discover or list other deals, the
-// `getDealStatus` Cloud Function mints a short-lived custom auth token whose
-// only claim is the requested dealId. These rules allow a client to `get`
-// (never `list`) the single Firestore document matching that claim.
+// Aviva Pay Desk has no user accounts. A concesionario reaches their page
+// via an unguessable URL keyed by their HubSpot company id (see
+// docs/ARCHITECTURE.md). To allow realtime updates without ever letting the
+// client discover or list another concesionario's deals, the
+// `getConcesionarioDeals` Cloud Function mints a short-lived custom auth
+// token whose only claim is the requested concesionarioId. These rules
+// allow a client to query `paydesk_deals` filtered to that single
+// concesionarioId — the query itself must include that filter, or
+// Firestore rejects it outright, so a client can never fetch an
+// unscoped/broader list.
 //
 // All writes happen exclusively from Cloud Functions using the Admin SDK,
 // which bypasses these rules — no client write path exists.
 service cloud.firestore {
   match /databases/{database}/documents {
     match /paydesk_deals/{dealId} {
+      allow get, list: if request.auth != null
+                        && request.auth.token.concesionarioId != null
+                        && resource.data.concesionarioId == request.auth.token.concesionarioId;
+      allow write: if false;
+    }
+
+    match /paydesk_concesionarios/{concesionarioId} {
       allow get: if request.auth != null
-                  && request.auth.token.dealId == dealId;
+                  && request.auth.token.concesionarioId == concesionarioId;
       allow list, write: if false;
     }
   }

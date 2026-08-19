@@ -2,6 +2,8 @@
 
 > Copia en Markdown del documento fuente (`Aviva_Pay_Desk_Requerimiento_1.docx`) para referencia rápida dentro del repo.
 
+> **Aclaración post-mockup:** el texto original (sección 2, 3.1) describe "una página por deal". El mockup de referencia mostró que en realidad es una página por **concesionario**, con una tabla de varias filas (una por deal/solicitud) — así quedó implementado. Ver `docs/ARCHITECTURE.md`.
+
 - **Autor:** Rolando Robles — Growth Ops Squad
 - **Área:** Aviva Crédito (Aviva Financial S.A. de C.V.)
 - **Relacionado con:** Aviva Embedded Finance Platform (Amran Frey)

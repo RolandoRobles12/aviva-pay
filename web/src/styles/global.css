@@ -9,72 +9,99 @@ body {
   color: #1a1d21;
 }
 
-.deal-page {
-  max-width: 640px;
+.concesionario-page {
+  max-width: 1200px;
   margin: 0 auto;
   padding: 2rem 1.25rem 4rem;
 }
 
-.deal-page__subtitle {
+.concesionario-page__subtitle {
   color: #5b6572;
   margin-top: -0.5rem;
 }
 
-.status-table {
+.deals-table-wrapper {
+  overflow-x: auto;
   background: #fff;
   border-radius: 12px;
-  padding: 0.5rem 1.25rem;
-  margin: 1.5rem 0;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  margin: 1.5rem 0;
 }
 
-.status-table__row {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.75rem 0;
+.deals-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.deals-table th,
+.deals-table td {
+  padding: 0.75rem 1rem;
+  text-align: left;
   border-bottom: 1px solid #edeff2;
 }
 
-.status-table__row:last-child {
+.deals-table th {
+  color: #5b6572;
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.deals-table tbody tr:last-child td {
   border-bottom: none;
 }
 
-.status-table__row dt {
-  color: #5b6572;
-  font-size: 0.9rem;
-}
-
-.status-table__row dd {
-  margin: 0;
-  font-weight: 500;
-  text-align: right;
-}
-
-.status-badge {
-  display: inline-block;
-  padding: 0.15rem 0.6rem;
-  border-radius: 999px;
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-
-.status-badge--done {
-  background: #e3f7ea;
-  color: #1c7a3e;
-}
-
-.status-badge--pending {
-  background: #fef3e2;
+.cell-pending {
   color: #a35b00;
+}
+
+.cell-done {
+  color: #1c7a3e;
+  font-weight: 500;
+}
+
+.cell-upload {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.upload-button {
+  background: #1a56db;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 22, 26, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 100;
+}
+
+.modal-panel {
+  max-width: 420px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .upload-form {
   background: #fff;
   border-radius: 12px;
-  padding: 1.25rem;
-  margin: 1.25rem 0;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  padding: 1.5rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
@@ -97,18 +124,43 @@ body {
   align-items: center;
 }
 
+.upload-form__dropzone {
+  align-items: center;
+  text-align: center;
+  gap: 0.3rem;
+  border: 1.5px dashed #c7cdd4;
+  border-radius: 10px;
+  padding: 1.5rem 1rem;
+  cursor: pointer;
+  color: #333;
+}
+
+.upload-form__dropzone input[type="file"] {
+  display: none;
+}
+
+.upload-form__hint {
+  color: #8b93a1;
+  font-size: 0.8rem;
+  font-weight: normal;
+}
+
 .upload-form input[type="text"],
 .upload-form input[type="date"],
-.upload-form input[type="number"],
-.upload-form input[type="file"] {
+.upload-form input[type="number"] {
   padding: 0.5rem;
   border: 1px solid #d7dbe0;
   border-radius: 8px;
   font-size: 1rem;
 }
 
+.upload-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
 .upload-form button {
-  align-self: flex-start;
   background: #1a56db;
   color: #fff;
   border: none;
@@ -116,6 +168,12 @@ body {
   padding: 0.6rem 1.2rem;
   font-size: 1rem;
   cursor: pointer;
+}
+
+.upload-form button.button-secondary {
+  background: transparent;
+  color: #333;
+  border: 1px solid #d7dbe0;
 }
 
 .upload-form button:disabled {
