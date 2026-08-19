@@ -1,6 +1,6 @@
 # Aviva Pay Desk
 
-Página de estatus sin login para el concesionario de una solicitud de crédito Aviva: muestra el avance del deal en HubSpot y permite subir la cotización y el comprobante de entrega, con escritura de vuelta hacia HubSpot.
+Página de estatus sin login para el concesionario: una tabla con todas sus solicitudes de crédito (deals de HubSpot), su avance, y la posibilidad de subir la cotización y el comprobante de entrega de cada una, con escritura de vuelta hacia HubSpot.
 
 Ver el requerimiento completo en [`docs/requerimiento.md`](docs/requerimiento.md) y las decisiones de arquitectura en [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
@@ -12,7 +12,7 @@ Scaffold inicial del proyecto. **El diccionario de campos de HubSpot todavía no
 
 ```
 functions/   Cloud Functions (TypeScript) — sync con HubSpot, API de lectura, uploads
-web/         Frontend React + Vite — página /d/:dealId
+web/         Frontend React + Vite — página /c/:concesionarioId
 docs/        Requerimiento y notas de arquitectura
 firestore.rules, firestore.indexes.json, storage.rules, firebase.json
 ```
@@ -37,7 +37,7 @@ cp web/.env.example web/.env               # config del Firebase Web SDK
 npm run dev:web
 ```
 
-Abre `http://localhost:5173/d/<dealId>` con un `dealId` que ya exista en el emulador de Firestore (colección `paydesk_deals`).
+Abre `http://localhost:5173/c/<concesionarioId>` con un `concesionarioId` que ya exista en el emulador de Firestore (documento en `paydesk_concesionarios`, con deals asociados en `paydesk_deals`).
 
 ## Variables de entorno
 
