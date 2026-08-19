@@ -7,7 +7,9 @@
     "web"
   ],
   "scripts": {
+    "dev": "npm run dev --workspace web",
     "dev:web": "npm run dev --workspace web",
+    "build": "npm run build --workspace functions && npm run build --workspace web",
     "build:web": "npm run build --workspace web",
     "build:functions": "npm run build --workspace functions",
     "emulators": "firebase emulators:start"
