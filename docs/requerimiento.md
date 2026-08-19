@@ -2,7 +2,11 @@
 
 > Copia en Markdown del documento fuente (`Aviva_Pay_Desk_Requerimiento_1.docx`) para referencia rápida dentro del repo.
 
-> **Aclaración post-mockup:** el texto original (sección 2, 3.1) describe "una página por deal". El mockup de referencia mostró que en realidad es una página por **concesionario**, con una tabla de varias filas (una por deal/solicitud) — así quedó implementado. Ver `docs/ARCHITECTURE.md`.
+> **Aclaraciones posteriores** (el texto de abajo se conserva tal cual del documento fuente; estas correcciones son las que rigen la implementación — ver `docs/ARCHITECTURE.md`):
+>
+> 1. **Una página por concesionario, no por deal.** El texto original (secciones 2 y 3.1) describe "una página por deal". El mockup mostró que en realidad es una página por tienda de Construrama, con una tabla de varias filas: una por cliente/solicitud.
+> 2. **El concesionario no es una company de HubSpot.** La sección 4 menciona "deals y companies"; en la práctica la tienda se identifica con una **propiedad del deal**, no con el objeto Company ni ningún otro objeto asociado.
+> 3. **Aviva Pay todavía no existe.** La vista del cliente final aparece en los diagramas de proceso, pero este repo construye únicamente Pay Desk.
 
 - **Autor:** Rolando Robles — Growth Ops Squad
 - **Área:** Aviva Crédito (Aviva Financial S.A. de C.V.)

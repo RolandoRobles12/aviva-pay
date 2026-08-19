@@ -43,7 +43,6 @@ export async function concesionarioExists(
  */
 export async function upsertDealFromHubspot(
   data: Omit<PayDeskDeal, "actualizadoEn" | "creadoEn">,
-  concesionarioNombre: string | null,
 ): Promise<{ isNewConcesionario: boolean }> {
   const dealRef = dealsCollection().doc(data.dealId);
   const existingDeal = await dealRef.get();
@@ -68,7 +67,6 @@ export async function upsertDealFromHubspot(
     await concesionarioRef.set(
       {
         concesionarioId: data.concesionarioId,
-        nombre: concesionarioNombre,
         actualizadoEn: FieldValue.serverTimestamp(),
         ...(isNewConcesionario
           ? { creadoEn: FieldValue.serverTimestamp() }

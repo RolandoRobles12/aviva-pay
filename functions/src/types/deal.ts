@@ -7,10 +7,10 @@ export type UploadStatus = "pendiente" | "completado";
  * into the types the frontend needs (dates as ISO strings, numbers as
  * numbers) by hubspot/deals.ts.
  *
- * `concesionarioId` is the HubSpot company associated with the deal — the
- * page groups deals by this field so a concesionario sees every one of
- * their solicitudes in a single table (confirmed against the mockup:
- * one page per concesionario, not one page per deal).
+ * `concesionarioId` identifies the Construrama store the deal belongs to,
+ * read from a property on the deal itself. The page groups deals by this
+ * field so a store sees every one of their clients' solicitudes in a
+ * single table (one page per concesionario, not one page per deal).
  */
 export interface PayDeskDeal {
   dealId: string;
@@ -41,13 +41,13 @@ export interface PayDeskDeal {
 
 /**
  * Shape of a `paydesk_concesionarios/{concesionarioId}` document — one per
- * HubSpot company, `concesionarioId` as the document ID. Exists mainly to
- * detect "first deal ever synced for this concesionario", which is when
- * the notification workflow (section 9) should fire with the page URL.
+ * Construrama store, the store's identifier as the document ID. Exists
+ * mainly to detect "first deal ever synced for this concesionario", which
+ * is when the notification workflow (section 9) should fire with the page
+ * URL.
  */
 export interface PayDeskConcesionario {
   concesionarioId: string;
-  nombre: string | null;
   actualizadoEn: FirebaseFirestore.Timestamp;
   creadoEn: FirebaseFirestore.Timestamp;
 }

@@ -1,8 +1,8 @@
 rules_version = '2';
 
-// Aviva Pay Desk has no user accounts. A concesionario reaches their page
-// via an unguessable URL keyed by their HubSpot company id (see
-// docs/ARCHITECTURE.md). To allow realtime updates without ever letting the
+// Aviva Pay Desk has no user accounts. A concesionario (Construrama store)
+// reaches their page via an unguessable URL keyed by their store
+// identifier (see docs/ARCHITECTURE.md). To allow realtime updates without ever letting the
 // client discover or list another concesionario's deals, the
 // `getConcesionarioDeals` Cloud Function mints a short-lived custom auth
 // token whose only claim is the requested concesionarioId. These rules

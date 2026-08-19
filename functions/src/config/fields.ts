@@ -9,13 +9,18 @@
  * from the HubSpot field dictionary once it's ready; nothing else in this
  * codebase should need to change, since every read/write of a HubSpot deal
  * property goes through this map (see hubspot/deals.ts).
- *
- * Object association property names (e.g. which company/contact property
- * holds "cliente") are also TODO — confirm whether these come from the deal
- * itself, the associated contact, or the associated company.
  */
 
 export const HUBSPOT_DEAL_PROPERTIES = {
+  // --- Concesionario ---
+  // Identifies which Construrama store/branch this deal belongs to. A plain
+  // deal property (text or dropdown) — confirmed there's no separate
+  // HubSpot object (Company or otherwise) representing the concesionario.
+  // The Pay Desk page groups deals by this value and uses it as the page's
+  // URL segment (/c/:concesionarioId), so whatever this property's value
+  // looks like (store name, code, etc.) ends up directly in the URL.
+  concesionarioId: "TODO_concesionario",
+
   // --- Datos base de la solicitud ---
   cliente: "TODO_cliente",
   fechaSolicitud: "TODO_fecha_solicitud",
@@ -40,30 +45,18 @@ export const HUBSPOT_DEAL_PROPERTIES = {
 
   // --- Desembolso ---
   desembolsoFecha: "TODO_desembolso_fecha",
-} as const;
-
-export type HubspotDealPropertyKey = keyof typeof HUBSPOT_DEAL_PROPERTIES;
-
-/**
- * The concesionario is the HubSpot company associated with the deal (not a
- * deal property) — see hubspot/associations.ts. `nombre` uses HubSpot's
- * standard "name" property, which is real (not a placeholder).
- */
-export const HUBSPOT_COMPANY_PROPERTIES = {
-  nombre: "name",
 
   // --- Notificación (section 9) ---
-  // Written by the sync function the first time a concesionario's Firestore
-  // doc is created, so a second HubSpot workflow can enroll on "property is
-  // known" and send the concesionario the page URL. TODO: confirm this is
-  // the right trigger mechanism, and which contact actually receives it,
-  // with the HubSpot workflow owner.
+  // Written by the sync function onto the triggering deal the first time a
+  // given concesionario's Firestore doc is created, so a second HubSpot
+  // workflow can enroll on "property is known" and notify that deal's
+  // associated contact with the page URL. TODO: confirm this is the right
+  // trigger mechanism, and which contact actually receives it, with the
+  // HubSpot workflow owner.
   paydeskUrl: "TODO_paydesk_url",
 } as const;
 
-export const HUBSPOT_COMPANY_PROPERTY_LIST: string[] = Object.values(
-  HUBSPOT_COMPANY_PROPERTIES,
-);
+export type HubspotDealPropertyKey = keyof typeof HUBSPOT_DEAL_PROPERTIES;
 
 /** HubSpot deal pipeline/stage this project watches (section 9). TODO: confirm real pipeline/stage IDs. */
 export const HUBSPOT_PIPELINE = {

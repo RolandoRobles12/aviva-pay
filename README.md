@@ -1,6 +1,6 @@
 # Aviva Pay Desk
 
-Página de estatus sin login para el concesionario: una tabla con todas sus solicitudes de crédito (deals de HubSpot), su avance, y la posibilidad de subir la cotización y el comprobante de entrega de cada una, con escritura de vuelta hacia HubSpot.
+Página de estatus sin login para el concesionario (tienda de Construrama): una tabla con los clientes de su tienda y el avance de cada solicitud de crédito, donde puede subir la cotización y el comprobante de entrega firmado. Los datos vienen de HubSpot y lo que captura la tienda se escribe de vuelta ahí.
 
 Ver el requerimiento completo en [`docs/requerimiento.md`](docs/requerimiento.md) y las decisiones de arquitectura en [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 

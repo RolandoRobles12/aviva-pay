@@ -3,7 +3,6 @@ import {
   HUBSPOT_DEAL_PROPERTIES,
   HUBSPOT_DEAL_PROPERTY_LIST,
 } from "../config/fields";
-import { getConcesionarioIdForDeal } from "./associations";
 import type { PayDeskDeal, UploadStatus } from "../types/deal";
 
 type RawProperties = Record<string, string | null | undefined>;
@@ -52,11 +51,10 @@ export async function fetchDealById(
 
   const props = response.properties as RawProperties;
   const p = HUBSPOT_DEAL_PROPERTIES;
-  const concesionarioId = await getConcesionarioIdForDeal(dealId);
 
   return {
     dealId,
-    concesionarioId,
+    concesionarioId: props[p.concesionarioId] ?? null,
     cliente: props[p.cliente] ?? null,
     fechaSolicitud: toIsoDate(props[p.fechaSolicitud]),
     montoAprobado: toNumber(props[p.montoAprobado]),
