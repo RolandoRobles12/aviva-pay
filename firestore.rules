@@ -1,0 +1,20 @@
+rules_version = '2';
+
+// Aviva Pay Desk has no user accounts. A concesionario reaches a page via an
+// unguessable deal URL (see docs/ARCHITECTURE.md). To allow realtime updates
+// without ever letting the client discover or list other deals, the
+// `getDealStatus` Cloud Function mints a short-lived custom auth token whose
+// only claim is the requested dealId. These rules allow a client to `get`
+// (never `list`) the single Firestore document matching that claim.
+//
+// All writes happen exclusively from Cloud Functions using the Admin SDK,
+// which bypasses these rules — no client write path exists.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /paydesk_deals/{dealId} {
+      allow get: if request.auth != null
+                  && request.auth.token.dealId == dealId;
+      allow list, write: if false;
+    }
+  }
+}

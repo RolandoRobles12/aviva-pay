@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "default": "aviva-pay-desk-dev",
+    "staging": "aviva-pay-desk-stg",
+    "production": "aviva-pay-desk-prod"
+  }
+}

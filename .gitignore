@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+lib/
+build/
+*.tsbuildinfo
+
+# Env files
+.env
+.env.*
+!.env.example
+
+# Firebase
+.firebase/
+.firebaserc
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+*.log
+
+# Editor / OS
+.vscode/
+.DS_Store

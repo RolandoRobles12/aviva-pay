@@ -1,0 +1,14 @@
+rules_version = '2';
+
+// Files are staged here by Cloud Functions before being pushed to the
+// HubSpot Files API (see functions/src/hubspot/files.ts). Clients never
+// write to Storage directly — uploads go through the uploadCotizacion /
+// uploadComprobante callable functions so the deal_id and file can be
+// validated server-side first. No client read/write path exists.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /paydesk_deals/{dealId}/{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

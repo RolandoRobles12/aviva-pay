@@ -1,0 +1,140 @@
+:root {
+  color-scheme: light;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #f5f6f8;
+  color: #1a1d21;
+}
+
+.deal-page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+}
+
+.deal-page__subtitle {
+  color: #5b6572;
+  margin-top: -0.5rem;
+}
+
+.status-table {
+  background: #fff;
+  border-radius: 12px;
+  padding: 0.5rem 1.25rem;
+  margin: 1.5rem 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.status-table__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #edeff2;
+}
+
+.status-table__row:last-child {
+  border-bottom: none;
+}
+
+.status-table__row dt {
+  color: #5b6572;
+  font-size: 0.9rem;
+}
+
+.status-table__row dd {
+  margin: 0;
+  font-weight: 500;
+  text-align: right;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.status-badge--done {
+  background: #e3f7ea;
+  color: #1c7a3e;
+}
+
+.status-badge--pending {
+  background: #fef3e2;
+  color: #a35b00;
+}
+
+.upload-form {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin: 1.25rem 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.upload-form h3 {
+  margin: 0;
+}
+
+.upload-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.upload-form__checkbox {
+  flex-direction: row !important;
+  align-items: center;
+}
+
+.upload-form input[type="text"],
+.upload-form input[type="date"],
+.upload-form input[type="number"],
+.upload-form input[type="file"] {
+  padding: 0.5rem;
+  border: 1px solid #d7dbe0;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.upload-form button {
+  align-self: flex-start;
+  background: #1a56db;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.6rem 1.2rem;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.upload-form button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.form-error {
+  color: #c0392b;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.page-message {
+  text-align: center;
+  margin-top: 4rem;
+  color: #5b6572;
+}
+
+.page-message--error {
+  color: #c0392b;
+}
