@@ -80,7 +80,10 @@ export function ConcesionarioPage() {
 
   return (
     <main className="concesionario-page">
-      <h1>Aviva Pay Desk</h1>
+      <h1 className="brand-mark">
+        <span className="brand-mark__aviva">Aviva</span>
+        <span className="brand-mark__product">Pay Desk</span>
+      </h1>
       <p className="concesionario-page__subtitle">
         Estatus de tus solicitudes de crédito
       </p>

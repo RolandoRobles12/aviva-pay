@@ -2,6 +2,13 @@
 
 Ver el requerimiento original en `docs/requerimiento.md` para el contexto de negocio completo. Este documento cubre las decisiones de implementación tomadas al construir el scaffold inicial.
 
+## Marca
+
+El frontend sigue los lineamientos de marca de Aviva (`web/src/styles/global.css`, tokens `:root`):
+
+- **Tipografía:** Fustat (Google Fonts) como tipografía principal — 500/Medium en párrafos, 700+/Bold en títulos, botones y destacados. El wordmark "Aviva Pay Desk" combina "Aviva" en Fustat Bold con "Pay Desk" en Satisfy (sustituto de Simple Cakes, que no está disponible como web font), sizeado a Fustat × 1.5 según la proporción de la guía de marca.
+- **Color:** Verde Aviva (`#16B877`) como acento primario (botones, enlaces), Verde Esmeralda (`#B0F5CD`) + Verde Musgo (`#026149`) para estados "completado", Gris Frío (`#F0F5FA`) como fondo de página, Negro Off (`#1E2024`) como color de texto base.
+
 ## Página por concesionario, no por deal
 
 El requerimiento (sección 2) dice "una página web... por cada solicitud de crédito", lo que en una primera versión se implementó literal: una URL por deal (`/d/:dealId`). El mockup de referencia mostró algo distinto: **una sola página por concesionario, con una tabla que lista todas sus solicitudes** (una fila por deal). Esta es la versión que se implementó — confirmado con el negocio.
