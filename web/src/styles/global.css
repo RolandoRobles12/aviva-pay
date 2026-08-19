@@ -340,3 +340,325 @@ h3 {
 .page-message--error {
   color: #b3261e;
 }
+
+/* --- Login (concesionario y admin) --- */
+
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.login-card {
+  background: var(--blanco);
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 4px 24px rgba(2, 97, 73, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  max-width: 380px;
+}
+
+.brand-mark--centered {
+  justify-content: center;
+}
+
+.login-card__intro {
+  margin: 0;
+  text-align: center;
+  color: color-mix(in srgb, var(--negro-off) 65%, transparent);
+  font-size: 0.92rem;
+}
+
+.login-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.login-card input {
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--blanco-off);
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: var(--font-body);
+  background: var(--blanco);
+}
+
+.login-card input:focus {
+  outline: 2px solid var(--verde-aviva);
+  outline-offset: 1px;
+}
+
+.login-card button {
+  font-family: var(--font-body);
+  background: var(--verde-aviva);
+  color: var(--blanco);
+  border: none;
+  border-radius: 8px;
+  padding: 0.7rem 1.2rem;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.login-card button:hover:not(:disabled) {
+  background: var(--verde-musgo);
+}
+
+.login-card button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.login-card__help {
+  margin: 0;
+  text-align: center;
+  font-size: 0.82rem;
+  color: color-mix(in srgb, var(--negro-off) 55%, transparent);
+}
+
+/* --- Shared bits --- */
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--verde-musgo);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.cell-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+  color: color-mix(in srgb, var(--negro-off) 70%, transparent);
+}
+
+.cell-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.pill {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.pill--warn {
+  background: #fdecc8;
+  color: #8a5300;
+}
+
+.form-note {
+  margin: 0;
+  font-size: 0.82rem;
+  color: color-mix(in srgb, var(--negro-off) 60%, transparent);
+}
+
+.form-success {
+  margin: 0;
+  color: var(--verde-musgo);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.callout {
+  border-radius: 10px;
+  padding: 0.9rem 1.1rem;
+  font-size: 0.88rem;
+  margin: 1.25rem 0;
+}
+
+.callout--warn {
+  background: #fdecc8;
+  color: #6b4000;
+}
+
+.nip-display {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 2.25rem;
+  font-weight: 700;
+  letter-spacing: 0.25em;
+  text-align: center;
+  background: var(--verde-esmeralda);
+  color: var(--verde-musgo);
+  border-radius: 10px;
+  padding: 1rem;
+  margin: 0;
+}
+
+/* --- Admin shell --- */
+
+.admin-shell__header {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 1rem 1.75rem;
+  background: var(--blanco);
+  border-bottom: 1px solid var(--blanco-off);
+}
+
+.admin-nav {
+  display: flex;
+  gap: 1.25rem;
+  flex: 1;
+}
+
+.admin-nav a {
+  color: color-mix(in srgb, var(--negro-off) 70%, transparent);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.92rem;
+  padding: 0.35rem 0;
+  border-bottom: 2px solid transparent;
+}
+
+.admin-nav a.active {
+  color: var(--verde-musgo);
+  font-weight: 700;
+  border-bottom-color: var(--verde-aviva);
+}
+
+.admin-shell__body {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1.75rem 4rem;
+}
+
+.admin-page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.admin-title {
+  font-size: 1.5rem;
+  color: var(--verde-musgo);
+  margin: 0;
+}
+
+.admin-subtitle {
+  margin: 0.35rem 0 0;
+  color: color-mix(in srgb, var(--negro-off) 65%, transparent);
+  font-size: 0.9rem;
+  max-width: 60ch;
+}
+
+.admin-search {
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--blanco-off);
+  border-radius: 8px;
+  font-size: 0.92rem;
+  font-family: var(--font-body);
+  min-width: 280px;
+  background: var(--blanco);
+}
+
+.admin-search:focus {
+  outline: 2px solid var(--verde-aviva);
+  outline-offset: 1px;
+}
+
+/* --- Field dictionary --- */
+
+.dictionary-form {
+  background: var(--blanco);
+  border-radius: 14px;
+  padding: 0.5rem 1.5rem 1.5rem;
+  box-shadow: 0 1px 2px rgba(2, 97, 73, 0.08);
+}
+
+.dictionary-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(240px, 1.2fr);
+  gap: 1.5rem;
+  align-items: center;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--blanco-off);
+}
+
+.dictionary-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-weight: 500;
+  font-size: 0.92rem;
+}
+
+.dictionary-row__key {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+  color: color-mix(in srgb, var(--negro-off) 50%, transparent);
+}
+
+.dictionary-row__input {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.dictionary-row__input input {
+  flex: 1;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--blanco-off);
+  border-radius: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.88rem;
+  background: var(--blanco);
+}
+
+.dictionary-row__input input:focus {
+  outline: 2px solid var(--verde-aviva);
+  outline-offset: 1px;
+}
+
+.input--pendiente {
+  border-color: #e0a800 !important;
+  background: #fffbf0 !important;
+}
+
+.dictionary-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 1.25rem;
+}
+
+.dictionary-form__actions button {
+  font-family: var(--font-body);
+  background: var(--verde-aviva);
+  color: var(--blanco);
+  border: none;
+  border-radius: 8px;
+  padding: 0.65rem 1.3rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dictionary-form__actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

@@ -1,8 +1,16 @@
+import { auth } from "./firebase";
+
 const FUNCTIONS_BASE_URL = import.meta.env.VITE_FUNCTIONS_BASE_URL as string;
 
 async function postMultipart(path: string, formData: FormData) {
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) {
+    throw new Error("Tu sesión expiró. Vuelve a iniciar sesión.");
+  }
+
   const res = await fetch(`${FUNCTIONS_BASE_URL}/${path}`, {
     method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
     body: formData,
   });
   const body = await res.json();

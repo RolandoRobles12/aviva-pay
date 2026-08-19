@@ -1,11 +1,7 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
-import {
-  authenticateForConcesionario,
-  db,
-  getConcesionarioDealsCallable,
-} from "../lib/firebase";
+import { db, getConcesionarioDealsCallable, logout } from "../lib/firebase";
 import type { PayDeskConcesionario, PayDeskDeal } from "../types/deal";
 import { DealsTable } from "../components/DealsTable";
 import { Modal } from "../components/Modal";
@@ -27,27 +23,28 @@ type ActiveModal =
   | null;
 
 export function ConcesionarioPage() {
-  const { concesionarioId } = useParams<{ concesionarioId: string }>();
+  const navigate = useNavigate();
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
 
   useEffect(() => {
-    if (!concesionarioId) return;
     let unsubscribe: (() => void) | undefined;
     let cancelled = false;
 
     (async () => {
       try {
-        const result = await getConcesionarioDealsCallable({ concesionarioId });
-        const { concesionario, deals, authToken } = result.data;
-        await authenticateForConcesionario(authToken);
+        const result = await getConcesionarioDealsCallable();
+        const { concesionario, deals } = result.data;
         if (cancelled) return;
 
         setState({ status: "ready", concesionario, deals });
 
+        // Realtime updates: the session's custom claim is what makes this
+        // query pass the Firestore rules, and it only ever matches this
+        // store's own deals.
         const dealsQuery = query(
           collection(db, "paydesk_deals"),
-          where("concesionarioId", "==", concesionarioId),
+          where("concesionarioId", "==", concesionario.concesionarioId),
         );
         unsubscribe = onSnapshot(dealsQuery, (snap) => {
           setState({
@@ -63,7 +60,7 @@ export function ConcesionarioPage() {
             message:
               err instanceof Error
                 ? err.message
-                : "No se encontró información para este concesionario.",
+                : "No pudimos cargar tus solicitudes.",
           });
         }
       }
@@ -73,14 +70,26 @@ export function ConcesionarioPage() {
       cancelled = true;
       unsubscribe?.();
     };
-  }, [concesionarioId]);
+  }, []);
+
+  async function handleLogout() {
+    await logout();
+    navigate("/", { replace: true });
+  }
 
   if (state.status === "loading") {
     return <p className="page-message">Cargando solicitudes...</p>;
   }
 
   if (state.status === "error") {
-    return <p className="page-message page-message--error">{state.message}</p>;
+    return (
+      <div className="page-message page-message--error">
+        <p>{state.message}</p>
+        <button type="button" className="link-button" onClick={handleLogout}>
+          Volver a iniciar sesión
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -90,13 +99,18 @@ export function ConcesionarioPage() {
           <span className="brand-mark__aviva">Aviva</span>
           <span className="brand-mark__product">Pay Desk</span>
         </div>
-        <div className="store-badge">
-          <span className="store-badge__nombre">{state.concesionario.nombre}</span>
-          {state.concesionario.numero && (
-            <span className="store-badge__numero">
-              Tienda {state.concesionario.numero}
-            </span>
-          )}
+        <div className="header-right">
+          <div className="store-badge">
+            <span className="store-badge__nombre">{state.concesionario.nombre}</span>
+            {state.concesionario.numero && (
+              <span className="store-badge__numero">
+                Tienda {state.concesionario.numero}
+              </span>
+            )}
+          </div>
+          <button type="button" className="link-button" onClick={handleLogout}>
+            Salir
+          </button>
         </div>
       </header>
 

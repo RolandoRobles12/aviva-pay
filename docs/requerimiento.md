@@ -7,6 +7,7 @@
 > 1. **Una página por concesionario, no por deal.** El texto original (secciones 2 y 3.1) describe "una página por deal". El mockup mostró que en realidad es una página por tienda de Construrama, con una tabla de varias filas: una por cliente/solicitud.
 > 2. **El concesionario no es una company de HubSpot.** La sección 4 menciona "deals y companies"; en la práctica la tienda se identifica con una **propiedad del deal**, no con el objeto Company ni ningún otro objeto asociado.
 > 3. **Aviva Pay todavía no existe.** La vista del cliente final aparece en los diagramas de proceso, pero este repo construye únicamente Pay Desk.
+> 4. **Sí hay login.** Las secciones 3.2 y 8 descartan cuentas de usuario y apuestan a una URL no adivinable. Ese modelo se abandonó: la propiedad Kiosco tiene numeración secuencial, así que cualquier URL derivada de ella sería enumerable. La tienda entra con **código + NIP**, y existe además un **panel de administración** para el equipo de Aviva (catálogo de tiendas y diccionario de campos).
 
 - **Autor:** Rolando Robles — Growth Ops Squad
 - **Área:** Aviva Crédito (Aviva Financial S.A. de C.V.)

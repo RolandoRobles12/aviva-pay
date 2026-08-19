@@ -44,19 +44,47 @@ export interface PayDeskDeal {
 
 /**
  * Shape of a `paydesk_concesionarios/{concesionarioId}` document — one per
- * Construrama store, keyed by the opaque id. Holds the store's display
- * name (shown in the page header so the concesionario can confirm they're
- * looking at their own store) and detects "first deal ever synced for this
- * store", which is when the notification workflow (section 9) fires.
+ * Construrama store, created automatically the first time a deal for that
+ * Kiosco syncs. Holds the store's display name and its login credentials.
+ *
+ * Never sent to the client as-is: `nipHash` and the lockout counters stay
+ * server-side (see http/loginConcesionario.ts and the admin endpoints,
+ * which project only the safe fields).
  */
 export interface PayDeskConcesionario {
   concesionarioId: string;
   /** Raw HubSpot Kiosco value, e.g. `#0046 - TEQ CR`. Internal, never shown to the store. */
   kiosco: string;
-  /** Human-readable store name, e.g. `Construrama TEQ`. */
+  /**
+   * Store name shown to the concesionario. Seeded from the Kiosco value
+   * (`Construrama TEQ`) and overridable from the admin catalog with the
+   * store's real name.
+   */
   nombre: string;
   /** Store number from the Kiosco option, e.g. `0046`. */
   numero: string | null;
+
+  /** What the store types to log in. Unique across stores; defaults to `numero`. */
+  codigo: string;
+  /** scrypt hash of the NIP, or null until the admin generates one (store can't log in yet). */
+  nipHash: string | null;
+  /** When the NIP was last generated, so the admin can see stale credentials. */
+  nipActualizadoEn: FirebaseFirestore.Timestamp | null;
+
+  /** Consecutive failed login attempts; reset on success. Drives the lockout. */
+  intentosFallidos: number;
+  /** While set and in the future, logins are refused regardless of NIP. */
+  bloqueadoHasta: FirebaseFirestore.Timestamp | null;
+  /** Last successful login, shown in the admin catalog. */
+  ultimoAccesoEn: FirebaseFirestore.Timestamp | null;
+
   actualizadoEn: FirebaseFirestore.Timestamp;
   creadoEn: FirebaseFirestore.Timestamp;
+}
+
+/** The subset of a concesionario that is safe to send to a client. */
+export interface PayDeskConcesionarioPublico {
+  concesionarioId: string;
+  nombre: string;
+  numero: string | null;
 }

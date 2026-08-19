@@ -1,20 +1,24 @@
 rules_version = '2';
 
-// Aviva Pay Desk has no user accounts. A concesionario (Construrama store)
-// reaches their page via an unguessable URL keyed by their store
-// identifier (see docs/ARCHITECTURE.md). To allow realtime updates without ever letting the
-// client discover or list another concesionario's deals, the
-// `getConcesionarioDeals` Cloud Function mints a short-lived custom auth
-// token whose only claim is the requested concesionarioId. These rules
-// allow a client to query `paydesk_deals` filtered to that single
-// concesionarioId — the query itself must include that filter, or
-// Firestore rejects it outright, so a client can never fetch an
-// unscoped/broader list.
+// Aviva Pay Desk has two kinds of caller.
 //
-// All writes happen exclusively from Cloud Functions using the Admin SDK,
-// which bypasses these rules — no client write path exists.
+// A concesionario (Construrama store) signs in with their código + NIP via
+// the loginConcesionario Cloud Function, which mints a custom token whose
+// only claim is their concesionarioId. That lets the page open a realtime
+// Firestore listener on its own deals — and nothing else: the rules below
+// require every read to be filtered to that exact concesionarioId, so a
+// client cannot widen the query to see another store's clients.
+//
+// An Aviva admin signs in with a Firebase Auth email/password account
+// carrying an `admin: true` custom claim (granted out of band, never by the
+// app). Admins read through Cloud Functions rather than directly, so they
+// get no blanket read grant here.
+//
+// All writes happen from Cloud Functions using the Admin SDK, which
+// bypasses these rules — there is no client write path anywhere.
 service cloud.firestore {
   match /databases/{database}/documents {
+
     match /paydesk_deals/{dealId} {
       allow get, list: if request.auth != null
                         && request.auth.token.concesionarioId != null
@@ -22,10 +26,18 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Store documents hold credential material (nipHash, lockout state), so
+    // no client reads them directly — the store gets the name it needs from
+    // the login/getConcesionarioDeals responses, which project only safe
+    // fields.
     match /paydesk_concesionarios/{concesionarioId} {
-      allow get: if request.auth != null
-                  && request.auth.token.concesionarioId == concesionarioId;
-      allow list, write: if false;
+      allow read, write: if false;
+    }
+
+    // Field dictionary: read and written only through the admin Cloud
+    // Functions, which check the `admin` claim.
+    match /paydesk_config/{document} {
+      allow read, write: if false;
     }
   }
 }
