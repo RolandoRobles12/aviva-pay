@@ -16,9 +16,18 @@ function toNumber(raw: string | null | undefined): number | null {
   return Number.isNaN(n) ? null : n;
 }
 
+/**
+ * HubSpot returns "date" properties as epoch-millis strings (e.g.
+ * "1699999999000") but "datetime" properties as ISO-8601 strings — which
+ * one depends on how the property is configured in HubSpot, not on
+ * anything this app controls. `new Date("1699999999000")` is Invalid Date
+ * (the string form isn't treated as a timestamp), so a purely-numeric raw
+ * value is parsed as millis explicitly instead of handed to `new Date()`
+ * as-is.
+ */
 function toIsoDate(raw: string | null | undefined): string | null {
   if (!raw) return null;
-  const d = new Date(raw);
+  const d = /^\d+$/.test(raw) ? new Date(Number(raw)) : new Date(raw);
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
