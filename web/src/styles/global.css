@@ -1418,3 +1418,39 @@ h3 {
 .filters + .deals-table-wrapper {
   margin-top: 1.25rem;
 }
+
+/* --- Sortable column headers ---------------------------------------------
+   Both arrows sit faint on every sortable header so the affordance is
+   visible without hovering — this gets used on touchscreens. The active
+   column's active direction lights up in the header's own ink. */
+
+.deals-table th button.sort-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.sort-header__arrows {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 0.55rem;
+  line-height: 0.55rem;
+}
+
+.sort-header__arrow {
+  color: color-mix(in srgb, var(--verde-pino) 30%, transparent);
+}
+
+.sort-header--asc .sort-header__arrow--up,
+.sort-header--desc .sort-header__arrow--down {
+  color: var(--verde-accion);
+}

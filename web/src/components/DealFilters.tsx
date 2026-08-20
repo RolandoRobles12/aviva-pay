@@ -8,7 +8,14 @@ export type FiltroEstado =
   | "completadas"
   | "historicas";
 
-export type FiltroPeriodo = "todo" | "mes" | "trimestre" | "anio" | "personalizado";
+export type FiltroPeriodo =
+  | "hoy"
+  | "semana"
+  | "mes"
+  | "mes-pasado"
+  | "anio"
+  | "todo"
+  | "personalizado";
 
 export interface Filtros {
   estado: FiltroEstado;
@@ -19,9 +26,15 @@ export interface Filtros {
   busqueda: string;
 }
 
+/**
+ * Opens on the current month: a store's working set is what came in
+ * recently, not everything it has ever sold. "Todo" is one tap away, and
+ * the empty state links straight to it when the month happens to be
+ * quiet.
+ */
 export const FILTROS_INICIALES: Filtros = {
   estado: "todas",
-  periodo: "todo",
+  periodo: "mes",
   desde: "",
   hasta: "",
   busqueda: "",
@@ -48,25 +61,57 @@ const ESTADOS: Array<{ id: FiltroEstado; label: string; hint: string }> = [
 ];
 
 const PERIODOS: Array<{ id: FiltroPeriodo; label: string }> = [
-  { id: "todo", label: "Todo" },
+  { id: "hoy", label: "Hoy" },
+  { id: "semana", label: "Esta semana" },
   { id: "mes", label: "Este mes" },
-  { id: "trimestre", label: "3 meses" },
+  { id: "mes-pasado", label: "Mes pasado" },
   { id: "anio", label: "Este año" },
+  { id: "todo", label: "Todo" },
   { id: "personalizado", label: "Personalizado" },
 ];
 
-/** Earliest approval date a deal can have and still match the period filter. */
-function desdeDelPeriodo(periodo: FiltroPeriodo): Date | null {
-  const ahora = new Date();
-  switch (periodo) {
+/** Local YYYY-MM-DD. `toISOString()` would convert to UTC first and shift the day for anyone west of Greenwich. */
+function iso(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate(),
+  ).padStart(2, "0")}`;
+}
+
+/**
+ * Inclusive YYYY-MM-DD bounds for a period, either side optional.
+ *
+ * Bounds are strings, and deals are compared as strings too: the values
+ * come from date pickers and calendar boundaries with no time of day, so
+ * parsing them into Dates would put them at local midnight and drop deals
+ * approved later that same day.
+ */
+export function rangoDelPeriodo(filtros: Filtros): {
+  desde: string | null;
+  hasta: string | null;
+} {
+  const hoy = new Date();
+  const a = hoy.getFullYear();
+  const m = hoy.getMonth();
+
+  switch (filtros.periodo) {
+    case "hoy":
+      return { desde: iso(hoy), hasta: iso(hoy) };
+    case "semana": {
+      // Week starts Monday, as it does in Mexico.
+      const diaSemana = (hoy.getDay() + 6) % 7;
+      const lunes = new Date(a, m, hoy.getDate() - diaSemana);
+      return { desde: iso(lunes), hasta: iso(hoy) };
+    }
     case "mes":
-      return new Date(ahora.getFullYear(), ahora.getMonth(), 1);
-    case "trimestre":
-      return new Date(ahora.getFullYear(), ahora.getMonth() - 2, 1);
+      return { desde: iso(new Date(a, m, 1)), hasta: iso(new Date(a, m + 1, 0)) };
+    case "mes-pasado":
+      return { desde: iso(new Date(a, m - 1, 1)), hasta: iso(new Date(a, m, 0)) };
     case "anio":
-      return new Date(ahora.getFullYear(), 0, 1);
+      return { desde: iso(new Date(a, 0, 1)), hasta: iso(new Date(a, 11, 31)) };
+    case "personalizado":
+      return { desde: filtros.desde || null, hasta: filtros.hasta || null };
     default:
-      return null;
+      return { desde: null, hasta: null };
   }
 }
 
@@ -76,24 +121,16 @@ export function aplicarFiltros(
   filtros: Filtros,
   rolloutDesde: string | null,
 ): PayDeskDeal[] {
-  const desde = desdeDelPeriodo(filtros.periodo);
+  const { desde, hasta } = rangoDelPeriodo(filtros);
   const q = filtros.busqueda.trim().toLowerCase();
-  const personalizado = filtros.periodo === "personalizado";
 
   return deals.filter((deal) => {
     if (q && !(deal.cliente ?? "").toLowerCase().includes(q)) return false;
 
-    // Compared as YYYY-MM-DD strings rather than Date objects: the bounds
-    // come from date inputs with no time, so parsing them into Dates would
-    // put them at local midnight and drop deals approved later that day.
-    if (personalizado && deal.fechaSolicitud) {
+    if ((desde || hasta) && deal.fechaSolicitud) {
       const dia = deal.fechaSolicitud.slice(0, 10);
-      if (filtros.desde && dia < filtros.desde) return false;
-      if (filtros.hasta && dia > filtros.hasta) return false;
-    }
-
-    if (desde && deal.fechaSolicitud) {
-      if (new Date(deal.fechaSolicitud) < desde) return false;
+      if (desde && dia < desde) return false;
+      if (hasta && dia > hasta) return false;
     }
 
     switch (filtros.estado) {
@@ -213,8 +250,8 @@ export function DealFilters({
           onChange={(e) => onChange({ ...filtros, busqueda: e.target.value })}
         />
 
-        {(filtros.estado !== "todas" ||
-          filtros.periodo !== "todo" ||
+        {(filtros.estado !== FILTROS_INICIALES.estado ||
+          filtros.periodo !== FILTROS_INICIALES.periodo ||
           filtros.busqueda.trim()) && (
           <button
             type="button"

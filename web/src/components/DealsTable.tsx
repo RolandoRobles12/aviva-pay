@@ -1,6 +1,7 @@
 import type { PayDeskDeal } from "../types/deal";
 import type { FieldLabels } from "../types/admin";
 import { completados, milestones, scopeOf } from "../lib/dealScope";
+import type { SortKey, SortState } from "../lib/dealSort";
 
 /** Used until the real labels (fetched from the admin's Etiquetas config) arrive, and for any key it doesn't cover. */
 const DEFAULT_LABELS: FieldLabels = {
@@ -121,6 +122,44 @@ function UploadCell({
 }
 
 /**
+ * A column header that toggles sort on click. Both arrows shown faint
+ * until this column is the active one, then the active direction lights
+ * up — so the sortability of every column is visible without hovering,
+ * which matters on a touchscreen.
+ */
+function SortableHeader({
+  sortKey,
+  children,
+  sort,
+  onSort,
+  className,
+}: {
+  sortKey: SortKey;
+  children: React.ReactNode;
+  sort?: SortState | null;
+  onSort?: (key: SortKey) => void;
+  className?: string;
+}) {
+  if (!onSort) return <th className={className}>{children}</th>;
+  const activo = sort?.key === sortKey ? sort.dir : null;
+  return (
+    <th className={className}>
+      <button
+        type="button"
+        className={`sort-header${activo ? ` sort-header--${activo}` : ""}`}
+        onClick={() => onSort(sortKey)}
+      >
+        {children}
+        <span className="sort-header__arrows" aria-hidden>
+          <span className="sort-header__arrow sort-header__arrow--up">▲</span>
+          <span className="sort-header__arrow sort-header__arrow--down">▼</span>
+        </span>
+      </button>
+    </th>
+  );
+}
+
+/**
  * Tabla de estatus (sección 5.1): una fila por solicitud (deal) del
  * concesionario. Cada fila que tenga cotización o comprobante pendiente
  * expone un botón que abre el modal correspondiente para ese deal.
@@ -133,6 +172,8 @@ export function DealsTable({
   deals,
   labels,
   rolloutDesde = null,
+  sort,
+  onSort,
   onUploadCotizacion,
   onUploadComprobante,
 }: {
@@ -141,6 +182,10 @@ export function DealsTable({
   labels?: FieldLabels;
   /** This store's rollout cutoff. Deals approved before it are shown but never demanded. */
   rolloutDesde?: string | null;
+  /** Current sort, or null/omitted for none. Pass alongside onSort to make headers clickable. */
+  sort?: SortState | null;
+  /** Sorting the *unpaginated* set is the caller's job — this only reports which column was clicked. Omit both to render plain, unsortable headers. */
+  onSort?: (key: SortKey) => void;
   /** Omit both to render a read-only table (no upload buttons) — used by the admin preview. */
   onUploadCotizacion?: (dealId: string) => void;
   onUploadComprobante?: (dealId: string) => void;
@@ -167,16 +212,36 @@ export function DealsTable({
       <table className="deals-table">
         <thead>
           <tr>
-            <th className="col-sticky">{l.cliente}</th>
-            <th>Avance</th>
-            <th>{l.fechaSolicitud}</th>
-            <th className="col-num">{l.montoAprobado}</th>
-            <th>{l.estatusKyc}</th>
-            <th>{l.cotizacionEstatus}</th>
-            <th>{l.creditoLiberadoFecha}</th>
-            <th>{l.disposicionCreditoFecha}</th>
-            <th>{l.comprobanteEntregaEstatus}</th>
-            <th>{l.desembolsoFecha}</th>
+            <SortableHeader sortKey="cliente" sort={sort} onSort={onSort} className="col-sticky">
+              {l.cliente}
+            </SortableHeader>
+            <SortableHeader sortKey="avance" sort={sort} onSort={onSort}>
+              Avance
+            </SortableHeader>
+            <SortableHeader sortKey="fechaSolicitud" sort={sort} onSort={onSort}>
+              {l.fechaSolicitud}
+            </SortableHeader>
+            <SortableHeader sortKey="montoAprobado" sort={sort} onSort={onSort} className="col-num">
+              {l.montoAprobado}
+            </SortableHeader>
+            <SortableHeader sortKey="estatusKyc" sort={sort} onSort={onSort}>
+              {l.estatusKyc}
+            </SortableHeader>
+            <SortableHeader sortKey="cotizacion" sort={sort} onSort={onSort}>
+              {l.cotizacionEstatus}
+            </SortableHeader>
+            <SortableHeader sortKey="creditoLiberadoFecha" sort={sort} onSort={onSort}>
+              {l.creditoLiberadoFecha}
+            </SortableHeader>
+            <SortableHeader sortKey="disposicionCreditoFecha" sort={sort} onSort={onSort}>
+              {l.disposicionCreditoFecha}
+            </SortableHeader>
+            <SortableHeader sortKey="comprobante" sort={sort} onSort={onSort}>
+              {l.comprobanteEntregaEstatus}
+            </SortableHeader>
+            <SortableHeader sortKey="desembolsoFecha" sort={sort} onSort={onSort}>
+              {l.desembolsoFecha}
+            </SortableHeader>
           </tr>
         </thead>
         <tbody>

@@ -7,6 +7,7 @@ import { Modal } from "../components/Modal";
 import { CotizacionUploadForm } from "../components/CotizacionUploadForm";
 import { ComprobanteUploadForm } from "../components/ComprobanteUploadForm";
 import { requiereAccion } from "../lib/dealScope";
+import { ordenarDeals, type SortKey, type SortState } from "../lib/dealSort";
 
 type ActiveModal =
   | { type: "cotizacion"; dealId: string }
@@ -24,6 +25,18 @@ export function SolicitudesPage() {
     useConcesionario();
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const [pagina, setPagina] = useState(0);
+  const [sort, setSort] = useState<SortState | null>({
+    key: "fechaSolicitud",
+    dir: "desc",
+  });
+
+  function handleSort(key: SortKey) {
+    setSort((actual) =>
+      actual?.key === key
+        ? { key, dir: actual.dir === "asc" ? "desc" : "asc" }
+        : { key, dir: "desc" },
+    );
+  }
 
   const porHacer = useMemo(
     () => deals.filter((d) => requiereAccion(d, rolloutDesde)).length,
@@ -36,10 +49,12 @@ export function SolicitudesPage() {
     setPagina(0);
   }, [filtros]);
 
-  const visibles = dealsFiltrados.slice(
-    pagina * POR_PAGINA,
-    (pagina + 1) * POR_PAGINA,
+  const ordenados = useMemo(
+    () => ordenarDeals(dealsFiltrados, sort),
+    [dealsFiltrados, sort],
   );
+
+  const visibles = ordenados.slice(pagina * POR_PAGINA, (pagina + 1) * POR_PAGINA);
 
   return (
     <>
@@ -68,19 +83,43 @@ export function SolicitudesPage() {
         />
       )}
 
-      <DealsTable
-        deals={visibles}
-        labels={labels}
-        rolloutDesde={rolloutDesde}
-        onUploadCotizacion={(dealId) => setActiveModal({ type: "cotizacion", dealId })}
-        onUploadComprobante={(dealId) => setActiveModal({ type: "comprobante", dealId })}
-      />
-
-      <Paginacion
-        total={dealsFiltrados.length}
-        pagina={pagina}
-        onPagina={setPagina}
-      />
+      {dealsFiltrados.length === 0 && deals.length > 0 ? (
+        <div className="empty-state">
+          <span className="empty-state__icon" aria-hidden>
+            🔍
+          </span>
+          <p className="empty-state__title">Nada en este periodo</p>
+          <p className="empty-state__hint">
+            Tienes {deals.length.toLocaleString("es-MX")}{" "}
+            {deals.length === 1 ? "solicitud" : "solicitudes"} en total, pero
+            ninguna coincide con el filtro de arriba.
+          </p>
+          <button
+            type="button"
+            className="upload-button"
+            onClick={() => setFiltros({ ...filtros, periodo: "todo" })}
+          >
+            Ver todo
+          </button>
+        </div>
+      ) : (
+        <>
+          <DealsTable
+            deals={visibles}
+            labels={labels}
+            rolloutDesde={rolloutDesde}
+            sort={sort}
+            onSort={handleSort}
+            onUploadCotizacion={(dealId) => setActiveModal({ type: "cotizacion", dealId })}
+            onUploadComprobante={(dealId) => setActiveModal({ type: "comprobante", dealId })}
+          />
+          <Paginacion
+            total={dealsFiltrados.length}
+            pagina={pagina}
+            onPagina={setPagina}
+          />
+        </>
+      )}
 
       {activeModal?.type === "cotizacion" && (
         <Modal onClose={() => setActiveModal(null)}>
