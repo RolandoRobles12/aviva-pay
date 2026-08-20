@@ -191,16 +191,27 @@ export async function fetchDealById(dealId: string): Promise<{
 const SEARCH_PAGE_SIZE = 100;
 
 /**
- * Every Construrama deal across both pipelines (current + legacy), mapped
- * and ready to upsert — for the admin-triggered backfill
- * (adminSyncConstrurama). Nothing else calls this; ongoing syncing is the
- * per-deal webhook.
+ * Every Construrama deal that has actually reached the "Aprobado" stage,
+ * across both pipelines (current + legacy), mapped and ready to upsert —
+ * for the admin-triggered backfill (adminSyncConstrurama). Nothing else
+ * calls this; ongoing syncing is the per-deal webhook.
  *
- * Scoped with the same three filters used to build the team's original
- * reporting script: `aos_product` = "Construrama HomeLoan", `pipeline` IN
- * [current, legacy], `dealstage` NOT_IN [canceled stages] — see
- * config/fields.ts for what those resolve to. Properties come back
- * directly in the search results, so this doesn't do a getById per deal.
+ * Base filters mirror the team's original reporting script: `aos_product`
+ * = "Construrama HomeLoan", `pipeline` IN [current, legacy], `dealstage`
+ * NOT_IN [canceled stages]. On top of that, `fechaSolicitud`'s HubSpot
+ * property is deliberately mapped to the "entered Aprobado" stage-date
+ * (not literally "when the deal was created") specifically so its
+ * presence marks a deal as approved — a deal that was only ever rejected
+ * never gets that property set. So this requires it via HAS_PROPERTY,
+ * checked against whichever of the two pipelines' equivalent property the
+ * deal would actually carry (current pipeline's `p.fechaSolicitud`, or the
+ * legacy pipeline's LEGACY_PIPELINE_STAGE_PROPERTIES.fechaSolicitud) — one
+ * filter group per property, since HubSpot filter groups are OR'd
+ * together while filters within a group are AND'd. A rejected deal has
+ * neither, so it matches neither group and is excluded.
+ *
+ * Properties come back directly in the search results, so this doesn't do
+ * a getById per deal.
  */
 export async function searchConstruramaDeals(): Promise<
   Array<{
@@ -211,7 +222,7 @@ export async function searchConstruramaDeals(): Promise<
   const hubspot = getHubspotClient();
   const { dictionary: p, properties } = await allDealProperties();
 
-  const filters = [
+  const baseFilters = [
     {
       propertyName: HUBSPOT_PRODUCT_FILTER.property,
       operator: FilterOperatorEnum.Eq,
@@ -229,6 +240,18 @@ export async function searchConstruramaDeals(): Promise<
     },
   ];
 
+  const approvedDateProperties = [
+    p.fechaSolicitud,
+    LEGACY_PIPELINE_STAGE_PROPERTIES.fechaSolicitud,
+  ].filter((prop): prop is string => Boolean(prop));
+
+  const filterGroups = approvedDateProperties.map((propertyName) => ({
+    filters: [
+      ...baseFilters,
+      { propertyName, operator: FilterOperatorEnum.HasProperty },
+    ],
+  }));
+
   const results: Array<{
     deal: Omit<PayDeskDeal, "actualizadoEn" | "creadoEn">;
     pipelineId: string | null;
@@ -238,7 +261,7 @@ export async function searchConstruramaDeals(): Promise<
   let page = 0;
   do {
     const response = await hubspot.crm.deals.searchApi.doSearch({
-      filterGroups: [{ filters }],
+      filterGroups,
       properties,
       limit: SEARCH_PAGE_SIZE,
       after,
