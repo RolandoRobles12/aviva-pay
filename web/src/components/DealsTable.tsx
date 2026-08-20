@@ -32,7 +32,7 @@ function UploadCell({
 }: {
   estatus: "pendiente" | "completado";
   dateIso: string | null;
-  onUpload: () => void;
+  onUpload?: () => void;
 }) {
   if (estatus === "completado") {
     return (
@@ -44,9 +44,11 @@ function UploadCell({
   return (
     <div className="cell-upload">
       <span className="cell-pending">Pendiente</span>
-      <button type="button" className="upload-button" onClick={onUpload}>
-        Subir archivo
-      </button>
+      {onUpload && (
+        <button type="button" className="upload-button" onClick={onUpload}>
+          Subir archivo
+        </button>
+      )}
     </div>
   );
 }
@@ -62,8 +64,9 @@ export function DealsTable({
   onUploadComprobante,
 }: {
   deals: PayDeskDeal[];
-  onUploadCotizacion: (dealId: string) => void;
-  onUploadComprobante: (dealId: string) => void;
+  /** Omit both to render a read-only table (no upload buttons) — used by the admin preview. */
+  onUploadCotizacion?: (dealId: string) => void;
+  onUploadComprobante?: (dealId: string) => void;
 }) {
   if (deals.length === 0) {
     return <p className="page-message">Todavía no hay solicitudes registradas.</p>;
@@ -96,7 +99,11 @@ export function DealsTable({
                 <UploadCell
                   estatus={deal.cotizacionEstatus}
                   dateIso={deal.cotizacionFechaEntregaAcordada}
-                  onUpload={() => onUploadCotizacion(deal.dealId)}
+                  onUpload={
+                    onUploadCotizacion
+                      ? () => onUploadCotizacion(deal.dealId)
+                      : undefined
+                  }
                 />
               </td>
               <td>
@@ -109,7 +116,11 @@ export function DealsTable({
                 <UploadCell
                   estatus={deal.comprobanteEntregaEstatus}
                   dateIso={deal.comprobanteFechaEntrega}
-                  onUpload={() => onUploadComprobante(deal.dealId)}
+                  onUpload={
+                    onUploadComprobante
+                      ? () => onUploadComprobante(deal.dealId)
+                      : undefined
+                  }
                 />
               </td>
               <td>
