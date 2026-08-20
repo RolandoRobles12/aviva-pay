@@ -19,6 +19,7 @@ export {
   adminGetFieldDictionary,
   adminSetFieldDictionary,
 } from "./http/admin/fieldDictionary";
+export { adminGetFieldLabels, adminSetFieldLabels } from "./http/admin/fieldLabels";
 export {
   adminListAdmins,
   adminCreateAdmin,

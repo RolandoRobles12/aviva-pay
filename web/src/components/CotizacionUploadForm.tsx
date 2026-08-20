@@ -1,13 +1,16 @@
 import { useState } from "react";
 import { uploadCotizacion } from "../lib/uploads";
+import type { FieldLabels } from "../types/admin";
 
 /** "Nueva cotización" module (section 5.2). */
 export function CotizacionUploadForm({
   dealId,
+  labels,
   onUploaded,
   onCancel,
 }: {
   dealId: string;
+  labels?: FieldLabels;
   onUploaded: () => void;
   onCancel: () => void;
 }) {
@@ -54,7 +57,7 @@ export function CotizacionUploadForm({
       </label>
 
       <label>
-        Fecha de entrega acordada
+        {labels?.cotizacionFechaEntregaAcordada ?? "Fecha de entrega acordada"}
         <input
           type="date"
           value={fechaEntregaAcordada}
@@ -63,7 +66,7 @@ export function CotizacionUploadForm({
         />
       </label>
       <label>
-        Monto total de la compra
+        {labels?.cotizacionMontoTotalCompra ?? "Monto total de la compra"}
         <input
           type="number"
           min="0"

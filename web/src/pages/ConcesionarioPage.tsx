@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { db, getConcesionarioDealsCallable, logout } from "../lib/firebase";
 import type { PayDeskConcesionario, PayDeskDeal } from "../types/deal";
+import type { FieldLabels } from "../types/admin";
 import { DealsTable } from "../components/DealsTable";
 import { Modal } from "../components/Modal";
 import { CotizacionUploadForm } from "../components/CotizacionUploadForm";
@@ -15,6 +16,7 @@ type LoadState =
       status: "ready";
       concesionario: PayDeskConcesionario;
       deals: PayDeskDeal[];
+      labels: FieldLabels;
     };
 
 type ActiveModal =
@@ -34,10 +36,10 @@ export function ConcesionarioPage() {
     (async () => {
       try {
         const result = await getConcesionarioDealsCallable();
-        const { concesionario, deals } = result.data;
+        const { concesionario, deals, labels } = result.data;
         if (cancelled) return;
 
-        setState({ status: "ready", concesionario, deals });
+        setState({ status: "ready", concesionario, deals, labels });
 
         // Realtime updates: the session's custom claim is what makes this
         // query pass the Firestore rules, and it only ever matches this
@@ -50,6 +52,7 @@ export function ConcesionarioPage() {
           setState({
             status: "ready",
             concesionario,
+            labels,
             deals: snap.docs.map((doc) => doc.data() as PayDeskDeal),
           });
         });
@@ -122,6 +125,7 @@ export function ConcesionarioPage() {
 
       <DealsTable
         deals={state.deals}
+        labels={state.labels}
         onUploadCotizacion={(dealId) => setActiveModal({ type: "cotizacion", dealId })}
         onUploadComprobante={(dealId) => setActiveModal({ type: "comprobante", dealId })}
       />
@@ -130,6 +134,7 @@ export function ConcesionarioPage() {
         <Modal onClose={() => setActiveModal(null)}>
           <CotizacionUploadForm
             dealId={activeModal.dealId}
+            labels={state.labels}
             onUploaded={() => setActiveModal(null)}
             onCancel={() => setActiveModal(null)}
           />
@@ -140,6 +145,7 @@ export function ConcesionarioPage() {
         <Modal onClose={() => setActiveModal(null)}>
           <ComprobanteUploadForm
             dealId={activeModal.dealId}
+            labels={state.labels}
             onUploaded={() => setActiveModal(null)}
             onCancel={() => setActiveModal(null)}
           />

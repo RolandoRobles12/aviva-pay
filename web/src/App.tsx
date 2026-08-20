@@ -9,6 +9,7 @@ import { TiendasPage } from "./pages/admin/TiendasPage";
 import { DiccionarioPage } from "./pages/admin/DiccionarioPage";
 import { AdminsPage } from "./pages/admin/AdminsPage";
 import { ConcesionarioPreviewPage } from "./pages/admin/ConcesionarioPreviewPage";
+import { EtiquetasPage } from "./pages/admin/EtiquetasPage";
 
 export function App() {
   return (
@@ -37,6 +38,7 @@ export function App() {
         <Route path="tiendas" element={<TiendasPage />} />
         <Route path="tiendas/:concesionarioId" element={<ConcesionarioPreviewPage />} />
         <Route path="diccionario" element={<DiccionarioPage />} />
+        <Route path="etiquetas" element={<EtiquetasPage />} />
         <Route path="administradores" element={<AdminsPage />} />
       </Route>
 

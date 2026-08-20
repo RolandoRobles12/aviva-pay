@@ -2,6 +2,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { assertAdmin } from "../../auth/adminGuard";
 import { getConcesionario } from "../../firestore/concesionariosRepository";
 import { getDealsByConcesionario } from "../../firestore/dealsRepository";
+import { getFieldLabels } from "../../firestore/fieldLabelsRepository";
 
 interface Request {
   concesionarioId?: string;
@@ -30,7 +31,10 @@ export const adminGetConcesionarioDeals = onCall<Request>(
       throw new HttpsError("not-found", "Concesionario no encontrado");
     }
 
-    const deals = await getDealsByConcesionario(concesionarioId);
+    const [deals, labels] = await Promise.all([
+      getDealsByConcesionario(concesionarioId),
+      getFieldLabels(),
+    ]);
 
     return {
       concesionario: {
@@ -39,6 +43,7 @@ export const adminGetConcesionarioDeals = onCall<Request>(
         numero: concesionario.numero,
       },
       deals,
+      labels,
     };
   },
 );

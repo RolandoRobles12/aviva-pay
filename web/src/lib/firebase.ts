@@ -16,6 +16,7 @@ import type {
   AdminConcesionario,
   AdminUser,
   FieldDictionary,
+  FieldLabels,
 } from "../types/admin";
 
 const firebaseConfig = {
@@ -48,7 +49,7 @@ export async function loginConcesionario(codigo: string, nip: string) {
 
 export const getConcesionarioDealsCallable = httpsCallable<
   void,
-  { concesionario: PayDeskConcesionario; deals: PayDeskDeal[] }
+  { concesionario: PayDeskConcesionario; deals: PayDeskDeal[]; labels: FieldLabels }
 >(functions, "getConcesionarioDeals");
 
 // --- Admin ---
@@ -123,8 +124,18 @@ export const adminRevokeAdminCallable = httpsCallable<
 
 export const adminGetConcesionarioDealsCallable = httpsCallable<
   { concesionarioId: string },
-  { concesionario: PayDeskConcesionario; deals: PayDeskDeal[] }
+  { concesionario: PayDeskConcesionario; deals: PayDeskDeal[]; labels: FieldLabels }
 >(functions, "adminGetConcesionarioDeals");
+
+export const adminGetFieldLabelsCallable = httpsCallable<
+  void,
+  { etiquetas: FieldLabels; defaults: FieldLabels }
+>(functions, "adminGetFieldLabels");
+
+export const adminSetFieldLabelsCallable = httpsCallable<
+  { etiquetas: FieldLabels },
+  { ok: true }
+>(functions, "adminSetFieldLabels");
 
 export async function logout() {
   await signOut(auth);
