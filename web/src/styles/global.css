@@ -472,6 +472,11 @@ h3 {
   text-decoration: underline;
 }
 
+.link-button--centered {
+  display: block;
+  text-align: center;
+}
+
 .cell-mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.85rem;
