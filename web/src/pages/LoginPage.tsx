@@ -82,7 +82,7 @@ export function LoginPage() {
         </p>
 
         <Link to="/admin" className="link-button link-button--centered">
-          Acceso administrador
+          Ingreso para personal de Aviva
         </Link>
       </form>
     </main>
