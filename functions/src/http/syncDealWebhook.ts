@@ -1,6 +1,7 @@
 import { onRequest } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions/v2";
 import { env } from "../config/env";
+import { HUBSPOT_PIPELINE } from "../config/fields";
 import { fetchDealById, updateDealProperties } from "../hubspot/deals";
 import { upsertDealFromHubspot } from "../firestore/dealsRepository";
 import { getConcesionario } from "../firestore/concesionariosRepository";
@@ -44,10 +45,26 @@ export const syncDealWebhook = onRequest(
       return;
     }
 
-    const deal = await fetchDealById(dealId);
-    if (!deal) {
+    const result = await fetchDealById(dealId);
+    if (!result) {
       logger.warn(`syncDealWebhook: deal ${dealId} not found in HubSpot`);
       res.status(404).send("Deal not found");
+      return;
+    }
+    const { deal, pipelineId } = result;
+
+    // This HubSpot portal isn't exclusive to Construrama — other Aviva
+    // products' deals live here too. The workflow that calls this webhook
+    // should already be scoped to the Solicitudes pipeline, but that's
+    // configured in HubSpot, outside this codebase, so this check is a
+    // second line of defense in case that scoping is ever loosened or the
+    // webhook gets called by hand for the wrong deal.
+    if (pipelineId !== HUBSPOT_PIPELINE.pipelineId) {
+      logger.warn(
+        `syncDealWebhook: deal ${dealId} is on pipeline "${pipelineId}", not the ` +
+          `Construrama Solicitudes pipeline ("${HUBSPOT_PIPELINE.pipelineId}") — skipping`,
+      );
+      res.status(200).json({ ok: true, skipped: "wrong-pipeline" });
       return;
     }
 

@@ -42,20 +42,30 @@ function toUploadStatus(raw: string | null | undefined): UploadStatus {
 
 /**
  * Fetches a deal from HubSpot and maps it into the subset of fields Aviva
- * Pay Desk needs (section 7). Returns null if the deal doesn't exist.
+ * Pay Desk needs (section 7), plus which pipeline it's in. Returns null if
+ * the deal doesn't exist.
+ *
+ * The pipeline comes along because this portal isn't exclusive to
+ * Construrama — other Aviva products' deals live in the same HubSpot
+ * account. Callers that only care about the Construrama Solicitudes
+ * pipeline (syncDealWebhook) compare `pipelineId` against
+ * `HUBSPOT_PIPELINE.pipelineId` themselves rather than this function
+ * silently filtering, since a general-purpose deal fetch shouldn't bake in
+ * that policy.
  */
-export async function fetchDealById(
-  dealId: string,
-): Promise<Omit<PayDeskDeal, "actualizadoEn" | "creadoEn"> | null> {
+export async function fetchDealById(dealId: string): Promise<{
+  deal: Omit<PayDeskDeal, "actualizadoEn" | "creadoEn">;
+  pipelineId: string | null;
+} | null> {
   const hubspot = getHubspotClient();
   const p = await getFieldDictionary();
 
   let response;
   try {
-    response = await hubspot.crm.deals.basicApi.getById(
-      dealId,
-      Object.values(p),
-    );
+    response = await hubspot.crm.deals.basicApi.getById(dealId, [
+      ...Object.values(p),
+      "pipeline",
+    ]);
   } catch (err: unknown) {
     const status = (err as { code?: number })?.code;
     if (status === 404) return null;
@@ -72,7 +82,7 @@ export async function fetchDealById(
     );
   }
 
-  return {
+  const deal = {
     dealId,
     concesionarioId: kiosco.primary
       ? deriveConcesionarioId(kiosco.primary)
@@ -104,6 +114,8 @@ export async function fetchDealById(
 
     desembolsoFecha: toIsoDate(props[p.desembolsoFecha]),
   };
+
+  return { deal, pipelineId: props["pipeline"] ?? null };
 }
 
 /**
