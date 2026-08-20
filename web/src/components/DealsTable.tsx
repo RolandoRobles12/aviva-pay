@@ -1,5 +1,6 @@
 import type { PayDeskDeal } from "../types/deal";
 import type { FieldLabels } from "../types/admin";
+import { completados, milestones, scopeOf } from "../lib/dealScope";
 
 /** Used until the real labels (fetched from the admin's Etiquetas config) arrive, and for any key it doesn't cover. */
 const DEFAULT_LABELS: FieldLabels = {
@@ -29,28 +30,11 @@ function formatCurrency(amount: number | null): string {
   return amount.toLocaleString("es-MX", { style: "currency", currency: "MXN" });
 }
 
-/**
- * The seven milestones a solicitud passes through, in order. Drives the
- * per-row progress meter: a store can see at a glance how far along a
- * client is without reading across nine columns.
- */
-function milestonesCompletados(deal: PayDeskDeal): number {
-  return [
-    deal.fechaSolicitud,
-    deal.estatusKyc,
-    deal.cotizacionEstatus === "completado" ? "x" : null,
-    deal.creditoLiberadoFecha,
-    deal.disposicionCreditoFecha,
-    deal.comprobanteEntregaEstatus === "completado" ? "x" : null,
-    deal.desembolsoFecha,
-  ].filter(Boolean).length;
-}
-
-const TOTAL_MILESTONES = 7;
+const TOTAL_MILESTONES = milestones({} as PayDeskDeal).length;
 
 /** Segmented bar: one segment per milestone, filled left to right. Labelled in text beside it, never color alone. */
 function ProgressMeter({ deal }: { deal: PayDeskDeal }) {
-  const done = milestonesCompletados(deal);
+  const done = completados(deal);
   const completo = done === TOTAL_MILESTONES;
   return (
     <div className="progress" title={`${done} de ${TOTAL_MILESTONES} etapas completadas`}>
@@ -88,17 +72,28 @@ function DateCell({ iso }: { iso: string | null }) {
   );
 }
 
-/** Cotización / Comprobante columns: dated pill once uploaded, or the action that uploads it. */
+/**
+ * Cotización / Comprobante columns: a dated pill once uploaded, otherwise
+ * the action that uploads it.
+ *
+ * On a historical deal the ask is deliberately demoted to a quiet link.
+ * That sale closed before this store started using Pay Desk, so there is
+ * nothing left to upload and a green call-to-action would read as a chore
+ * the store can never finish — but uploading stays *possible*, since the
+ * cutoff governs what's demanded, not what's allowed.
+ */
 function UploadCell({
   estatus,
   dateIso,
   onUpload,
   ctaLabel,
+  historica,
 }: {
   estatus: "pendiente" | "completado";
   dateIso: string | null;
   onUpload?: () => void;
   ctaLabel: string;
+  historica: boolean;
 }) {
   if (estatus === "completado") {
     return (
@@ -111,6 +106,13 @@ function UploadCell({
     );
   }
   if (!onUpload) return <span className="cell-pending">Pendiente</span>;
+  if (historica) {
+    return (
+      <button type="button" className="link-button link-button--muted" onClick={onUpload}>
+        Subir si aplica
+      </button>
+    );
+  }
   return (
     <button type="button" className="upload-button" onClick={onUpload}>
       <span aria-hidden>↑</span> {ctaLabel}
@@ -130,12 +132,15 @@ function UploadCell({
 export function DealsTable({
   deals,
   labels,
+  rolloutDesde = null,
   onUploadCotizacion,
   onUploadComprobante,
 }: {
   deals: PayDeskDeal[];
   /** From the admin's Etiquetas config. Falls back to DEFAULT_LABELS for any missing key. */
   labels?: FieldLabels;
+  /** This store's rollout cutoff. Deals approved before it are shown but never demanded. */
+  rolloutDesde?: string | null;
   /** Omit both to render a read-only table (no upload buttons) — used by the admin preview. */
   onUploadCotizacion?: (dealId: string) => void;
   onUploadComprobante?: (dealId: string) => void;
@@ -148,10 +153,10 @@ export function DealsTable({
         <span className="empty-state__icon" aria-hidden>
           📋
         </span>
-        <p className="empty-state__title">Todavía no hay solicitudes</p>
+        <p className="empty-state__title">Nada que mostrar aquí</p>
         <p className="empty-state__hint">
-          Aquí van a aparecer los créditos de tus clientes conforme Aviva los
-          registre. No tienes que hacer nada por ahora.
+          No hay solicitudes que coincidan. Prueba con otro filtro, o espera a
+          que Aviva registre los créditos de tus clientes.
         </p>
       </div>
     );
@@ -175,9 +180,21 @@ export function DealsTable({
           </tr>
         </thead>
         <tbody>
-          {deals.map((deal) => (
-            <tr key={deal.dealId}>
-              <td className="col-sticky cell-cliente">{deal.cliente ?? "—"}</td>
+          {deals.map((deal) => {
+            const historica = scopeOf(deal, rolloutDesde) === "historica";
+            return (
+            <tr key={deal.dealId} className={historica ? "row--historica" : undefined}>
+              <td className="col-sticky cell-cliente">
+                {deal.cliente ?? "—"}
+                {historica && (
+                  <span
+                    className="tag-historica"
+                    title="Cerró antes de que tu tienda empezara a usar Pay Desk — no tienes que subir nada."
+                  >
+                    Anterior
+                  </span>
+                )}
+              </td>
               <td>
                 <ProgressMeter deal={deal} />
               </td>
@@ -191,6 +208,7 @@ export function DealsTable({
                   estatus={deal.cotizacionEstatus}
                   dateIso={deal.cotizacionFechaEntregaAcordada}
                   ctaLabel="Subir cotización"
+                  historica={historica}
                   onUpload={
                     onUploadCotizacion
                       ? () => onUploadCotizacion(deal.dealId)
@@ -209,6 +227,7 @@ export function DealsTable({
                   estatus={deal.comprobanteEntregaEstatus}
                   dateIso={deal.comprobanteFechaEntrega}
                   ctaLabel="Subir comprobante"
+                  historica={historica}
                   onUpload={
                     onUploadComprobante
                       ? () => onUploadComprobante(deal.dealId)
@@ -220,7 +239,8 @@ export function DealsTable({
                 <DateCell iso={deal.desembolsoFecha} />
               </td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>

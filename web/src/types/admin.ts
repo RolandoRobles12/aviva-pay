@@ -11,6 +11,8 @@ export interface AdminConcesionario {
   nipActualizadoEn: number | null;
   ultimoAccesoEn: number | null;
   bloqueado: boolean;
+  /** Per-store rollout cutoff (ISO date), or null to follow the global one. */
+  rolloutDesde: string | null;
 }
 
 /** Logical field name → HubSpot internal property name. */

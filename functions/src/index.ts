@@ -27,3 +27,4 @@ export {
 } from "./http/admin/admins";
 export { adminGetConcesionarioDeals } from "./http/admin/viewConcesionarioDeals";
 export { adminSyncConstrurama } from "./http/admin/syncConstrurama";
+export { adminGetRollout, adminSetRollout } from "./http/admin/rollout";

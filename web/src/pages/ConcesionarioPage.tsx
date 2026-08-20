@@ -5,7 +5,15 @@ import { db, getConcesionarioDealsCallable, logout } from "../lib/firebase";
 import type { PayDeskConcesionario, PayDeskDeal } from "../types/deal";
 import type { FieldLabels } from "../types/admin";
 import { DealsTable } from "../components/DealsTable";
+import { DealsSummary } from "../components/DealsSummary";
+import {
+  DealFilters,
+  FILTROS_INICIALES,
+  aplicarFiltros,
+  type Filtros,
+} from "../components/DealFilters";
 import { StatTiles } from "../components/StatTiles";
+import { requiereAccion, scopeOf } from "../lib/dealScope";
 import { Modal } from "../components/Modal";
 import { CotizacionUploadForm } from "../components/CotizacionUploadForm";
 import { ComprobanteUploadForm } from "../components/ComprobanteUploadForm";
@@ -18,6 +26,8 @@ type LoadState =
       concesionario: PayDeskConcesionario;
       deals: PayDeskDeal[];
       labels: FieldLabels;
+      /** This store's rollout cutoff; null while the rollout date is undecided. */
+      rolloutDesde: string | null;
     };
 
 type ActiveModal =
@@ -29,7 +39,7 @@ export function ConcesionarioPage() {
   const navigate = useNavigate();
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
-  const [busqueda, setBusqueda] = useState("");
+  const [filtros, setFiltros] = useState<Filtros>(FILTROS_INICIALES);
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -38,10 +48,10 @@ export function ConcesionarioPage() {
     (async () => {
       try {
         const result = await getConcesionarioDealsCallable();
-        const { concesionario, deals, labels } = result.data;
+        const { concesionario, deals, labels, rolloutDesde } = result.data;
         if (cancelled) return;
 
-        setState({ status: "ready", concesionario, deals, labels });
+        setState({ status: "ready", concesionario, deals, labels, rolloutDesde });
 
         // Realtime updates: the session's custom claim is what makes this
         // query pass the Firestore rules, and it only ever matches this
@@ -55,6 +65,7 @@ export function ConcesionarioPage() {
             status: "ready",
             concesionario,
             labels,
+            rolloutDesde,
             deals: snap.docs.map((doc) => doc.data() as PayDeskDeal),
           });
         });
@@ -85,23 +96,33 @@ export function ConcesionarioPage() {
   // Hooks can't sit behind the early returns below, so these read from the
   // union's "ready" branch defensively rather than after narrowing it.
   const deals = state.status === "ready" ? state.deals : [];
+  const rolloutDesde = state.status === "ready" ? state.rolloutDesde : null;
 
+  /**
+   * The KPI row counts only deals in scope. A store that joined last month
+   * shouldn't open the page to "47 cotizaciones por subir" for sales that
+   * closed in 2025 — those are done, and nothing about them is actionable.
+   */
   const resumen = useMemo(() => {
-    const pendientesCotizacion = deals.filter(
-      (d) => d.cotizacionEstatus === "pendiente",
-    ).length;
-    const pendientesComprobante = deals.filter(
-      (d) => d.comprobanteEntregaEstatus === "pendiente",
-    ).length;
-    const montoTotal = deals.reduce((sum, d) => sum + (d.montoAprobado ?? 0), 0);
-    return { pendientesCotizacion, pendientesComprobante, montoTotal };
-  }, [deals]);
+    const activos = deals.filter((d) => scopeOf(d, rolloutDesde) === "activa");
+    return {
+      activos: activos.length,
+      historicos: deals.length - activos.length,
+      pendientesCotizacion: activos.filter(
+        (d) => d.cotizacionEstatus === "pendiente",
+      ).length,
+      pendientesComprobante: activos.filter(
+        (d) => d.comprobanteEntregaEstatus === "pendiente",
+      ).length,
+      porHacer: deals.filter((d) => requiereAccion(d, rolloutDesde)).length,
+      montoTotal: deals.reduce((sum, d) => sum + (d.montoAprobado ?? 0), 0),
+    };
+  }, [deals, rolloutDesde]);
 
-  const dealsFiltrados = useMemo(() => {
-    const q = busqueda.trim().toLowerCase();
-    if (!q) return deals;
-    return deals.filter((d) => (d.cliente ?? "").toLowerCase().includes(q));
-  }, [deals, busqueda]);
+  const dealsFiltrados = useMemo(
+    () => aplicarFiltros(deals, filtros, rolloutDesde),
+    [deals, filtros, rolloutDesde],
+  );
 
   if (state.status === "loading") {
     return <p className="page-message">Cargando solicitudes...</p>;
@@ -146,6 +167,24 @@ export function ConcesionarioPage() {
         comprobante de entrega cuando corresponda.
       </p>
 
+      {/* The one thing worth interrupting for: what's waiting on the store
+          right now. One tap filters the table down to exactly those. */}
+      {resumen.porHacer > 0 && (
+        <button
+          type="button"
+          className="callout-accion"
+          onClick={() => setFiltros({ ...filtros, estado: "requieren-accion" })}
+        >
+          <span className="callout-accion__count">{resumen.porHacer}</span>
+          <span>
+            {resumen.porHacer === 1
+              ? "cliente está esperando un documento tuyo"
+              : "clientes están esperando un documento tuyo"}
+            <span className="callout-accion__cta">Ver cuáles →</span>
+          </span>
+        </button>
+      )}
+
       <StatTiles
         stats={[
           {
@@ -174,25 +213,21 @@ export function ConcesionarioPage() {
       />
 
       {state.deals.length > 0 && (
-        <div className="toolbar">
-          <input
-            type="search"
-            className="admin-search"
-            placeholder="Buscar cliente por nombre"
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
+        <>
+          <DealFilters
+            deals={state.deals}
+            filtros={filtros}
+            rolloutDesde={rolloutDesde}
+            onChange={setFiltros}
           />
-          {busqueda.trim() && (
-            <span className="toolbar__count">
-              {dealsFiltrados.length} de {state.deals.length}
-            </span>
-          )}
-        </div>
+          <DealsSummary deals={dealsFiltrados} />
+        </>
       )}
 
       <DealsTable
         deals={dealsFiltrados}
         labels={state.labels}
+        rolloutDesde={rolloutDesde}
         onUploadCotizacion={(dealId) => setActiveModal({ type: "cotizacion", dealId })}
         onUploadComprobante={(dealId) => setActiveModal({ type: "comprobante", dealId })}
       />
