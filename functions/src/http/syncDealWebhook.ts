@@ -1,7 +1,6 @@
 import { onRequest } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions/v2";
 import { env } from "../config/env";
-import { HUBSPOT_PIPELINE } from "../config/fields";
 import { fetchDealById, updateDealProperties } from "../hubspot/deals";
 import { upsertDealFromHubspot } from "../firestore/dealsRepository";
 import { getConcesionario } from "../firestore/concesionariosRepository";
@@ -51,23 +50,13 @@ export const syncDealWebhook = onRequest(
       res.status(404).send("Deal not found");
       return;
     }
-    const { deal, pipelineId } = result;
+    const { deal } = result;
 
-    // This HubSpot portal isn't exclusive to Construrama — other Aviva
-    // products' deals live here too. The workflow that calls this webhook
-    // should already be scoped to the Solicitudes pipeline, but that's
-    // configured in HubSpot, outside this codebase, so this check is a
-    // second line of defense in case that scoping is ever loosened or the
-    // webhook gets called by hand for the wrong deal.
-    if (pipelineId !== HUBSPOT_PIPELINE.pipelineId) {
-      logger.warn(
-        `syncDealWebhook: deal ${dealId} is on pipeline "${pipelineId}", not the ` +
-          `Construrama Solicitudes pipeline ("${HUBSPOT_PIPELINE.pipelineId}") — skipping`,
-      );
-      res.status(200).json({ ok: true, skipped: "wrong-pipeline" });
-      return;
-    }
-
+    // No product/pipeline check here on purpose: this portal isn't
+    // exclusive to Construrama, but this endpoint is only ever called by
+    // the HubSpot Workflow that's already scoped to this product — unlike
+    // the admin-triggered backfill (adminSyncConstrurama), which scans the
+    // whole portal and has to filter for itself.
     if (!deal.concesionarioId) {
       // The deal doesn't name a concesionario yet — nothing to group it
       // under. The workflow re-triggers on the next relevant property
