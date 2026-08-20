@@ -1,6 +1,8 @@
 import { Route, Routes } from "react-router-dom";
 import { LoginPage } from "./pages/LoginPage";
-import { ConcesionarioPage } from "./pages/ConcesionarioPage";
+import { ConcesionarioLayout } from "./pages/ConcesionarioLayout";
+import { SolicitudesPage } from "./pages/SolicitudesPage";
+import { ReportePage } from "./pages/ReportePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { RequireAuth } from "./components/RequireAuth";
 import { AdminLoginPage } from "./pages/admin/AdminLoginPage";
@@ -20,10 +22,13 @@ export function App() {
         path="/solicitudes"
         element={
           <RequireAuth redirectTo="/">
-            <ConcesionarioPage />
+            <ConcesionarioLayout />
           </RequireAuth>
         }
-      />
+      >
+        <Route index element={<SolicitudesPage />} />
+        <Route path="reporte" element={<ReportePage />} />
+      </Route>
 
       {/* Admin */}
       <Route path="/admin" element={<AdminLoginPage />} />

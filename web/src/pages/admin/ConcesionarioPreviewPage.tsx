@@ -4,6 +4,7 @@ import { adminGetConcesionarioDealsCallable } from "../../lib/firebase";
 import type { PayDeskConcesionario, PayDeskDeal } from "../../types/deal";
 import type { FieldLabels } from "../../types/admin";
 import { DealsTable } from "../../components/DealsTable";
+import { Paginacion, POR_PAGINA } from "../../components/Paginacion";
 
 type LoadState =
   | { status: "loading" }
@@ -13,6 +14,7 @@ type LoadState =
       concesionario: PayDeskConcesionario;
       deals: PayDeskDeal[];
       labels: FieldLabels;
+      rolloutDesde: string | null;
     };
 
 /**
@@ -23,6 +25,7 @@ type LoadState =
 export function ConcesionarioPreviewPage() {
   const { concesionarioId } = useParams<{ concesionarioId: string }>();
   const [state, setState] = useState<LoadState>({ status: "loading" });
+  const [pagina, setPagina] = useState(0);
 
   useEffect(() => {
     if (!concesionarioId) return;
@@ -37,6 +40,7 @@ export function ConcesionarioPreviewPage() {
           concesionario: result.data.concesionario,
           deals: result.data.deals,
           labels: result.data.labels,
+          rolloutDesde: result.data.rolloutDesde,
         });
       } catch (err) {
         if (!cancelled) {
@@ -78,7 +82,12 @@ export function ConcesionarioPreviewPage() {
         </div>
       </div>
 
-      <DealsTable deals={state.deals} labels={state.labels} />
+      <DealsTable
+        deals={state.deals.slice(pagina * POR_PAGINA, (pagina + 1) * POR_PAGINA)}
+        labels={state.labels}
+        rolloutDesde={state.rolloutDesde}
+      />
+      <Paginacion total={state.deals.length} pagina={pagina} onPagina={setPagina} />
     </section>
   );
 }

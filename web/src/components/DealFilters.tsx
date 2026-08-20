@@ -8,17 +8,22 @@ export type FiltroEstado =
   | "completadas"
   | "historicas";
 
-export type FiltroPeriodo = "todo" | "mes" | "trimestre" | "anio";
+export type FiltroPeriodo = "todo" | "mes" | "trimestre" | "anio" | "personalizado";
 
 export interface Filtros {
   estado: FiltroEstado;
   periodo: FiltroPeriodo;
+  /** Only read when periodo === "personalizado". ISO dates (YYYY-MM-DD), either side optional. */
+  desde: string;
+  hasta: string;
   busqueda: string;
 }
 
 export const FILTROS_INICIALES: Filtros = {
   estado: "todas",
   periodo: "todo",
+  desde: "",
+  hasta: "",
   busqueda: "",
 };
 
@@ -47,6 +52,7 @@ const PERIODOS: Array<{ id: FiltroPeriodo; label: string }> = [
   { id: "mes", label: "Este mes" },
   { id: "trimestre", label: "3 meses" },
   { id: "anio", label: "Este año" },
+  { id: "personalizado", label: "Personalizado" },
 ];
 
 /** Earliest approval date a deal can have and still match the period filter. */
@@ -64,7 +70,7 @@ function desdeDelPeriodo(periodo: FiltroPeriodo): Date | null {
   }
 }
 
-/** Applies all three filters. Exported so the summary can report on the same subset the table shows. */
+/** Applies every filter. Exported so the report can run on the same subset the table shows. */
 export function aplicarFiltros(
   deals: PayDeskDeal[],
   filtros: Filtros,
@@ -72,9 +78,19 @@ export function aplicarFiltros(
 ): PayDeskDeal[] {
   const desde = desdeDelPeriodo(filtros.periodo);
   const q = filtros.busqueda.trim().toLowerCase();
+  const personalizado = filtros.periodo === "personalizado";
 
   return deals.filter((deal) => {
     if (q && !(deal.cliente ?? "").toLowerCase().includes(q)) return false;
+
+    // Compared as YYYY-MM-DD strings rather than Date objects: the bounds
+    // come from date inputs with no time, so parsing them into Dates would
+    // put them at local midnight and drop deals approved later that day.
+    if (personalizado && deal.fechaSolicitud) {
+      const dia = deal.fechaSolicitud.slice(0, 10);
+      if (filtros.desde && dia < filtros.desde) return false;
+      if (filtros.hasta && dia > filtros.hasta) return false;
+    }
 
     if (desde && deal.fechaSolicitud) {
       if (new Date(deal.fechaSolicitud) < desde) return false;
@@ -168,6 +184,26 @@ export function DealFilters({
             </button>
           ))}
         </div>
+
+        {filtros.periodo === "personalizado" && (
+          <span className="filters__rango">
+            <input
+              type="date"
+              aria-label="Desde"
+              value={filtros.desde}
+              max={filtros.hasta || undefined}
+              onChange={(e) => onChange({ ...filtros, desde: e.target.value })}
+            />
+            <span aria-hidden>–</span>
+            <input
+              type="date"
+              aria-label="Hasta"
+              value={filtros.hasta}
+              min={filtros.desde || undefined}
+              onChange={(e) => onChange({ ...filtros, hasta: e.target.value })}
+            />
+          </span>
+        )}
 
         <input
           type="search"

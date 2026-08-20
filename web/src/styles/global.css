@@ -1281,3 +1281,96 @@ h3 {
   outline: 2px solid var(--verde-accion);
   outline-offset: 1px;
 }
+
+/* --- Tabs (store: list vs report) --- */
+
+.tabs {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--verde-musgo) 12%, transparent);
+}
+
+.tabs a {
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.98rem;
+  color: color-mix(in srgb, var(--negro-off) 62%, transparent);
+  padding: 0.6rem 0.15rem;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.tabs a:hover {
+  color: var(--verde-musgo);
+}
+
+.tabs a.active {
+  color: var(--verde-musgo);
+  font-weight: 700;
+  border-bottom-color: var(--verde-accion);
+}
+
+/* --- Pagination --- */
+
+.paginacion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin: -0.5rem 0 1rem;
+}
+
+.paginacion__rango,
+.paginacion__pagina {
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--negro-off) 58%, transparent);
+}
+
+.paginacion__controles {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.paginacion__controles .chip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.paginacion__controles .chip:disabled:hover {
+  border-color: color-mix(in srgb, var(--verde-musgo) 15%, transparent);
+}
+
+/* --- Custom date range --- */
+
+.filters__rango {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: color-mix(in srgb, var(--negro-off) 55%, transparent);
+}
+
+.filters__rango input[type="date"] {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid color-mix(in srgb, var(--verde-musgo) 15%, transparent);
+  border-radius: 8px;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  background: var(--blanco);
+  color: var(--negro-off);
+}
+
+.filters__rango input[type="date"]:focus {
+  outline: 2px solid var(--verde-accion);
+  outline-offset: 1px;
+}
+
+/* On the list page the table follows the filters directly, so it doesn't
+   need the extra top margin it carries when panels sit above it. */
+.filters + .deals-table-wrapper {
+  margin-top: 1.25rem;
+}
