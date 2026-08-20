@@ -49,8 +49,14 @@ export const uploadCotizacion = onRequest(
     });
 
     await updateDealProperties(dealId, {
-      cotizacionEstatus: "completado",
-      cotizacionUrl: uploaded.url,
+      // cotizacionEstatus is a HubSpot single-checkbox property: its real
+      // values are "true"/"false", not "completado"/"pendiente" — see
+      // hubspot/deals.ts (toUploadStatus) for the read-side of this.
+      cotizacionEstatus: "true",
+      // cotizacionUrl is a HubSpot *file* property, which stores the
+      // uploaded file's id, not a URL — HubSpot resolves the URL from the
+      // id on its own side.
+      cotizacionUrl: uploaded.fileId,
       cotizacionFechaEntregaAcordada: fechaEntregaAcordada,
       cotizacionMontoTotalCompra: montoTotalCompra,
     });

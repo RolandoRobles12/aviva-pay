@@ -17,8 +17,8 @@ const DEFAULT_LABELS: FieldLabels = {
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("es-MX", {
-    day: "2-digit",
-    month: "2-digit",
+    day: "numeric",
+    month: "long",
     year: "numeric",
   });
 }
@@ -113,7 +113,9 @@ export function DealsTable({
               <td>{deal.cliente ?? "—"}</td>
               <td>{formatDate(deal.fechaSolicitud)}</td>
               <td>{formatCurrency(deal.montoAprobado)}</td>
-              <td>{deal.estatusKyc ?? <span className="cell-pending">Pendiente</span>}</td>
+              <td>
+                <DateCell iso={deal.estatusKyc} pendingLabel="Pendiente" />
+              </td>
               <td>
                 <UploadCell
                   estatus={deal.cotizacionEstatus}

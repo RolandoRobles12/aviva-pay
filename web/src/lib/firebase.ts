@@ -137,6 +137,20 @@ export const adminSetFieldLabelsCallable = httpsCallable<
   { ok: true }
 >(functions, "adminSetFieldLabels");
 
+// Matches the backend's timeoutSeconds (540s) — the default 70s client
+// timeout would give up on a large backfill long before the function does.
+export const adminSyncConstruramaCallable = httpsCallable<
+  void,
+  {
+    ok: true;
+    totalFound: number;
+    synced: number;
+    newStores: number;
+    skippedNoConcesionario: number;
+    failed: number;
+  }
+>(functions, "adminSyncConstrurama", { timeout: 540_000 });
+
 export async function logout() {
   await signOut(auth);
 }

@@ -189,8 +189,13 @@ h3 {
   transition: background 0.15s ease;
 }
 
-.upload-button:hover {
+.upload-button:hover:not(:disabled) {
   background: var(--verde-musgo);
+}
+
+.upload-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .modal-overlay {
@@ -602,6 +607,13 @@ h3 {
 .admin-title--secondary {
   font-size: 1.15rem;
   margin-top: 2.5rem;
+}
+
+.admin-page-head__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .admin-search {

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import {
   adminGenerarNipCallable,
   adminListConcesionariosCallable,
+  adminSyncConstruramaCallable,
   adminUpdateConcesionarioCallable,
 } from "../../lib/firebase";
 import type { AdminConcesionario } from "../../types/admin";
@@ -32,6 +33,8 @@ export function TiendasPage() {
     tienda: AdminConcesionario;
     nip: string;
   } | null>(null);
+  const [sincronizando, setSincronizando] = useState(false);
+  const [resultadoSync, setResultadoSync] = useState<string | null>(null);
 
   async function cargar() {
     try {
@@ -58,6 +61,26 @@ export function TiendasPage() {
         t.kiosco.toLowerCase().includes(q),
     );
   }, [tiendas, busqueda]);
+
+  async function sincronizar() {
+    setSincronizando(true);
+    setResultadoSync(null);
+    setError(null);
+    try {
+      const result = await adminSyncConstruramaCallable();
+      const { totalFound, synced, newStores, skippedNoConcesionario, failed } = result.data;
+      setResultadoSync(
+        `${synced} de ${totalFound} deals sincronizados · ${newStores} tiendas nuevas` +
+          (skippedNoConcesionario ? ` · ${skippedNoConcesionario} sin Kiosco` : "") +
+          (failed ? ` · ${failed} con error` : ""),
+      );
+      await cargar();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo sincronizar.");
+    } finally {
+      setSincronizando(false);
+    }
+  }
 
   async function generarNip(tienda: AdminConcesionario) {
     try {
@@ -89,15 +112,31 @@ export function TiendasPage() {
             solicitudes desde HubSpot. {tiendas.length} registradas.
           </p>
         </div>
-        <input
-          type="search"
-          className="admin-search"
-          placeholder="Buscar por nombre, código o kiosco"
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-        />
+        <div className="admin-page-head__actions">
+          <button
+            type="button"
+            className="upload-button"
+            onClick={sincronizar}
+            disabled={sincronizando}
+          >
+            {sincronizando ? "Sincronizando..." : "Sincronizar ahora"}
+          </button>
+          <input
+            type="search"
+            className="admin-search"
+            placeholder="Buscar por nombre, código o kiosco"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+          />
+        </div>
       </div>
 
+      {sincronizando && (
+        <p className="page-message">
+          Trayendo los deals de Construrama desde HubSpot — puede tardar varios minutos, no cierres esta pantalla.
+        </p>
+      )}
+      {resultadoSync && <p className="form-success">{resultadoSync}</p>}
       {error && <p className="form-error">{error}</p>}
 
       <div className="deals-table-wrapper">
