@@ -594,6 +594,11 @@ h3 {
   max-width: 60ch;
 }
 
+.admin-title--secondary {
+  font-size: 1.15rem;
+  margin-top: 2.5rem;
+}
+
 .admin-search {
   padding: 0.55rem 0.8rem;
   border: 1px solid var(--blanco-off);

@@ -39,5 +39,16 @@ service cloud.firestore {
     match /paydesk_config/{document} {
       allow read, write: if false;
     }
+
+    // Admin roster and its audit log: read and written only through the
+    // admin Cloud Functions (adminListAdmins, adminCreateAdmin,
+    // adminRevokeAdmin). The `admin` custom claim, not either of these
+    // collections, is what actually grants access — see adminGuard.ts.
+    match /paydesk_admins/{uid} {
+      allow read, write: if false;
+    }
+    match /paydesk_admin_audit/{entryId} {
+      allow read, write: if false;
+    }
   }
 }

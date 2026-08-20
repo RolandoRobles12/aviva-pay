@@ -12,7 +12,9 @@ import { getFirestore } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import type { PayDeskConcesionario, PayDeskDeal } from "../types/deal";
 import type {
+  AdminAuditEntry,
   AdminConcesionario,
+  AdminUser,
   FieldDictionary,
 } from "../types/admin";
 
@@ -103,6 +105,21 @@ export const adminSetFieldDictionaryCallable = httpsCallable<
   { campos: FieldDictionary },
   { ok: true }
 >(functions, "adminSetFieldDictionary");
+
+export const adminListAdminsCallable = httpsCallable<
+  void,
+  { admins: AdminUser[]; auditLog: AdminAuditEntry[] }
+>(functions, "adminListAdmins");
+
+export const adminCreateAdminCallable = httpsCallable<
+  { email: string },
+  { ok: true }
+>(functions, "adminCreateAdmin");
+
+export const adminRevokeAdminCallable = httpsCallable<
+  { uid: string },
+  { ok: true }
+>(functions, "adminRevokeAdmin");
 
 export async function logout() {
   await signOut(auth);
