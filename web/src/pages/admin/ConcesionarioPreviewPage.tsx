@@ -5,6 +5,7 @@ import type { PayDeskConcesionario, PayDeskDeal } from "../../types/deal";
 import type { FieldLabels } from "../../types/admin";
 import { DealsTable } from "../../components/DealsTable";
 import { Paginacion, POR_PAGINA } from "../../components/Paginacion";
+import { ordenarDeals, type SortKey, type SortState } from "../../lib/dealSort";
 
 type LoadState =
   | { status: "loading" }
@@ -26,6 +27,18 @@ export function ConcesionarioPreviewPage() {
   const { concesionarioId } = useParams<{ concesionarioId: string }>();
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [pagina, setPagina] = useState(0);
+  const [sort, setSort] = useState<SortState | null>({
+    key: "fechaSolicitud",
+    dir: "desc",
+  });
+
+  function handleSort(key: SortKey) {
+    setSort((actual) =>
+      actual?.key === key
+        ? { key, dir: actual.dir === "asc" ? "desc" : "asc" }
+        : { key, dir: "desc" },
+    );
+  }
 
   useEffect(() => {
     if (!concesionarioId) return;
@@ -83,9 +96,14 @@ export function ConcesionarioPreviewPage() {
       </div>
 
       <DealsTable
-        deals={state.deals.slice(pagina * POR_PAGINA, (pagina + 1) * POR_PAGINA)}
+        deals={ordenarDeals(state.deals, sort).slice(
+          pagina * POR_PAGINA,
+          (pagina + 1) * POR_PAGINA,
+        )}
         labels={state.labels}
         rolloutDesde={state.rolloutDesde}
+        sort={sort}
+        onSort={handleSort}
       />
       <Paginacion total={state.deals.length} pagina={pagina} onPagina={setPagina} />
     </section>

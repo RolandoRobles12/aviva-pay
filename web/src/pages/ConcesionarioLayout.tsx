@@ -132,8 +132,8 @@ export function ConcesionarioLayout() {
   };
 
   return (
-    <main className="concesionario-page">
-      <header className="concesionario-page__header">
+    <main className="app-shell">
+      <header className="app-bar">
         <div className="brand-mark">
           <span className="brand-mark__aviva">Aviva</span>
           <span className="brand-mark__product">Pay Desk</span>
@@ -160,7 +160,9 @@ export function ConcesionarioLayout() {
         <NavLink to="/solicitudes/reporte">Reporte</NavLink>
       </nav>
 
-      <Outlet context={context} />
+      <div className="app-body">
+        <Outlet context={context} />
+      </div>
     </main>
   );
 }
