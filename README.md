@@ -43,7 +43,7 @@ Rutas:
 
 - `/` — login de la tienda (código + NIP)
 - `/solicitudes` — tabla de clientes de la tienda
-- `/admin` — login del equipo de Aviva; `/admin/tiendas` y `/admin/diccionario`
+- `/admin` — login del equipo de Aviva; `/admin/tiendas`, `/admin/diccionario` y `/admin/administradores`
 
 Para probar en local hace falta al menos una tienda en el emulador (`paydesk_concesionarios`) con NIP generado, y una cuenta de admin con el claim `admin` — ver `docs/ARCHITECTURE.md`.
 

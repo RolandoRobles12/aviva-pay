@@ -7,6 +7,7 @@ import { AdminLoginPage } from "./pages/admin/AdminLoginPage";
 import { AdminLayout } from "./pages/admin/AdminLayout";
 import { TiendasPage } from "./pages/admin/TiendasPage";
 import { DiccionarioPage } from "./pages/admin/DiccionarioPage";
+import { AdminsPage } from "./pages/admin/AdminsPage";
 
 export function App() {
   return (
@@ -34,6 +35,7 @@ export function App() {
       >
         <Route path="tiendas" element={<TiendasPage />} />
         <Route path="diccionario" element={<DiccionarioPage />} />
+        <Route path="administradores" element={<AdminsPage />} />
       </Route>
 
       <Route path="*" element={<NotFoundPage />} />

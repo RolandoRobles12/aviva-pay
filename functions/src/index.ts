@@ -19,3 +19,8 @@ export {
   adminGetFieldDictionary,
   adminSetFieldDictionary,
 } from "./http/admin/fieldDictionary";
+export {
+  adminListAdmins,
+  adminCreateAdmin,
+  adminRevokeAdmin,
+} from "./http/admin/admins";

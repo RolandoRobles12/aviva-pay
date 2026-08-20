@@ -15,3 +15,21 @@ export interface AdminConcesionario {
 
 /** Logical field name → HubSpot internal property name. */
 export type FieldDictionary = Record<string, string>;
+
+export interface AdminUser {
+  uid: string;
+  email: string;
+  displayName: string | null;
+  /** Epoch millis. */
+  grantedAt: number;
+  grantedByEmail: string | null;
+}
+
+export interface AdminAuditEntry {
+  uid: string;
+  email: string;
+  action: "granted" | "revoked";
+  performedByEmail: string | null;
+  /** Epoch millis. */
+  at: number;
+}
