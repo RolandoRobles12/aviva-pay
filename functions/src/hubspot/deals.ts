@@ -36,8 +36,17 @@ function toBoolean(raw: string | null | undefined): boolean | null {
   return raw === "true" || raw === "Yes" || raw === "1";
 }
 
+/**
+ * `cotizacionEstatus` and `comprobanteEntregaEstatus` are HubSpot "single
+ * checkbox" properties (confirmed against the real portal) — their
+ * internal option values are the literal strings "true" / "false", not
+ * "completado" / "pendiente". Pay Desk's own vocabulary is
+ * "completado"/"pendiente"; this is the read-side half of that
+ * translation (see uploadCotizacion.ts / uploadComprobante.ts for the
+ * write-side half).
+ */
 function toUploadStatus(raw: string | null | undefined): UploadStatus {
-  return raw === "completado" ? "completado" : "pendiente";
+  return raw === "true" ? "completado" : "pendiente";
 }
 
 /**
@@ -134,9 +143,19 @@ export async function updateDealProperties(
 
   for (const [logicalKey, value] of Object.entries(values)) {
     const hubspotProperty = dictionary[logicalKey as HubspotDealPropertyKey];
-    if (hubspotProperty && value !== undefined) {
-      properties[hubspotProperty] = value;
+    if (!hubspotProperty || value === undefined) continue;
+    if (hubspotProperty.startsWith("TODO_")) {
+      // Unmapped field (or one left as TODO_ on purpose, like paydeskUrl/
+      // paydeskCodigo pending a different process) — HubSpot has no
+      // property with this literal name, so writing it would 400 and
+      // fail the whole update, including the properties that ARE mapped.
+      logger.warn(
+        `updateDealProperties: skipping "${logicalKey}" for deal ${dealId} — ` +
+          `still unmapped in the field dictionary (${hubspotProperty})`,
+      );
+      continue;
     }
+    properties[hubspotProperty] = value;
   }
 
   if (Object.keys(properties).length === 0) return;
