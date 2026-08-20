@@ -34,6 +34,9 @@
   --ambar: #a55a00;
   --ambar-suave: #fdf4e6;
 
+  /* Side padding for the full-bleed shell. */
+  --gutter: 2rem;
+
   font-family: var(--font-body);
 }
 
@@ -76,6 +79,35 @@ h3 {
   color: var(--verde-aviva);
 }
 
+/* --- App shell -----------------------------------------------------------
+   Full-bleed, the way a CRM record list works: the bar and the tabs span
+   the window and the table gets the whole width, instead of everything
+   sitting in a centred column with empty margins either side. */
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 0.9rem var(--gutter);
+  background: var(--blanco);
+  border-bottom: 1px solid color-mix(in srgb, var(--verde-musgo) 12%, transparent);
+}
+
+.app-body {
+  flex: 1;
+  padding: 1.5rem var(--gutter) 3rem;
+}
+
+/* Kept for the login screens, which are the one place a narrow column is
+   the right answer. */
 .concesionario-page {
   max-width: 1200px;
   margin: 0 auto;
@@ -130,11 +162,16 @@ h3 {
 }
 
 .deals-table-wrapper {
-  overflow-x: auto;
+  /* `overflow-x: auto` makes this a scroll container on both axes, so the
+     sticky header only holds if the box has a height to scroll within.
+     Capping it to the viewport gives the CRM behaviour: filters and tabs
+     stay put, the rows scroll under a fixed header row. */
+  overflow: auto;
+  max-height: max(420px, calc(100vh - 19rem));
   background: var(--blanco);
-  border-radius: 14px;
-  box-shadow: 0 1px 2px rgba(2, 97, 73, 0.08);
-  margin: 1.75rem 0;
+  border: 1px solid color-mix(in srgb, var(--verde-musgo) 10%, transparent);
+  border-radius: 12px;
+  margin: 1.25rem 0;
 }
 
 .deals-table {
@@ -158,6 +195,10 @@ h3 {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   background: var(--gris-frio);
+  /* Column names stay put while a long page of rows scrolls past. */
+  position: sticky;
+  top: 0;
+  z-index: 3;
 }
 
 .deals-table tbody tr:last-child td {
@@ -565,7 +606,7 @@ h3 {
   display: flex;
   align-items: center;
   gap: 2rem;
-  padding: 1rem 1.75rem;
+  padding: 1rem var(--gutter);
   background: var(--blanco);
   border-bottom: 1px solid var(--blanco-off);
 }
@@ -592,9 +633,7 @@ h3 {
 }
 
 .admin-shell__body {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem 1.75rem 4rem;
+  padding: 1.5rem var(--gutter) 4rem;
 }
 
 .admin-page-head {
@@ -843,7 +882,8 @@ h3 {
 
 .deals-table thead .col-sticky {
   background: var(--gris-frio);
-  z-index: 2;
+  /* Above both the sticky header row (3) and the sticky body column (1). */
+  z-index: 4;
 }
 
 .deals-table tbody tr:hover .col-sticky {
@@ -1072,9 +1112,12 @@ h3 {
 
 .summary {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  /* The funnel takes the room; the numbers panel stays a fixed, readable
+     width instead of stretching to half of an ultrawide screen. */
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
   gap: 0.85rem;
   margin-top: 1.25rem;
+  max-width: 1600px;
 }
 
 @media (max-width: 860px) {
@@ -1287,7 +1330,8 @@ h3 {
 .tabs {
   display: flex;
   gap: 1.5rem;
-  margin-top: 1.5rem;
+  padding: 0 var(--gutter);
+  background: var(--blanco);
   border-bottom: 1px solid color-mix(in srgb, var(--verde-musgo) 12%, transparent);
 }
 
