@@ -17,8 +17,8 @@ const DEFAULT_LABELS: FieldLabels = {
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("es-MX", {
-    day: "2-digit",
-    month: "2-digit",
+    day: "numeric",
+    month: "long",
     year: "numeric",
   });
 }
