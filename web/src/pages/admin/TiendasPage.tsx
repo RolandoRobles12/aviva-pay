@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   adminGenerarNipCallable,
   adminListConcesionariosCallable,
@@ -130,6 +131,9 @@ export function TiendasPage() {
                 </td>
                 <td>{formatFecha(t.ultimoAccesoEn)}</td>
                 <td className="cell-actions">
+                  <Link to={`/admin/tiendas/${t.concesionarioId}`} className="link-button">
+                    Ver solicitudes
+                  </Link>
                   <button
                     type="button"
                     className="link-button"

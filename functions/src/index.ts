@@ -24,3 +24,4 @@ export {
   adminCreateAdmin,
   adminRevokeAdmin,
 } from "./http/admin/admins";
+export { adminGetConcesionarioDeals } from "./http/admin/viewConcesionarioDeals";

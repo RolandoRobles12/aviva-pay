@@ -121,6 +121,11 @@ export const adminRevokeAdminCallable = httpsCallable<
   { ok: true }
 >(functions, "adminRevokeAdmin");
 
+export const adminGetConcesionarioDealsCallable = httpsCallable<
+  { concesionarioId: string },
+  { concesionario: PayDeskConcesionario; deals: PayDeskDeal[] }
+>(functions, "adminGetConcesionarioDeals");
+
 export async function logout() {
   await signOut(auth);
 }
