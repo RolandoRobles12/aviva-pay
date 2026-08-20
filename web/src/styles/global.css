@@ -418,6 +418,33 @@ h3 {
   cursor: not-allowed;
 }
 
+.login-card__divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0;
+  color: color-mix(in srgb, var(--negro-off) 55%, transparent);
+  font-size: 0.82rem;
+}
+
+.login-card__divider::before,
+.login-card__divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--blanco-off);
+}
+
+.login-card button.button-secondary {
+  background: transparent;
+  color: var(--negro-off);
+  border: 1px solid var(--blanco-off);
+}
+
+.login-card button.button-secondary:hover:not(:disabled) {
+  background: var(--blanco-off);
+}
+
 .login-card__help {
   margin: 0;
   text-align: center;

@@ -1,9 +1,12 @@
 import { initializeApp } from "firebase/app";
 import {
   getAuth,
+  GoogleAuthProvider,
   signInWithCustomToken,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signOut,
+  type User,
 } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
@@ -48,16 +51,32 @@ export const getConcesionarioDealsCallable = httpsCallable<
 
 // --- Admin ---
 
-export async function loginAdmin(email: string, password: string) {
-  const credential = await signInWithEmailAndPassword(auth, email, password);
-  const token = await credential.user.getIdTokenResult();
+/**
+ * Signed in, but not an admin — drop the session rather than leave the
+ * user in a half-authenticated state the panel would keep rejecting.
+ * The `admin` claim is granted out of band (see docs/ARCHITECTURE.md —
+ * "Alta de administradores"); having any account, Google or otherwise,
+ * is not enough on its own.
+ */
+async function requireAdminClaim(user: User) {
+  const token = await user.getIdTokenResult();
   if (token.claims.admin !== true) {
-    // Signed in, but not an admin — drop the session rather than leave the
-    // user in a half-authenticated state the panel would keep rejecting.
     await signOut(auth);
     throw new Error("Esta cuenta no tiene acceso al panel de administración.");
   }
-  return credential.user;
+  return user;
+}
+
+export async function loginAdmin(email: string, password: string) {
+  const credential = await signInWithEmailAndPassword(auth, email, password);
+  return requireAdminClaim(credential.user);
+}
+
+const googleProvider = new GoogleAuthProvider();
+
+export async function loginAdminWithGoogle() {
+  const credential = await signInWithPopup(auth, googleProvider);
+  return requireAdminClaim(credential.user);
 }
 
 export const adminListConcesionariosCallable = httpsCallable<

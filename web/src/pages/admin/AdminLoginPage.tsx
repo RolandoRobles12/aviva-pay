@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { loginAdmin } from "../../lib/firebase";
+import { loginAdmin, loginAdminWithGoogle } from "../../lib/firebase";
 
-/** Aviva team sign-in. Firebase Auth email/password — accounts are created by the team, not self-service. */
+/** Aviva team sign-in. Firebase Auth (email/password or Google) — accounts are created by the team, not self-service. */
 export function AdminLoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
@@ -23,6 +23,27 @@ export function AdminLoginPage() {
           ? err.message
           : "Correo o contraseña incorrectos.",
       );
+      setSubmitting(false);
+    }
+  }
+
+  async function handleGoogleLogin() {
+    setSubmitting(true);
+    setError(null);
+    try {
+      await loginAdminWithGoogle();
+      navigate("/admin/tiendas", { replace: true });
+    } catch (err) {
+      if (err instanceof Error && err.message.includes("panel")) {
+        setError(err.message);
+      } else if (
+        err instanceof Error &&
+        (err.message.includes("popup-closed") || err.message.includes("cancelled"))
+      ) {
+        // User dismissed the Google popup — not an error worth showing.
+      } else {
+        setError("No se pudo iniciar sesión con Google.");
+      }
       setSubmitting(false);
     }
   }
@@ -63,6 +84,17 @@ export function AdminLoginPage() {
 
         <button type="submit" disabled={submitting}>
           {submitting ? "Entrando..." : "Entrar"}
+        </button>
+
+        <div className="login-card__divider">o</div>
+
+        <button
+          type="button"
+          className="button-secondary"
+          disabled={submitting}
+          onClick={handleGoogleLogin}
+        >
+          Continuar con Google
         </button>
       </form>
     </main>

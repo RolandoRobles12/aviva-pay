@@ -49,11 +49,11 @@ Los endpoints de subida (`uploadCotizacion`, `uploadComprobante`) también verif
 
 ## Panel de administración
 
-En `/admin`, con cuentas de **Firebase Auth (correo + contraseña)** que llevan un custom claim `admin: true`. No es SSO ni Google. Cada endpoint admin verifica el claim vía `assertAdmin()`.
+En `/admin`, con cuentas de **Firebase Auth (correo + contraseña, o Google)** que llevan un custom claim `admin: true`. Cada endpoint admin verifica el claim vía `assertAdmin()` — el proveedor con el que se inició sesión no importa, solo el claim en el token.
 
 ### Alta de administradores
 
-El claim se otorga **fuera de la aplicación** — si la app pudiera otorgarlo, cualquiera que se registrara podría promoverse. Para dar de alta a alguien: crear el usuario en Firebase Console (Authentication → Users) y luego, una sola vez, desde un entorno con credenciales de Admin SDK:
+El claim se otorga **fuera de la aplicación** — si la app pudiera otorgarlo, cualquiera que se registrara (con correo o con Google) podría promoverse. Para dar de alta a alguien: crear el usuario en Firebase Console (Authentication → Users; si va a entrar con Google, basta con que inicie sesión una vez para que su cuenta exista) y luego, una sola vez, desde un entorno con credenciales de Admin SDK:
 
 ```js
 await getAuth().setCustomUserClaims(uid, { admin: true });
@@ -112,6 +112,7 @@ La propiedad Kiosco es de tipo **multiple checkboxes**, con ~481 opciones cuyo t
 - Catálogo de nombres reales de tienda: se puede capturar tienda por tienda en `/admin/tiendas`. Si Aviva tiene el catálogo de códigos (`TEQ`, `TEO`, `FER`…) → nombres, vale la pena un import masivo en vez de 481 ediciones a mano.
 - Confirmar con el admin de HubSpot si un deal puede tener más de un Kiosco marcado (hoy se toma el primero y se loguea el caso).
 - Crear las cuentas de admin y otorgarles el claim `admin` (ver "Alta de administradores").
+- Habilitar el proveedor Google en Firebase Console (Authentication → Sign-in method) — el botón "Continuar con Google" no funciona hasta activarlo en el proyecto.
 - Definir el proceso operativo de entrega de NIPs a las ~481 tiendas, y a quién contactan cuando lo olvidan.
 - Considerar caducidad/rotación de NIP y si el bloqueo de 15 minutos es el adecuado para la operación.
 - Confirmar pipeline/stage IDs de HubSpot (`HUBSPOT_PIPELINE` en `fields.ts`).
