@@ -113,7 +113,9 @@ export function DealsTable({
               <td>{deal.cliente ?? "—"}</td>
               <td>{formatDate(deal.fechaSolicitud)}</td>
               <td>{formatCurrency(deal.montoAprobado)}</td>
-              <td>{deal.estatusKyc ?? <span className="cell-pending">Pendiente</span>}</td>
+              <td>
+                <DateCell iso={deal.estatusKyc} pendingLabel="Pendiente" />
+              </td>
               <td>
                 <UploadCell
                   estatus={deal.cotizacionEstatus}

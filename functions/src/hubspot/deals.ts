@@ -100,7 +100,9 @@ export async function fetchDealById(dealId: string): Promise<{
     cliente: props[p.cliente] ?? null,
     fechaSolicitud: toIsoDate(props[p.fechaSolicitud]),
     montoAprobado: toNumber(props[p.montoAprobado]),
-    estatusKyc: props[p.estatusKyc] ?? null,
+    // A HubSpot stage-entry date ("hs_v2_date_entered_<stageId>"), not a
+    // status label — same treatment as the other pipeline-stage dates.
+    estatusKyc: toIsoDate(props[p.estatusKyc]),
 
     cotizacionEstatus: toUploadStatus(props[p.cotizacionEstatus]),
     cotizacionUrl: props[p.cotizacionUrl] ?? null,

@@ -21,7 +21,8 @@ export interface PayDeskDeal {
   cliente: string | null;
   fechaSolicitud: string | null; // ISO date
   montoAprobado: number | null;
-  estatusKyc: string | null;
+  /** Date the deal entered the KYC pipeline stage in HubSpot — not a status label. */
+  estatusKyc: string | null; // ISO date
 
   cotizacionEstatus: UploadStatus;
   cotizacionUrl: string | null;
