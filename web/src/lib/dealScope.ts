@@ -29,11 +29,28 @@ export function scopeOf(
   return deal.fechaSolicitud.slice(0, 10) >= rolloutDesde ? "activa" : "historica";
 }
 
+/**
+ * Desembolso is the terminal stage — the money already moved. Once that's
+ * true the deal is done, full stop, regardless of whether every
+ * intermediate stage-entered property along the way happens to be
+ * populated: those can be missing for reasons that have nothing to do
+ * with whether the deal actually finished (a legacy-pipeline deal whose
+ * stage ids don't match the current dictionary, a step HubSpot recorded
+ * differently). Trusting the terminal state over the intermediate trail
+ * is what a store actually needs — a loan flagged "3/7, cotización
+ * pendiente" when the money already disbursed reads as broken, not as
+ * "some data is missing."
+ */
+function desembolsada(deal: PayDeskDeal): boolean {
+  return Boolean(deal.desembolsoFecha);
+}
+
 /** True when the store still owes a cotización or comprobante AND the deal is in scope. */
 export function requiereAccion(
   deal: PayDeskDeal,
   rolloutDesde: string | null,
 ): boolean {
+  if (desembolsada(deal)) return false;
   if (scopeOf(deal, rolloutDesde) !== "activa") return false;
   return (
     deal.cotizacionEstatus === "pendiente" ||
@@ -43,6 +60,7 @@ export function requiereAccion(
 
 /** The seven milestones, in order, as booleans — drives both the progress meter and the funnel report. */
 export function milestones(deal: PayDeskDeal): boolean[] {
+  if (desembolsada(deal)) return [true, true, true, true, true, true, true];
   return [
     Boolean(deal.fechaSolicitud),
     Boolean(deal.estatusKyc),
