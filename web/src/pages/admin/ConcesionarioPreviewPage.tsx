@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { adminGetConcesionarioDealsCallable } from "../../lib/firebase";
 import type { PayDeskConcesionario, PayDeskDeal } from "../../types/deal";
+import type { FieldLabels } from "../../types/admin";
 import { DealsTable } from "../../components/DealsTable";
 
 type LoadState =
@@ -11,6 +12,7 @@ type LoadState =
       status: "ready";
       concesionario: PayDeskConcesionario;
       deals: PayDeskDeal[];
+      labels: FieldLabels;
     };
 
 /**
@@ -34,6 +36,7 @@ export function ConcesionarioPreviewPage() {
           status: "ready",
           concesionario: result.data.concesionario,
           deals: result.data.deals,
+          labels: result.data.labels,
         });
       } catch (err) {
         if (!cancelled) {
@@ -75,7 +78,7 @@ export function ConcesionarioPreviewPage() {
         </div>
       </div>
 
-      <DealsTable deals={state.deals} />
+      <DealsTable deals={state.deals} labels={state.labels} />
     </section>
   );
 }

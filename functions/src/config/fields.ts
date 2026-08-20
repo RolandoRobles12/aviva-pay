@@ -67,6 +67,37 @@ export const HUBSPOT_DEAL_PROPERTIES = {
 
 export type HubspotDealPropertyKey = keyof typeof HUBSPOT_DEAL_PROPERTIES;
 
+/**
+ * Default display labels for the fields a concesionario actually sees —
+ * table columns and upload form fields. Editable from the admin panel
+ * (see firestore/fieldLabelsRepository.ts) so wording can match how a
+ * given process talks about these fields without a deploy. Purely
+ * cosmetic: renaming a label here never changes which HubSpot property it
+ * reads from, whether it's required, or anything else about the logic.
+ *
+ * Only fields with concesionario-facing text are listed — `kiosco`, the
+ * file URL fields, and the notification fields (paydeskUrl/paydeskCodigo)
+ * never render as a standalone label, so they're not here.
+ */
+export const FIELD_LABELS: Partial<Record<HubspotDealPropertyKey, string>> = {
+  cliente: "Cliente",
+  fechaSolicitud: "Fecha de solicitud",
+  montoAprobado: "Monto aprobado",
+  estatusKyc: "Estatus de KYC",
+  cotizacionEstatus: "Cotización",
+  cotizacionFechaEntregaAcordada: "Fecha de entrega acordada",
+  cotizacionMontoTotalCompra: "Monto total de la compra",
+  creditoLiberadoFecha: "Crédito liberado",
+  disposicionCreditoFecha: "Disposición del crédito",
+  comprobanteEntregaEstatus: "Comprobante de entrega",
+  comprobanteFechaEntrega: "Fecha de entrega",
+  comprobanteFirmaClienteConfirmada:
+    "Confirma que el cliente firmó el documento de entrega",
+  desembolsoFecha: "Desembolso del crédito",
+} as const;
+
+export type FieldLabelKey = keyof typeof FIELD_LABELS;
+
 /** HubSpot deal pipeline/stage this project watches (section 9). TODO: confirm real pipeline/stage IDs. */
 export const HUBSPOT_PIPELINE = {
   pipelineId: "TODO_pipeline_solicitudes",

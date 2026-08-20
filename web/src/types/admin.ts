@@ -16,6 +16,9 @@ export interface AdminConcesionario {
 /** Logical field name → HubSpot internal property name. */
 export type FieldDictionary = Record<string, string>;
 
+/** Logical field name → display label shown to a concesionario. Cosmetic only. */
+export type FieldLabels = Record<string, string>;
+
 export interface AdminUser {
   uid: string;
   email: string;

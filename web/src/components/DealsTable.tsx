@@ -1,4 +1,18 @@
 import type { PayDeskDeal } from "../types/deal";
+import type { FieldLabels } from "../types/admin";
+
+/** Used until the real labels (fetched from the admin's Etiquetas config) arrive, and for any key it doesn't cover. */
+const DEFAULT_LABELS: FieldLabels = {
+  cliente: "Cliente",
+  fechaSolicitud: "Fecha de solicitud",
+  montoAprobado: "Monto aprobado",
+  estatusKyc: "Estatus de KYC",
+  cotizacionEstatus: "Cotización",
+  creditoLiberadoFecha: "Crédito liberado",
+  disposicionCreditoFecha: "Disposición del crédito",
+  comprobanteEntregaEstatus: "Comprobante de entrega",
+  desembolsoFecha: "Desembolso del crédito",
+};
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
@@ -60,14 +74,19 @@ function UploadCell({
  */
 export function DealsTable({
   deals,
+  labels,
   onUploadCotizacion,
   onUploadComprobante,
 }: {
   deals: PayDeskDeal[];
+  /** From the admin's Etiquetas config. Falls back to DEFAULT_LABELS for any missing key. */
+  labels?: FieldLabels;
   /** Omit both to render a read-only table (no upload buttons) — used by the admin preview. */
   onUploadCotizacion?: (dealId: string) => void;
   onUploadComprobante?: (dealId: string) => void;
 }) {
+  const l = { ...DEFAULT_LABELS, ...labels };
+
   if (deals.length === 0) {
     return <p className="page-message">Todavía no hay solicitudes registradas.</p>;
   }
@@ -77,15 +96,15 @@ export function DealsTable({
       <table className="deals-table">
         <thead>
           <tr>
-            <th>Cliente</th>
-            <th>Fecha de solicitud</th>
-            <th>Monto aprobado</th>
-            <th>Estatus de KYC</th>
-            <th>Cotización</th>
-            <th>Crédito liberado</th>
-            <th>Disposición del crédito</th>
-            <th>Comprobante de entrega</th>
-            <th>Desembolso del crédito</th>
+            <th>{l.cliente}</th>
+            <th>{l.fechaSolicitud}</th>
+            <th>{l.montoAprobado}</th>
+            <th>{l.estatusKyc}</th>
+            <th>{l.cotizacionEstatus}</th>
+            <th>{l.creditoLiberadoFecha}</th>
+            <th>{l.disposicionCreditoFecha}</th>
+            <th>{l.comprobanteEntregaEstatus}</th>
+            <th>{l.desembolsoFecha}</th>
           </tr>
         </thead>
         <tbody>
