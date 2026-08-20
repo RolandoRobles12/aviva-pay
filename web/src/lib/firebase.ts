@@ -49,7 +49,12 @@ export async function loginConcesionario(codigo: string, nip: string) {
 
 export const getConcesionarioDealsCallable = httpsCallable<
   void,
-  { concesionario: PayDeskConcesionario; deals: PayDeskDeal[]; labels: FieldLabels }
+  {
+    concesionario: PayDeskConcesionario;
+    deals: PayDeskDeal[];
+    labels: FieldLabels;
+    rolloutDesde: string | null;
+  }
 >(functions, "getConcesionarioDeals");
 
 // --- Admin ---
@@ -88,7 +93,12 @@ export const adminListConcesionariosCallable = httpsCallable<
 >(functions, "adminListConcesionarios");
 
 export const adminUpdateConcesionarioCallable = httpsCallable<
-  { concesionarioId: string; nombre?: string; codigo?: string },
+  {
+    concesionarioId: string;
+    nombre?: string;
+    codigo?: string;
+    rolloutDesde?: string | null;
+  },
   { ok: true }
 >(functions, "adminUpdateConcesionario");
 
@@ -124,7 +134,12 @@ export const adminRevokeAdminCallable = httpsCallable<
 
 export const adminGetConcesionarioDealsCallable = httpsCallable<
   { concesionarioId: string },
-  { concesionario: PayDeskConcesionario; deals: PayDeskDeal[]; labels: FieldLabels }
+  {
+    concesionario: PayDeskConcesionario;
+    deals: PayDeskDeal[];
+    labels: FieldLabels;
+    rolloutDesde: string | null;
+  }
 >(functions, "adminGetConcesionarioDeals");
 
 export const adminGetFieldLabelsCallable = httpsCallable<
@@ -150,6 +165,16 @@ export const adminSyncConstruramaCallable = httpsCallable<
     failed: number;
   }
 >(functions, "adminSyncConstrurama", { timeout: 540_000 });
+
+export const adminGetRolloutCallable = httpsCallable<
+  void,
+  { fechaRollout: string | null }
+>(functions, "adminGetRollout");
+
+export const adminSetRolloutCallable = httpsCallable<
+  { fechaRollout: string | null },
+  { ok: true }
+>(functions, "adminSetRollout");
 
 export async function logout() {
   await signOut(auth);

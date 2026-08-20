@@ -1,13 +1,14 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { NavLink, Outlet, useNavigate, useOutletContext } from "react-router-dom";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { db, getConcesionarioDealsCallable, logout } from "../lib/firebase";
 import type { PayDeskConcesionario, PayDeskDeal } from "../types/deal";
 import type { FieldLabels } from "../types/admin";
-import { DealsTable } from "../components/DealsTable";
-import { Modal } from "../components/Modal";
-import { CotizacionUploadForm } from "../components/CotizacionUploadForm";
-import { ComprobanteUploadForm } from "../components/ComprobanteUploadForm";
+import {
+  FILTROS_INICIALES,
+  aplicarFiltros,
+  type Filtros,
+} from "../components/DealFilters";
 
 type LoadState =
   | { status: "loading" }
@@ -17,17 +18,34 @@ type LoadState =
       concesionario: PayDeskConcesionario;
       deals: PayDeskDeal[];
       labels: FieldLabels;
+      /** This store's rollout cutoff; null while the rollout date is undecided. */
+      rolloutDesde: string | null;
     };
 
-type ActiveModal =
-  | { type: "cotizacion"; dealId: string }
-  | { type: "comprobante"; dealId: string }
-  | null;
+export interface ConcesionarioContext {
+  /** Everything this store has, unfiltered — the filter chips need the full set to count against. */
+  deals: PayDeskDeal[];
+  /** What the current filters leave. Both the list and the report read this, so any slice can be reported on. */
+  dealsFiltrados: PayDeskDeal[];
+  labels: FieldLabels;
+  rolloutDesde: string | null;
+  filtros: Filtros;
+  setFiltros: (f: Filtros) => void;
+}
 
-export function ConcesionarioPage() {
+export function useConcesionario() {
+  return useOutletContext<ConcesionarioContext>();
+}
+
+/**
+ * Loads the store's deals once and hands them to whichever child route is
+ * showing. Filter state lives here too, so switching between the list and
+ * the report keeps the slice the store had picked instead of resetting it.
+ */
+export function ConcesionarioLayout() {
   const navigate = useNavigate();
   const [state, setState] = useState<LoadState>({ status: "loading" });
-  const [activeModal, setActiveModal] = useState<ActiveModal>(null);
+  const [filtros, setFiltros] = useState<Filtros>(FILTROS_INICIALES);
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -36,10 +54,10 @@ export function ConcesionarioPage() {
     (async () => {
       try {
         const result = await getConcesionarioDealsCallable();
-        const { concesionario, deals, labels } = result.data;
+        const { concesionario, deals, labels, rolloutDesde } = result.data;
         if (cancelled) return;
 
-        setState({ status: "ready", concesionario, deals, labels });
+        setState({ status: "ready", concesionario, deals, labels, rolloutDesde });
 
         // Realtime updates: the session's custom claim is what makes this
         // query pass the Firestore rules, and it only ever matches this
@@ -53,6 +71,7 @@ export function ConcesionarioPage() {
             status: "ready",
             concesionario,
             labels,
+            rolloutDesde,
             deals: snap.docs.map((doc) => doc.data() as PayDeskDeal),
           });
         });
@@ -80,6 +99,14 @@ export function ConcesionarioPage() {
     navigate("/", { replace: true });
   }
 
+  const deals = state.status === "ready" ? state.deals : [];
+  const rolloutDesde = state.status === "ready" ? state.rolloutDesde : null;
+
+  const dealsFiltrados = useMemo(
+    () => aplicarFiltros(deals, filtros, rolloutDesde),
+    [deals, filtros, rolloutDesde],
+  );
+
   if (state.status === "loading") {
     return <p className="page-message">Cargando solicitudes...</p>;
   }
@@ -94,6 +121,15 @@ export function ConcesionarioPage() {
       </div>
     );
   }
+
+  const context: ConcesionarioContext = {
+    deals: state.deals,
+    dealsFiltrados,
+    labels: state.labels,
+    rolloutDesde: state.rolloutDesde,
+    filtros,
+    setFiltros,
+  };
 
   return (
     <main className="concesionario-page">
@@ -117,40 +153,14 @@ export function ConcesionarioPage() {
         </div>
       </header>
 
-      <h1 className="concesionario-page__title">Solicitudes de tus clientes</h1>
-      <p className="concesionario-page__subtitle">
-        Consulta el avance de cada crédito y sube la cotización y el
-        comprobante de entrega cuando corresponda.
-      </p>
+      <nav className="tabs">
+        <NavLink to="/solicitudes" end>
+          Mis clientes
+        </NavLink>
+        <NavLink to="/solicitudes/reporte">Reporte</NavLink>
+      </nav>
 
-      <DealsTable
-        deals={state.deals}
-        labels={state.labels}
-        onUploadCotizacion={(dealId) => setActiveModal({ type: "cotizacion", dealId })}
-        onUploadComprobante={(dealId) => setActiveModal({ type: "comprobante", dealId })}
-      />
-
-      {activeModal?.type === "cotizacion" && (
-        <Modal onClose={() => setActiveModal(null)}>
-          <CotizacionUploadForm
-            dealId={activeModal.dealId}
-            labels={state.labels}
-            onUploaded={() => setActiveModal(null)}
-            onCancel={() => setActiveModal(null)}
-          />
-        </Modal>
-      )}
-
-      {activeModal?.type === "comprobante" && (
-        <Modal onClose={() => setActiveModal(null)}>
-          <ComprobanteUploadForm
-            dealId={activeModal.dealId}
-            labels={state.labels}
-            onUploaded={() => setActiveModal(null)}
-            onCancel={() => setActiveModal(null)}
-          />
-        </Modal>
-      )}
+      <Outlet context={context} />
     </main>
   );
 }

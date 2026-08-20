@@ -79,6 +79,13 @@ export interface PayDeskConcesionario {
   /** Last successful login, shown in the admin catalog. */
   ultimoAccesoEn: FirebaseFirestore.Timestamp | null;
 
+  /**
+   * This store's own rollout cutoff (ISO date), when it went live in a
+   * different wave than the rest. Null falls back to the global date —
+   * see firestore/rolloutRepository.ts.
+   */
+  rolloutDesde?: string | null;
+
   actualizadoEn: FirebaseFirestore.Timestamp;
   creadoEn: FirebaseFirestore.Timestamp;
 }

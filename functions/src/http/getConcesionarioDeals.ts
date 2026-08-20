@@ -2,6 +2,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getConcesionario } from "../firestore/concesionariosRepository";
 import { getDealsByConcesionario } from "../firestore/dealsRepository";
 import { getFieldLabels } from "../firestore/fieldLabelsRepository";
+import { getRollout, resolveRolloutForStore } from "../firestore/rolloutRepository";
 
 /**
  * Returns the signed-in store's deals plus its display name and the
@@ -32,9 +33,10 @@ export const getConcesionarioDeals = onCall(
       );
     }
 
-    const [deals, labels] = await Promise.all([
+    const [deals, labels, rollout] = await Promise.all([
       getDealsByConcesionario(concesionarioId),
       getFieldLabels(),
+      getRollout(),
     ]);
 
     return {
@@ -45,6 +47,9 @@ export const getConcesionarioDeals = onCall(
       },
       deals,
       labels,
+      // The cutoff this store is held to: deals approved before it are
+      // historical and never counted as pending. See rolloutRepository.ts.
+      rolloutDesde: resolveRolloutForStore(rollout, concesionario.rolloutDesde),
     };
   },
 );

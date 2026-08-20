@@ -30,6 +30,7 @@ export const adminListConcesionarios = onCall(
         bloqueado:
           c.bloqueadoHasta !== null &&
           c.bloqueadoHasta.toMillis() > Date.now(),
+        rolloutDesde: c.rolloutDesde ?? null,
       })),
     };
   },

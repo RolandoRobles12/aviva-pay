@@ -116,7 +116,7 @@ export async function clearLockout(concesionarioId: string): Promise<void> {
 export async function updateConcesionarioFields(
   concesionarioId: string,
   fields: Partial<
-    Pick<PayDeskConcesionario, "nombre" | "codigo" | "nipHash">
+    Pick<PayDeskConcesionario, "nombre" | "codigo" | "nipHash" | "rolloutDesde">
   > & { nipActualizadoEn?: FieldValue },
 ): Promise<void> {
   await concesionariosCollection()
