@@ -49,11 +49,11 @@ Los endpoints de subida (`uploadCotizacion`, `uploadComprobante`) también verif
 
 ## Panel de administración
 
-En `/admin`, con cuentas de **Firebase Auth (correo + contraseña)** que llevan un custom claim `admin: true`. No es SSO ni Google. Cada endpoint admin verifica el claim vía `assertAdmin()`.
+En `/admin`, con cuentas de **Firebase Auth (correo + contraseña, o Google)** que llevan un custom claim `admin: true`. Cada endpoint admin verifica el claim vía `assertAdmin()` — el proveedor con el que se inició sesión no importa, solo el claim en el token.
 
 ### Alta de administradores
 
-El claim se otorga **fuera de la aplicación** — si la app pudiera otorgarlo, cualquiera que se registrara podría promoverse. Para dar de alta a alguien: crear el usuario en Firebase Console (Authentication → Users) y luego, una sola vez, desde un entorno con credenciales de Admin SDK:
+El claim se otorga **fuera de la aplicación** solo para el *primer* admin — si la app pudiera otorgarlo sin que nadie con el claim lo pidiera, cualquiera que se registrara (con correo o con Google) podría promoverse. Para dar de alta a ese primer admin: crear el usuario en Firebase Console (Authentication → Users; si va a entrar con Google, basta con que inicie sesión una vez para que su cuenta exista) y luego, una sola vez, desde un entorno con credenciales de Admin SDK:
 
 ```js
 await getAuth().setCustomUserClaims(uid, { admin: true });
@@ -61,12 +61,28 @@ await getAuth().setCustomUserClaims(uid, { admin: true });
 
 La persona debe volver a iniciar sesión para que el claim entre en su token.
 
+A partir de ahí, cualquier admin puede dar de alta a los siguientes desde `/admin/administradores` (ver abajo) — ya no hace falta tocar la consola ni el Admin SDK a mano.
+
 ### Qué administra
 
 | Pantalla | Para qué |
 |---|---|
 | **Tiendas** (`/admin/tiendas`) | Catálogo de las ~481 tiendas, que aparecen solas conforme llegan deals. Renombrar (de `#0046 - TEQ CR` al nombre real), cambiar el código de acceso, generar/regenerar NIP, ver último acceso y desbloquear. |
 | **Diccionario de campos** (`/admin/diccionario`) | Mapeo de cada dato de Pay Desk a su propiedad interna de HubSpot, editable sin desplegar. |
+| **Administradores** (`/admin/administradores`) | Otorgar o revocar el acceso al panel, y ver el historial de quién se lo dio a quién y cuándo. |
+
+### Gestión de administradores (`/admin/administradores`)
+
+Otorgar acceso (`adminCreateAdmin`) busca la cuenta de Firebase Auth por correo y, si no existe, la crea sin contraseña — la persona entra después con "Continuar con Google" usando ese mismo correo, que Firebase enlaza automáticamente porque la cuenta recién creada no tiene ningún proveedor de inicio de sesión todavía. Luego pone el claim `admin: true`.
+
+Revocar acceso (`adminRevokeAdmin`) pone el claim en `false`. Un admin no puede revocarse a sí mismo — es la manera de evitar que alguien se quede sin poder entrar por error; si de verdad hace falta quitarle el acceso al último admin activo, hay que hacerlo con el mismo comando de Admin SDK que se usa para dar de alta al primero.
+
+Dos colecciones de Firestore respaldan esta pantalla, ambas de solo lectura/escritura desde las Cloud Functions (igual que el resto — ver `firestore.rules`):
+
+- `paydesk_admins/{uid}` — el roster actual: correo, nombre, quién lo otorgó y cuándo, y `revokedAt` (null mientras está activo).
+- `paydesk_admin_audit/{id}` — bitácora de auditoría, un documento por cada alta o baja, nunca se edita ni se borra.
+
+Ninguna de las dos es la fuente de verdad de quién es admin — esa sigue siendo el custom claim en el token de Firebase Auth, que es lo único que valida `assertAdmin()`. Son el registro de lectura para la UI y el historial; si alguna vez quedaran desincronizadas del claim (por ejemplo, alguien corrió `setCustomUserClaims` a mano sin pasar por estas funciones), lo que manda para efectos de acceso sigue siendo el claim.
 
 El diccionario vive en `paydesk_config/field_dictionary` y `config/fields.ts` queda como **valores por defecto**: cualquier campo que el documento no defina cae al valor del código, así que agregar un campo nuevo en código no rompe un deployment cuyo documento es anterior. Se cachea por instancia de Cloud Function (cada sync lo necesita y cambia dos veces al año), por lo que un cambio aplica conforme se reciclan las instancias, no al instante — está advertido en la propia pantalla.
 
@@ -112,6 +128,7 @@ La propiedad Kiosco es de tipo **multiple checkboxes**, con ~481 opciones cuyo t
 - Catálogo de nombres reales de tienda: se puede capturar tienda por tienda en `/admin/tiendas`. Si Aviva tiene el catálogo de códigos (`TEQ`, `TEO`, `FER`…) → nombres, vale la pena un import masivo en vez de 481 ediciones a mano.
 - Confirmar con el admin de HubSpot si un deal puede tener más de un Kiosco marcado (hoy se toma el primero y se loguea el caso).
 - Crear las cuentas de admin y otorgarles el claim `admin` (ver "Alta de administradores").
+- Habilitar el proveedor Google en Firebase Console (Authentication → Sign-in method) — el botón "Continuar con Google" no funciona hasta activarlo en el proyecto.
 - Definir el proceso operativo de entrega de NIPs a las ~481 tiendas, y a quién contactan cuando lo olvidan.
 - Considerar caducidad/rotación de NIP y si el bloqueo de 15 minutos es el adecuado para la operación.
 - Confirmar pipeline/stage IDs de HubSpot (`HUBSPOT_PIPELINE` en `fields.ts`).
