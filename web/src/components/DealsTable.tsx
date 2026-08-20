@@ -14,6 +14,7 @@ const DEFAULT_LABELS: FieldLabels = {
   desembolsoFecha: "Desembolso del crédito",
 };
 
+/** Short form for inside a cell — the full date is on the row's title attribute. */
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("es-MX", {
@@ -28,42 +29,92 @@ function formatCurrency(amount: number | null): string {
   return amount.toLocaleString("es-MX", { style: "currency", currency: "MXN" });
 }
 
-/** Plain date columns: a checkmark + date once HubSpot reports it, "Pendiente" until then. */
-function DateCell({ iso, pendingLabel }: { iso: string | null; pendingLabel: string }) {
-  if (!iso) return <span className="cell-pending">{pendingLabel}</span>;
+/**
+ * The seven milestones a solicitud passes through, in order. Drives the
+ * per-row progress meter: a store can see at a glance how far along a
+ * client is without reading across nine columns.
+ */
+function milestonesCompletados(deal: PayDeskDeal): number {
+  return [
+    deal.fechaSolicitud,
+    deal.estatusKyc,
+    deal.cotizacionEstatus === "completado" ? "x" : null,
+    deal.creditoLiberadoFecha,
+    deal.disposicionCreditoFecha,
+    deal.comprobanteEntregaEstatus === "completado" ? "x" : null,
+    deal.desembolsoFecha,
+  ].filter(Boolean).length;
+}
+
+const TOTAL_MILESTONES = 7;
+
+/** Segmented bar: one segment per milestone, filled left to right. Labelled in text beside it, never color alone. */
+function ProgressMeter({ deal }: { deal: PayDeskDeal }) {
+  const done = milestonesCompletados(deal);
+  const completo = done === TOTAL_MILESTONES;
+  return (
+    <div className="progress" title={`${done} de ${TOTAL_MILESTONES} etapas completadas`}>
+      <div
+        className="progress__track"
+        role="img"
+        aria-label={`${done} de ${TOTAL_MILESTONES} etapas completadas`}
+      >
+        {Array.from({ length: TOTAL_MILESTONES }, (_, i) => (
+          <span
+            key={i}
+            className={`progress__seg${i < done ? " progress__seg--on" : ""}${
+              completo ? " progress__seg--complete" : ""
+            }`}
+          />
+        ))}
+      </div>
+      <span className="progress__count">
+        {done}/{TOTAL_MILESTONES}
+      </span>
+    </div>
+  );
+}
+
+/** Milestone date columns: a dated "listo" pill once HubSpot reports it, muted "Pendiente" until then. */
+function DateCell({ iso }: { iso: string | null }) {
+  if (!iso) return <span className="cell-pending">Pendiente</span>;
   return (
     <span className="cell-done">
-      {formatDate(iso)} <span aria-hidden>✅</span>
+      <span className="cell-done__check" aria-hidden>
+        ✓
+      </span>
+      {formatDate(iso)}
     </span>
   );
 }
 
-/** Cotización / Comprobante columns: date once completed, or a button to open the upload modal. */
+/** Cotización / Comprobante columns: dated pill once uploaded, or the action that uploads it. */
 function UploadCell({
   estatus,
   dateIso,
   onUpload,
+  ctaLabel,
 }: {
   estatus: "pendiente" | "completado";
   dateIso: string | null;
   onUpload?: () => void;
+  ctaLabel: string;
 }) {
   if (estatus === "completado") {
     return (
       <span className="cell-done">
-        {formatDate(dateIso)} <span aria-hidden>✅</span>
+        <span className="cell-done__check" aria-hidden>
+          ✓
+        </span>
+        {formatDate(dateIso)}
       </span>
     );
   }
+  if (!onUpload) return <span className="cell-pending">Pendiente</span>;
   return (
-    <div className="cell-upload">
-      <span className="cell-pending">Pendiente</span>
-      {onUpload && (
-        <button type="button" className="upload-button" onClick={onUpload}>
-          Subir archivo
-        </button>
-      )}
-    </div>
+    <button type="button" className="upload-button" onClick={onUpload}>
+      <span aria-hidden>↑</span> {ctaLabel}
+    </button>
   );
 }
 
@@ -71,6 +122,10 @@ function UploadCell({
  * Tabla de estatus (sección 5.1): una fila por solicitud (deal) del
  * concesionario. Cada fila que tenga cotización o comprobante pendiente
  * expone un botón que abre el modal correspondiente para ese deal.
+ *
+ * Nine columns don't fit most screens, so the table scrolls sideways with
+ * the client's name pinned — that name is what a store navigates by, and
+ * losing it mid-scroll made the other columns unreadable.
  */
 export function DealsTable({
   deals,
@@ -88,7 +143,18 @@ export function DealsTable({
   const l = { ...DEFAULT_LABELS, ...labels };
 
   if (deals.length === 0) {
-    return <p className="page-message">Todavía no hay solicitudes registradas.</p>;
+    return (
+      <div className="empty-state">
+        <span className="empty-state__icon" aria-hidden>
+          📋
+        </span>
+        <p className="empty-state__title">Todavía no hay solicitudes</p>
+        <p className="empty-state__hint">
+          Aquí van a aparecer los créditos de tus clientes conforme Aviva los
+          registre. No tienes que hacer nada por ahora.
+        </p>
+      </div>
+    );
   }
 
   return (
@@ -96,9 +162,10 @@ export function DealsTable({
       <table className="deals-table">
         <thead>
           <tr>
-            <th>{l.cliente}</th>
+            <th className="col-sticky">{l.cliente}</th>
+            <th>Avance</th>
             <th>{l.fechaSolicitud}</th>
-            <th>{l.montoAprobado}</th>
+            <th className="col-num">{l.montoAprobado}</th>
             <th>{l.estatusKyc}</th>
             <th>{l.cotizacionEstatus}</th>
             <th>{l.creditoLiberadoFecha}</th>
@@ -110,16 +177,20 @@ export function DealsTable({
         <tbody>
           {deals.map((deal) => (
             <tr key={deal.dealId}>
-              <td>{deal.cliente ?? "—"}</td>
-              <td>{formatDate(deal.fechaSolicitud)}</td>
-              <td>{formatCurrency(deal.montoAprobado)}</td>
+              <td className="col-sticky cell-cliente">{deal.cliente ?? "—"}</td>
               <td>
-                <DateCell iso={deal.estatusKyc} pendingLabel="Pendiente" />
+                <ProgressMeter deal={deal} />
+              </td>
+              <td>{formatDate(deal.fechaSolicitud)}</td>
+              <td className="col-num">{formatCurrency(deal.montoAprobado)}</td>
+              <td>
+                <DateCell iso={deal.estatusKyc} />
               </td>
               <td>
                 <UploadCell
                   estatus={deal.cotizacionEstatus}
                   dateIso={deal.cotizacionFechaEntregaAcordada}
+                  ctaLabel="Subir cotización"
                   onUpload={
                     onUploadCotizacion
                       ? () => onUploadCotizacion(deal.dealId)
@@ -128,15 +199,16 @@ export function DealsTable({
                 />
               </td>
               <td>
-                <DateCell iso={deal.creditoLiberadoFecha} pendingLabel="Pendiente" />
+                <DateCell iso={deal.creditoLiberadoFecha} />
               </td>
               <td>
-                <DateCell iso={deal.disposicionCreditoFecha} pendingLabel="Pendiente" />
+                <DateCell iso={deal.disposicionCreditoFecha} />
               </td>
               <td>
                 <UploadCell
                   estatus={deal.comprobanteEntregaEstatus}
                   dateIso={deal.comprobanteFechaEntrega}
+                  ctaLabel="Subir comprobante"
                   onUpload={
                     onUploadComprobante
                       ? () => onUploadComprobante(deal.dealId)
@@ -145,7 +217,7 @@ export function DealsTable({
                 />
               </td>
               <td>
-                <DateCell iso={deal.desembolsoFecha} pendingLabel="Pendiente" />
+                <DateCell iso={deal.desembolsoFecha} />
               </td>
             </tr>
           ))}

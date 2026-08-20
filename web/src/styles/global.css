@@ -10,6 +10,14 @@
   --verde-aviva: #16b877;
   --verde-musgo: #026149;
 
+  /* Mismo verde de marca, un paso más oscuro, para lo *funcional*: fondos
+     de botón con texto blanco, anillos de foco y el relleno de la barra de
+     avance. --verde-aviva da 2.57:1 contra blanco, debajo del mínimo — y
+     eso deja el texto de los botones difícil de leer. Este da 4.70:1
+     (texto) y 3.89:1 contra la pista de la barra (UI). --verde-aviva se
+     queda para el logotipo, que es identidad de marca, no un control. */
+  --verde-accion: #0a845b;
+
   /* Colores secundarios */
   --blanco: #ffffff;
   --gris-frio: #f0f5fa;
@@ -19,6 +27,12 @@
   --blanco-hueso: #f6f4f0;
   --blanco-off: #f5f5f5;
   --negro-off: #1e2024;
+
+  /* Estado "requiere acción" — reservado para eso, nunca como un acento
+     decorativo más. Siempre acompaña a una etiqueta que dice qué es, para
+     que no se lea solo por color. */
+  --ambar: #a55a00;
+  --ambar-suave: #fdf4e6;
 
   font-family: var(--font-body);
 }
@@ -178,7 +192,7 @@ h3 {
 
 .upload-button {
   font-family: var(--font-body);
-  background: var(--verde-aviva);
+  background: var(--verde-accion);
   color: var(--blanco);
   border: none;
   border-radius: 8px;
@@ -287,7 +301,7 @@ h3 {
 }
 
 .upload-form input:focus {
-  outline: 2px solid var(--verde-aviva);
+  outline: 2px solid var(--verde-accion);
   outline-offset: 1px;
 }
 
@@ -299,7 +313,7 @@ h3 {
 
 .upload-form button {
   font-family: var(--font-body);
-  background: var(--verde-aviva);
+  background: var(--verde-accion);
   color: var(--blanco);
   border: none;
   border-radius: 8px;
@@ -397,13 +411,13 @@ h3 {
 }
 
 .login-card input:focus {
-  outline: 2px solid var(--verde-aviva);
+  outline: 2px solid var(--verde-accion);
   outline-offset: 1px;
 }
 
 .login-card button {
   font-family: var(--font-body);
-  background: var(--verde-aviva);
+  background: var(--verde-accion);
   color: var(--blanco);
   border: none;
   border-radius: 8px;
@@ -574,7 +588,7 @@ h3 {
 .admin-nav a.active {
   color: var(--verde-musgo);
   font-weight: 700;
-  border-bottom-color: var(--verde-aviva);
+  border-bottom-color: var(--verde-accion);
 }
 
 .admin-shell__body {
@@ -627,7 +641,7 @@ h3 {
 }
 
 .admin-search:focus {
-  outline: 2px solid var(--verde-aviva);
+  outline: 2px solid var(--verde-accion);
   outline-offset: 1px;
 }
 
@@ -680,7 +694,7 @@ h3 {
 }
 
 .dictionary-row__input input:focus {
-  outline: 2px solid var(--verde-aviva);
+  outline: 2px solid var(--verde-accion);
   outline-offset: 1px;
 }
 
@@ -697,7 +711,7 @@ h3 {
 
 .dictionary-form__actions button {
   font-family: var(--font-body);
-  background: var(--verde-aviva);
+  background: var(--verde-accion);
   color: var(--blanco);
   border: none;
   border-radius: 8px;
@@ -710,4 +724,226 @@ h3 {
 .dictionary-form__actions button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* --- KPI row (stat tiles) ------------------------------------------------
+   The handful of numbers that answer "what do I need to do today?" before
+   anyone reads a table row. Current counts, so no sparkline or delta. */
+
+.stat-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.85rem;
+  margin: 1.75rem 0 0;
+}
+
+.stat-tile {
+  background: var(--blanco);
+  border: 1px solid color-mix(in srgb, var(--verde-musgo) 10%, transparent);
+  border-radius: 14px;
+  padding: 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.stat-tile__label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, var(--negro-off) 60%, transparent);
+}
+
+/* Proportional figures on purpose: tabular-nums pads every digit to the
+   width of a 0, which reads loose at this size. Tabular is for columns. */
+.stat-tile__value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--verde-musgo);
+}
+
+/* Something to act on. The label already says what it is — the tint is a
+   second channel, never the only one. */
+.stat-tile--accion {
+  background: var(--ambar-suave);
+  border-color: color-mix(in srgb, var(--ambar) 25%, transparent);
+}
+
+.stat-tile--accion .stat-tile__value {
+  color: var(--ambar);
+}
+
+/* --- Toolbar above a table --- */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 1.75rem;
+}
+
+.toolbar__count {
+  font-size: 0.85rem;
+  color: color-mix(in srgb, var(--negro-off) 55%, transparent);
+}
+
+/* --- Per-row progress meter ---------------------------------------------
+   Seven segments, one per milestone, filled left to right. The count beside
+   it carries the same information in text so it never reads by color alone. */
+
+.progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.progress__track {
+  display: flex;
+  gap: 2px;
+}
+
+.progress__seg {
+  width: 10px;
+  height: 6px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--verde-musgo) 12%, transparent);
+}
+
+.progress__seg--on {
+  background: var(--verde-accion);
+}
+
+.progress__seg--on.progress__seg--complete {
+  background: var(--verde-musgo);
+}
+
+.progress__count {
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--negro-off) 60%, transparent);
+}
+
+/* --- Sticky first column ------------------------------------------------
+   Nine columns don't fit most screens. The client's name is what a store
+   navigates by, so it stays put while the rest scrolls under it. */
+
+.deals-table .col-sticky {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--blanco);
+  border-right: 1px solid var(--blanco-off);
+  /* Reads as pinned once the rest of the row slides underneath it. */
+  box-shadow: 6px 0 8px -6px rgba(2, 97, 73, 0.18);
+}
+
+.deals-table thead .col-sticky {
+  background: var(--gris-frio);
+  z-index: 2;
+}
+
+.deals-table tbody tr:hover .col-sticky {
+  background: var(--blanco-hueso);
+}
+
+.cell-cliente {
+  font-weight: 600;
+  color: var(--negro-off);
+}
+
+/* Money and other figures that must line up down a column. */
+.deals-table .col-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.cell-done__check {
+  font-weight: 700;
+}
+
+/* --- Empty state --- */
+
+.empty-state {
+  background: var(--blanco);
+  border-radius: 14px;
+  padding: 3rem 1.5rem;
+  text-align: center;
+  margin: 1.25rem 0;
+  border: 1px dashed color-mix(in srgb, var(--verde-musgo) 18%, transparent);
+}
+
+.empty-state__icon {
+  font-size: 2rem;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.empty-state__title {
+  margin: 0;
+  font-weight: 700;
+  color: var(--verde-musgo);
+}
+
+.empty-state__hint {
+  margin: 0.35rem auto 0;
+  max-width: 46ch;
+  font-size: 0.9rem;
+  color: color-mix(in srgb, var(--negro-off) 60%, transparent);
+}
+
+/* --- Currency field ------------------------------------------------------
+   Replaces <input type="number">, which shows spinner arrows and won't
+   group thousands. The $ and MXN are adornments, not part of the value. */
+
+.currency-input {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--blanco-off);
+  border-radius: 8px;
+  background: var(--blanco);
+  padding: 0 0.7rem;
+}
+
+.currency-input:focus-within {
+  outline: 2px solid var(--verde-accion);
+  outline-offset: 1px;
+}
+
+.currency-input__symbol {
+  font-weight: 700;
+  color: var(--verde-musgo);
+}
+
+.currency-input__currency {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--negro-off) 45%, transparent);
+}
+
+.currency-input input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  padding: 0.5rem 0;
+  font-size: 1rem;
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
+  background: transparent;
+}
+
+.upload-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.upload-form__field label {
+  font-size: 0.9rem;
+  font-weight: 500;
 }

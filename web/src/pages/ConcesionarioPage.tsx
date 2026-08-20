@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { db, getConcesionarioDealsCallable, logout } from "../lib/firebase";
 import type { PayDeskConcesionario, PayDeskDeal } from "../types/deal";
 import type { FieldLabels } from "../types/admin";
 import { DealsTable } from "../components/DealsTable";
+import { StatTiles } from "../components/StatTiles";
 import { Modal } from "../components/Modal";
 import { CotizacionUploadForm } from "../components/CotizacionUploadForm";
 import { ComprobanteUploadForm } from "../components/ComprobanteUploadForm";
@@ -28,6 +29,7 @@ export function ConcesionarioPage() {
   const navigate = useNavigate();
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
+  const [busqueda, setBusqueda] = useState("");
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -80,6 +82,27 @@ export function ConcesionarioPage() {
     navigate("/", { replace: true });
   }
 
+  // Hooks can't sit behind the early returns below, so these read from the
+  // union's "ready" branch defensively rather than after narrowing it.
+  const deals = state.status === "ready" ? state.deals : [];
+
+  const resumen = useMemo(() => {
+    const pendientesCotizacion = deals.filter(
+      (d) => d.cotizacionEstatus === "pendiente",
+    ).length;
+    const pendientesComprobante = deals.filter(
+      (d) => d.comprobanteEntregaEstatus === "pendiente",
+    ).length;
+    const montoTotal = deals.reduce((sum, d) => sum + (d.montoAprobado ?? 0), 0);
+    return { pendientesCotizacion, pendientesComprobante, montoTotal };
+  }, [deals]);
+
+  const dealsFiltrados = useMemo(() => {
+    const q = busqueda.trim().toLowerCase();
+    if (!q) return deals;
+    return deals.filter((d) => (d.cliente ?? "").toLowerCase().includes(q));
+  }, [deals, busqueda]);
+
   if (state.status === "loading") {
     return <p className="page-message">Cargando solicitudes...</p>;
   }
@@ -123,8 +146,52 @@ export function ConcesionarioPage() {
         comprobante de entrega cuando corresponda.
       </p>
 
+      <StatTiles
+        stats={[
+          {
+            label: "Solicitudes",
+            value: state.deals.length.toLocaleString("es-MX"),
+          },
+          {
+            label: "Cotización por subir",
+            value: resumen.pendientesCotizacion.toLocaleString("es-MX"),
+            tone: resumen.pendientesCotizacion > 0 ? "accion" : "neutral",
+          },
+          {
+            label: "Comprobante por subir",
+            value: resumen.pendientesComprobante.toLocaleString("es-MX"),
+            tone: resumen.pendientesComprobante > 0 ? "accion" : "neutral",
+          },
+          {
+            label: "Monto aprobado",
+            value: resumen.montoTotal.toLocaleString("es-MX", {
+              style: "currency",
+              currency: "MXN",
+              maximumFractionDigits: 0,
+            }),
+          },
+        ]}
+      />
+
+      {state.deals.length > 0 && (
+        <div className="toolbar">
+          <input
+            type="search"
+            className="admin-search"
+            placeholder="Buscar cliente por nombre"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+          />
+          {busqueda.trim() && (
+            <span className="toolbar__count">
+              {dealsFiltrados.length} de {state.deals.length}
+            </span>
+          )}
+        </div>
+      )}
+
       <DealsTable
-        deals={state.deals}
+        deals={dealsFiltrados}
         labels={state.labels}
         onUploadCotizacion={(dealId) => setActiveModal({ type: "cotizacion", dealId })}
         onUploadComprobante={(dealId) => setActiveModal({ type: "comprobante", dealId })}

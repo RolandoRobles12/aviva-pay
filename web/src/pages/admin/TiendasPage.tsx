@@ -8,6 +8,7 @@ import {
 } from "../../lib/firebase";
 import type { AdminConcesionario } from "../../types/admin";
 import { Modal } from "../../components/Modal";
+import { StatTiles } from "../../components/StatTiles";
 
 function formatFecha(millis: number | null): string {
   if (!millis) return "—";
@@ -61,6 +62,16 @@ export function TiendasPage() {
         t.kiosco.toLowerCase().includes(q),
     );
   }, [tiendas, busqueda]);
+
+  const resumen = useMemo(() => {
+    const lista = tiendas ?? [];
+    return {
+      total: lista.length,
+      conNip: lista.filter((t) => t.tieneNip).length,
+      sinNip: lista.filter((t) => !t.tieneNip).length,
+      bloqueadas: lista.filter((t) => t.bloqueado).length,
+    };
+  }, [tiendas]);
 
   async function sincronizar() {
     setSincronizando(true);
@@ -138,6 +149,23 @@ export function TiendasPage() {
       )}
       {resultadoSync && <p className="form-success">{resultadoSync}</p>}
       {error && <p className="form-error">{error}</p>}
+
+      <StatTiles
+        stats={[
+          { label: "Tiendas", value: resumen.total.toLocaleString("es-MX") },
+          { label: "Con NIP activo", value: resumen.conNip.toLocaleString("es-MX") },
+          {
+            label: "Sin NIP",
+            value: resumen.sinNip.toLocaleString("es-MX"),
+            tone: resumen.sinNip > 0 ? "accion" : "neutral",
+          },
+          {
+            label: "Bloqueadas",
+            value: resumen.bloqueadas.toLocaleString("es-MX"),
+            tone: resumen.bloqueadas > 0 ? "accion" : "neutral",
+          },
+        ]}
+      />
 
       <div className="deals-table-wrapper">
         <table className="deals-table">
