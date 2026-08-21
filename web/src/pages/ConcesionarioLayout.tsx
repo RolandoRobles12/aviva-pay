@@ -6,6 +6,7 @@ import type { PayDeskConcesionario, PayDeskDeal } from "../types/deal";
 import type { FieldLabels } from "../types/admin";
 import type { RolloutMap } from "../lib/dealScope";
 import { BrandMark } from "../components/BrandMark";
+import { SelectorTiendas } from "../components/SelectorTiendas";
 import {
   FILTROS_INICIALES,
   aplicarFiltros,
@@ -176,25 +177,23 @@ export function ConcesionarioLayout() {
       <header className="app-bar">
         <BrandMark />
         <div className="header-right">
-          <div className="store-badge">
-            {state.concesionarios.length === 1 ? (
-              <>
-                <span className="store-badge__nombre">{state.concesionarios[0].nombre}</span>
-                {state.concesionarios[0].numero && (
-                  <span className="store-badge__numero">
-                    Tienda {state.concesionarios[0].numero}
-                  </span>
-                )}
-              </>
-            ) : (
-              <span
-                className="store-badge__nombre"
-                title={state.concesionarios.map((c) => c.nombre).join(", ")}
-              >
-                {state.concesionarios.length} tiendas
-              </span>
-            )}
-          </div>
+          {state.concesionarios.length === 1 ? (
+            <div className="store-badge">
+              <span className="store-badge__nombre">{state.concesionarios[0].nombre}</span>
+              {state.concesionarios[0].numero && (
+                <span className="store-badge__numero">
+                  Tienda {state.concesionarios[0].numero}
+                </span>
+              )}
+            </div>
+          ) : (
+            <SelectorTiendas
+              concesionarios={state.concesionarios}
+              deals={state.deals}
+              seleccion={filtros.tienda}
+              onSeleccion={(tienda) => setFiltros({ ...filtros, tienda })}
+            />
+          )}
           <button type="button" className="link-button" onClick={handleLogout}>
             Salir
           </button>

@@ -199,6 +199,118 @@ h3 {
   opacity: 0.8;
 }
 
+/* --- Store picker (multi-store accounts) ---------------------------------
+   The badge doubles as the menu trigger: it's where someone looks to ask
+   "which stores are mine?", so that's where the list lives. Picking one
+   drives the same filter the chips do — never a second, competing idea of
+   "current store". */
+.store-menu {
+  position: relative;
+}
+
+.store-badge--boton {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-body);
+  text-align: right;
+  /* Room for the caret, which is absolutely placed so it doesn't push the
+     two text lines off their right edge. */
+  padding-right: 1.9rem;
+  position: relative;
+}
+
+.store-badge--boton:hover,
+.store-badge--boton[aria-expanded="true"] {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.store-menu__flecha {
+  position: absolute;
+  right: 0.7rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.7rem;
+  opacity: 0.85;
+}
+
+.store-menu__panel {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  z-index: 20;
+  min-width: 17rem;
+  padding: 0.35rem;
+  background: var(--blanco);
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(2, 97, 73, 0.22);
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.store-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.55rem 0.6rem;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  font-family: var(--font-body);
+  text-align: left;
+  cursor: pointer;
+}
+
+.store-menu__item:hover {
+  background: var(--gris-frio);
+}
+
+.store-menu__item--on {
+  background: var(--verde-esmeralda);
+}
+
+.store-menu__check {
+  width: 0.9rem;
+  flex: none;
+  color: var(--verde-musgo);
+  font-weight: 700;
+}
+
+.store-menu__texto {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.store-menu__texto strong {
+  font-size: 0.92rem;
+  color: var(--negro-off);
+}
+
+.store-menu__texto small {
+  font-size: 0.78rem;
+  color: color-mix(in srgb, var(--negro-off) 58%, transparent);
+}
+
+.store-menu__conteo {
+  flex: none;
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--verde-musgo);
+}
+
+.store-menu__sep {
+  height: 1px;
+  margin: 0.25rem 0.3rem;
+  background: var(--blanco-off);
+}
+
 .deals-table-wrapper {
   /* `overflow-x: auto` makes this a scroll container on both axes, so the
      sticky header only holds if the box has a height to scroll within.
