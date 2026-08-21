@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { enviarRestablecerContrasena, loginConcesionario } from "../lib/firebase";
+import { BrandMark } from "../components/BrandMark";
 
 /**
  * Where a concesionario starts: email + password, the same account an
@@ -55,10 +56,7 @@ export function LoginPage() {
     return (
       <main className="login-page">
         <form className="login-card" onSubmit={handleRecuperar}>
-          <div className="brand-mark brand-mark--centered">
-            <span className="brand-mark__aviva">Aviva</span>
-            <span className="brand-mark__product">Pay Desk</span>
-          </div>
+          <BrandMark centered />
 
           {recuperado ? (
             <>
@@ -114,10 +112,7 @@ export function LoginPage() {
   return (
     <main className="login-page">
       <form className="login-card" onSubmit={handleSubmit}>
-        <div className="brand-mark brand-mark--centered">
-          <span className="brand-mark__aviva">Aviva</span>
-          <span className="brand-mark__product">Pay Desk</span>
-        </div>
+        <BrandMark centered />
 
         <p className="login-card__intro">
           Ingresa con tu cuenta para consultar el estatus de los créditos de

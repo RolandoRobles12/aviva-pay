@@ -5,6 +5,7 @@ import { db, getConcesionarioDealsCallable, logout } from "../lib/firebase";
 import type { PayDeskConcesionario, PayDeskDeal } from "../types/deal";
 import type { FieldLabels } from "../types/admin";
 import type { RolloutMap } from "../lib/dealScope";
+import { BrandMark } from "../components/BrandMark";
 import {
   FILTROS_INICIALES,
   aplicarFiltros,
@@ -165,10 +166,7 @@ export function ConcesionarioLayout() {
   return (
     <main className="app-shell">
       <header className="app-bar">
-        <div className="brand-mark">
-          <span className="brand-mark__aviva">Aviva</span>
-          <span className="brand-mark__product">Pay Desk</span>
-        </div>
+        <BrandMark />
         <div className="header-right">
           <div className="store-badge">
             {state.concesionarios.length === 1 ? (
