@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Aviva Pay Desk has two kinds of caller.
+// Aviva Paydesk has two kinds of caller.
 //
 // A concesionario (Construrama store) is a real Firebase Auth
 // email/password account, invited by an admin adding their email to one

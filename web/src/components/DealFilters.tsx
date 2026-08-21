@@ -61,7 +61,7 @@ const ESTADOS: Array<{ id: FiltroEstado; label: string; hint: string }> = [
   {
     id: "historicas",
     label: "Anteriores",
-    hint: "Cerraron antes de que tu tienda empezara a usar Pay Desk",
+    hint: "Cerraron antes de que tu tienda empezara a usar Paydesk",
   },
 ];
 

@@ -28,7 +28,7 @@ export async function getDealsByConcesionario(
  * All deals across every store in `ids` — for a user with access to more
  * than one store, whose list combines all of them. Firestore's `in`
  * operator caps at 30 values, so this chunks and merges; a user with more
- * than 30 stores is not a case Pay Desk has today, but this doesn't fall
+ * than 30 stores is not a case Paydesk has today, but this doesn't fall
  * over if it happens.
  */
 export async function getDealsByConcesionarioIds(

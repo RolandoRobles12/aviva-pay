@@ -124,7 +124,7 @@ export function RestablecerContrasenaPage() {
 
         <p className="trust-note">
           <span aria-hidden>🔒</span>
-          Esta liga es válida porque tu correo fue invitado a Pay Desk desde
+          Esta liga es válida porque tu correo fue invitado a Paydesk desde
           el panel de Aviva. Solo tú vas a ver esta contraseña — Aviva nunca
           te la va a pedir por teléfono, WhatsApp o correo.
         </p>

@@ -1,5 +1,5 @@
 /**
- * Default field dictionary: maps every logical field Aviva Pay Desk needs
+ * Default field dictionary: maps every logical field Aviva Paydesk needs
  * to its HubSpot internal property name.
  *
  * These are the *defaults*. The dictionary in effect lives in Firestore and
@@ -57,7 +57,7 @@ export const HUBSPOT_DEAL_PROPERTIES = {
   // --- Notificación (section 9) ---
   // Written onto the triggering deal the first time a given store is seen,
   // so a second HubSpot workflow can enroll on "property is known" and
-  // send that store's contact the Pay Desk link. Access itself is granted
+  // send that store's contact the Paydesk link. Access itself is granted
   // separately, per person, from the admin catalog — see
   // concesionario/userSync.ts. TODO: confirm the trigger mechanism and the
   // recipient contact with the HubSpot workflow owner.

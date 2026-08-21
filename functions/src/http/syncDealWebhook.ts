@@ -15,7 +15,7 @@ interface SyncWebhookBody {
  * HubSpot and upserts it into Firestore, grouped by the concesionario
  * (Construrama store) named on the deal itself.
  *
- * The first time a given concesionario is seen, also writes the Pay Desk
+ * The first time a given concesionario is seen, also writes the Paydesk
  * URL back onto the triggering deal so a second HubSpot workflow can pick
  * it up and notify that store's contact (section 9, "Notificación").
  * Later deals for the same concesionario just add a row to the existing

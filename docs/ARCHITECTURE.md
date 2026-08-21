@@ -1,4 +1,4 @@
-# Arquitectura — Aviva Pay Desk
+# Arquitectura — Aviva Paydesk
 
 Ver el requerimiento original en `docs/requerimiento.md` para el contexto de negocio completo. Este documento cubre las decisiones de implementación tomadas al construir el scaffold inicial.
 
@@ -6,14 +6,14 @@ Ver el requerimiento original en `docs/requerimiento.md` para el contexto de neg
 
 El frontend sigue los lineamientos de marca de Aviva (`web/src/styles/global.css`, tokens `:root`):
 
-- **Tipografía:** Fustat (Google Fonts) como tipografía principal — 500/Medium en párrafos, 700+/Bold en títulos, botones y destacados. El wordmark "Aviva Pay Desk" combina "Aviva" en Fustat Bold con "Pay Desk" en Satisfy (sustituto de Simple Cakes, que no está disponible como web font), sizeado a Fustat × 1.5 según la proporción de la guía de marca.
+- **Tipografía:** Fustat (Google Fonts) como tipografía principal — 500/Medium en párrafos, 700+/Bold en títulos, botones y destacados. El wordmark "Aviva Paydesk" combina "Aviva" en Fustat Bold con "Paydesk" en Satisfy (sustituto de Simple Cakes, que no está disponible como web font), sizeado a Fustat × 1.5 según la proporción de la guía de marca.
 - **Color:** Verde Aviva (`#16B877`) como acento primario (botones, enlaces), Verde Esmeralda (`#B0F5CD`) + Verde Musgo (`#026149`) para estados "completado", Gris Frío (`#F0F5FA`) como fondo de página, Negro Off (`#1E2024`) como color de texto base.
 
 ## Quién ve qué
 
-El usuario de Aviva Pay Desk es el **concesionario**: la tienda/sucursal de Construrama. Cada tienda tiene una página donde ve a **sus clientes** (una fila por solicitud de crédito) y ejecuta las acciones que le tocan: subir la cotización y subir el comprobante de entrega firmado.
+El usuario de Aviva Paydesk es el **concesionario**: la tienda/sucursal de Construrama. Cada tienda tiene una página donde ve a **sus clientes** (una fila por solicitud de crédito) y ejecuta las acciones que le tocan: subir la cotización y subir el comprobante de entrega firmado.
 
-El cliente final no usa esta página. En los diagramas de proceso aparece una vista para él ("Aviva Pay", el vale de crédito en la app móvil), pero **todavía no existe**: este repo construye únicamente Pay Desk. Aviva Pay queda como proyecto separado y fuera de alcance (sección 3.2 del requerimiento).
+El cliente final no usa esta página. En los diagramas de proceso aparece una vista para él ("Aviva Pay", el vale de crédito en la app móvil), pero **todavía no existe**: este repo construye únicamente Paydesk. Aviva Pay queda como proyecto separado y fuera de alcance (sección 3.2 del requerimiento).
 
 ## Página por concesionario, no por deal
 
@@ -61,7 +61,7 @@ A partir de ahí, cualquier admin puede dar de alta a los siguientes desde `/adm
 | Pantalla | Para qué |
 |---|---|
 | **Tiendas** (`/admin/tiendas`) | Catálogo de las ~481 tiendas, que aparecen solas conforme llegan deals. Renombrar (de `#0046 - TEQ CR` al nombre real), invitar o quitar correos con acceso, y fijar su fecha de arranque individual. |
-| **Diccionario de campos** (`/admin/diccionario`) | Mapeo de cada dato de Pay Desk a su propiedad interna de HubSpot, editable sin desplegar. |
+| **Diccionario de campos** (`/admin/diccionario`) | Mapeo de cada dato de Paydesk a su propiedad interna de HubSpot, editable sin desplegar. |
 | **Administradores** (`/admin/administradores`) | Otorgar o revocar el acceso al panel, y ver el historial de quién se lo dio a quién y cuándo. |
 
 ### Gestión de administradores (`/admin/administradores`)
@@ -99,14 +99,14 @@ La propiedad Kiosco es de tipo **multiple checkboxes**, con ~481 opciones cuyo t
 | Firestore (`paydesk_deals`, `paydesk_concesionarios`, `paydesk_concesionario_users`, `paydesk_config`) | Mirror operativo, catálogo de tiendas con sus correos invitados, índice inverso uid → tiendas, y diccionario de campos. |
 | Firebase Auth | Correo/contraseña con claim `concesionarioIds: string[]` para concesionarios; correo/contraseña o Google con claim `admin` para el equipo de Aviva. |
 | Firebase Storage | No se usa como almacenamiento final — los archivos van directo a HubSpot Files API; ver nota en `storage.rules`. |
-| Aviva Pay Desk (`web/`) | React + Firebase Hosting. `/` login de tienda, `/solicitudes` tabla de clientes, `/admin/*` panel interno. |
+| Aviva Paydesk (`web/`) | React + Firebase Hosting. `/` login de tienda, `/solicitudes` tabla de clientes, `/admin/*` panel interno. |
 
 ## Flujo de sincronización (HubSpot → Firestore)
 
 1. Un workflow de HubSpot (pipeline de Solicitudes) se dispara en creación de deal o cambio de stage/propiedad.
 2. El paso de Custom Code llama a `syncDealWebhook` (HTTPS) con `{ dealId }` y un header `Authorization: Bearer <HUBSPOT_WEBHOOK_SECRET>`.
 3. La función trae el deal de HubSpot (las propiedades del diccionario, incluida la tienda) y hace upsert en `paydesk_deals/{dealId}`.
-4. Si es la primera vez que se ve a esa tienda, se crea su documento en `paydesk_concesionarios` (sin usuarios invitados todavía) y se escribe de vuelta en el deal la liga de Pay Desk. Invitar a alguien de esa tienda es un paso aparte, manual, desde `/admin/tiendas`. Deals posteriores de la misma tienda solo agregan una fila.
+4. Si es la primera vez que se ve a esa tienda, se crea su documento en `paydesk_concesionarios` (sin usuarios invitados todavía) y se escribe de vuelta en el deal la liga de Paydesk. Invitar a alguien de esa tienda es un paso aparte, manual, desde `/admin/tiendas`. Deals posteriores de la misma tienda solo agregan una fila.
 5. Si el deal todavía no trae la tienda capturada, el sync se omite (queda pendiente hasta el próximo disparo del workflow, cuando se espera que el campo ya esté lleno).
 
 ## Flujo de escritura (concesionario → HubSpot)

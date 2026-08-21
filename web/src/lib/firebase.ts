@@ -93,7 +93,7 @@ export async function loginConcesionario(
  * invited person uses it.
  *
  * `actionCodeSettings.url` + `handleCodeInApp: true` route the email link
- * straight into RestablecerContrasenaPage (our own, Pay Desk-branded
+ * straight into RestablecerContrasenaPage (our own, Paydesk-branded
  * screen) instead of Firebase's generic, unbranded default handler at
  * `<authDomain>/__/auth/action`.
  */

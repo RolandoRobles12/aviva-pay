@@ -15,11 +15,11 @@ function cutoffFor(deal: PayDeskDeal, rolloutPorTienda: RolloutMap): string | nu
 }
 
 /**
- * Where a solicitud sits relative to Pay Desk's rollout, and therefore
+ * Where a solicitud sits relative to Paydesk's rollout, and therefore
  * whether the store is on the hook for anything.
  *
  * - `historica` — approved before this store's cutoff. Its sale already
- *   closed outside Pay Desk, so there is no cotización or comprobante left
+ *   closed outside Paydesk, so there is no cotización or comprobante left
  *   to upload. Shown for visibility, never counted as pending, never
  *   nagged about. Uploading is still *allowed*, just not asked for.
  * - `activa` — approved on or after the cutoff. This is the store's real

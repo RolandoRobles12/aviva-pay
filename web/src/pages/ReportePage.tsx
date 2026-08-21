@@ -15,7 +15,7 @@ export function ReportePage() {
     useConcesionario();
 
   // Pending counts skip historical deals: a sale that closed before its
-  // store started on Pay Desk has no document left to upload, so counting
+  // store started on Paydesk has no document left to upload, so counting
   // it would report work that doesn't exist.
   const resumen = useMemo(() => {
     const activos = dealsFiltrados.filter(

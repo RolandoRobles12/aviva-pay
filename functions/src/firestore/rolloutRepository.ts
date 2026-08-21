@@ -4,11 +4,11 @@ const COLLECTION = "paydesk_config";
 const DOC_ID = "rollout";
 
 /**
- * The cutoff that separates solicitudes Pay Desk is responsible for from
+ * The cutoff that separates solicitudes Paydesk is responsible for from
  * the ones that predate it.
  *
  * Deals approved BEFORE this date are historical: their sale already
- * happened outside Pay Desk, so there is no cotización or comprobante
+ * happened outside Paydesk, so there is no cotización or comprobante
  * left to upload and the store must never be nagged for one. Deals
  * approved ON or AFTER it are live: those are the ones the store is asked
  * to complete.
