@@ -65,6 +65,22 @@ h3 {
   margin-bottom: 0.25rem;
 }
 
+/* The official wordmark (public/aviva-logo.svg). Height drives the lockup;
+   width follows the artwork's own aspect ratio. Tune --logo-alto if it
+   reads too big or small next to "Pay Desk". */
+.brand-mark__logo {
+  --logo-alto: 1.5rem;
+  height: var(--logo-alto);
+  width: auto;
+  display: block;
+  /* An <img> baseline sits at its bottom edge, which drops it low against
+     the script's baseline — nudge it back up to sit on the same line. */
+  position: relative;
+  top: 0.12em;
+}
+
+/* Fallback only — see BrandMark.tsx. Approximates the wordmark when the
+   real asset isn't there. */
 .brand-mark__aviva {
   font-family: var(--font-body);
   font-weight: 800;
