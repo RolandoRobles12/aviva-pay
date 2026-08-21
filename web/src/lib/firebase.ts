@@ -158,7 +158,13 @@ export const adminUpdateConcesionarioCallable = httpsCallable<
     usuarios?: string[];
     rolloutDesde?: string | null;
   },
-  { ok: true; invitados: string[] }
+  {
+    ok: true;
+    /** Added emails that still need the "create your password" email. */
+    invitados: string[];
+    /** Added emails that already had a working password — do NOT email them. */
+    yaActivos: string[];
+  }
 >(functions, "adminUpdateConcesionario");
 
 export const adminGetFieldDictionaryCallable = httpsCallable<

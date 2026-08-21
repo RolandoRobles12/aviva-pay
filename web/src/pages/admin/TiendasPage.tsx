@@ -29,6 +29,8 @@ export function TiendasPage() {
   const [editando, setEditando] = useState<AdminConcesionario | null>(null);
   const [sincronizando, setSincronizando] = useState(false);
   const [resultadoSync, setResultadoSync] = useState<string | null>(null);
+  /** What the last store edit actually did with the invited emails. */
+  const [resultadoGuardado, setResultadoGuardado] = useState<string | null>(null);
   const [fechaRollout, setFechaRollout] = useState<string | null>(null);
 
   async function cargar() {
@@ -137,6 +139,7 @@ export function TiendasPage() {
         </p>
       )}
       {resultadoSync && <p className="form-success">{resultadoSync}</p>}
+      {resultadoGuardado && <p className="form-success">{resultadoGuardado}</p>}
       {error && <p className="form-error">{error}</p>}
 
       <RolloutCard
@@ -214,9 +217,11 @@ export function TiendasPage() {
         <Modal onClose={() => setEditando(null)}>
           <EditarTiendaForm
             tienda={editando}
+            todasLasTiendas={tiendas}
             onCancel={() => setEditando(null)}
-            onSaved={async () => {
+            onSaved={async (mensaje) => {
               setEditando(null);
+              setResultadoGuardado(mensaje);
               await cargar();
             }}
           />
@@ -228,12 +233,15 @@ export function TiendasPage() {
 
 function EditarTiendaForm({
   tienda,
+  todasLasTiendas,
   onCancel,
   onSaved,
 }: {
   tienda: AdminConcesionario;
+  /** The whole catalog, so the form can tell which emails already work at other stores. */
+  todasLasTiendas: AdminConcesionario[];
   onCancel: () => void;
-  onSaved: () => void;
+  onSaved: (mensaje: string | null) => void;
 }) {
   const [nombre, setNombre] = useState(tienda.nombre);
   const [usuarios, setUsuarios] = useState<string[]>(tienda.usuarios);
@@ -248,6 +256,25 @@ function EditarTiendaForm({
   // backend sees no diff to (re-)invite — so a dedicated retry is the only
   // way to actually resend.
   const [fallidos, setFallidos] = useState<string[]>([]);
+
+  // Which other stores each listed email already works at. Computed from
+  // the catalog the page already loaded — no extra call. Reflects saved
+  // state, so typing an email that exists elsewhere surfaces it right
+  // away, before saving.
+  const otrasTiendas = useMemo(() => {
+    const mapa = new Map<string, string[]>();
+    for (const email of usuarios) {
+      const otras = todasLasTiendas
+        .filter(
+          (t) =>
+            t.concesionarioId !== tienda.concesionarioId &&
+            t.usuarios.includes(email),
+        )
+        .map((t) => t.nombre);
+      if (otras.length > 0) mapa.set(email, otras);
+    }
+    return mapa;
+  }, [usuarios, todasLasTiendas, tienda.concesionarioId]);
 
   async function enviarInvitaciones(emails: string[]) {
     setInvitando(true);
@@ -291,6 +318,7 @@ function EditarTiendaForm({
     setFallidos([]);
 
     let invitados: string[];
+    let yaActivos: string[];
     try {
       const result = await adminUpdateConcesionarioCallable({
         concesionarioId: tienda.concesionarioId,
@@ -299,6 +327,7 @@ function EditarTiendaForm({
         rolloutDesde: rolloutDesde || null,
       });
       invitados = result.data.invitados;
+      yaActivos = result.data.yaActivos;
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo guardar.");
       setSubmitting(false);
@@ -321,7 +350,21 @@ function EditarTiendaForm({
       }
     }
 
-    onSaved();
+    // Say plainly who got a mail and who didn't. Someone added to a second
+    // store gets no email on purpose — without this line that silence
+    // looks like the invite failed.
+    const partes: string[] = [];
+    if (invitados.length > 0) {
+      partes.push(
+        `Invitación enviada a ${invitados.join(", ")}`,
+      );
+    }
+    if (yaActivos.length > 0) {
+      partes.push(
+        `${yaActivos.join(", ")} ya tenía contraseña, así que solo se le dio acceso a esta tienda (sin correo)`,
+      );
+    }
+    onSaved(partes.join(" · ") || null);
   }
 
   return (
@@ -350,6 +393,14 @@ function EditarTiendaForm({
         {usuarios.map((email) => (
           <span key={email} className="chip chip--removable">
             {email}
+            {otrasTiendas.has(email) && (
+              <span
+                className="chip__badge"
+                title={`También trabaja en: ${otrasTiendas.get(email)!.join(", ")}`}
+              >
+                +{otrasTiendas.get(email)!.length}
+              </span>
+            )}
             <button
               type="button"
               aria-label={`Quitar a ${email}`}
@@ -360,6 +411,18 @@ function EditarTiendaForm({
           </span>
         ))}
       </div>
+
+      {otrasTiendas.size > 0 && (
+        <ul className="otras-tiendas">
+          {[...otrasTiendas].map(([email, nombres]) => (
+            <li key={email}>
+              <strong>{email}</strong> ya trabaja en {nombres.join(", ")} — al
+              agregarlo aquí solo se le suma esta tienda, no se le pide crear
+              otra contraseña.
+            </li>
+          ))}
+        </ul>
+      )}
       <div className="chip-input__add">
         <input
           type="email"
@@ -410,7 +473,7 @@ function EditarTiendaForm({
                 `Sigue sin poder enviarse a: ${noEnviados.join(", ")}. Intenta de nuevo en unos minutos.`,
               );
             } else {
-              onSaved();
+              onSaved(`Invitación enviada a ${fallidos.join(", ")}`);
             }
           }}
         >
