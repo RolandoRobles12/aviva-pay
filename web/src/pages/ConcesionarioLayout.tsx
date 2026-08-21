@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useNavigate, useOutletContext } from "react-router-dom";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
-import { db, getConcesionarioDealsCallable, logout } from "../lib/firebase";
+import { auth, db, getConcesionarioDealsCallable, logout } from "../lib/firebase";
 import type { PayDeskConcesionario, PayDeskDeal } from "../types/deal";
 import type { FieldLabels } from "../types/admin";
 import type { RolloutMap } from "../lib/dealScope";
@@ -67,6 +67,14 @@ export function ConcesionarioLayout() {
 
     (async () => {
       try {
+        // `concesionarioIds` travels inside the ID token, which Firebase
+        // caches for up to an hour. Without forcing a refresh, a store an
+        // admin just granted stays invisible until that expires — the
+        // callable and the Firestore rules both read the stale claim — and
+        // signing out was the only way to see it. Forcing it here makes a
+        // plain page reload enough.
+        await auth.currentUser?.getIdToken(true);
+
         const result = await getConcesionarioDealsCallable();
         const { concesionarios, deals, labels, rolloutPorTienda } = result.data;
         if (cancelled) return;

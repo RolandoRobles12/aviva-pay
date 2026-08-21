@@ -20,11 +20,15 @@ export type FiltroPeriodo =
 export interface Filtros {
   estado: FiltroEstado;
   periodo: FiltroPeriodo;
+  /** A concesionarioId, or "todas". Only meaningful for accounts with more than one store. */
+  tienda: string;
   /** Only read when periodo === "personalizado". ISO dates (YYYY-MM-DD), either side optional. */
   desde: string;
   hasta: string;
   busqueda: string;
 }
+
+export const TODAS_LAS_TIENDAS = "todas";
 
 /**
  * Opens on the current month: a store's working set is what came in
@@ -35,6 +39,7 @@ export interface Filtros {
 export const FILTROS_INICIALES: Filtros = {
   estado: "todas",
   periodo: "mes",
+  tienda: TODAS_LAS_TIENDAS,
   desde: "",
   hasta: "",
   busqueda: "",
@@ -125,6 +130,10 @@ export function aplicarFiltros(
   const q = filtros.busqueda.trim().toLowerCase();
 
   return deals.filter((deal) => {
+    if (filtros.tienda !== TODAS_LAS_TIENDAS && deal.concesionarioId !== filtros.tienda) {
+      return false;
+    }
+
     if (q && !(deal.cliente ?? "").toLowerCase().includes(q)) return false;
 
     if ((desde || hasta) && deal.fechaSolicitud) {
@@ -178,17 +187,49 @@ export function DealFilters({
   deals,
   filtros,
   rolloutPorTienda,
+  concesionarios = [],
   onChange,
 }: {
   deals: PayDeskDeal[];
   filtros: Filtros;
   rolloutPorTienda: RolloutMap;
+  /** Every store this account can see. The store row only earns its place once there's more than one. */
+  concesionarios?: Array<{ concesionarioId: string; nombre: string }>;
   onChange: (f: Filtros) => void;
 }) {
   const n = conteos(deals, rolloutPorTienda);
+  const variasTiendas = concesionarios.length > 1;
 
   return (
     <div className="filters">
+      {variasTiendas && (
+        <div className="filters__row" role="group" aria-label="Filtrar por tienda">
+          <button
+            type="button"
+            aria-pressed={filtros.tienda === TODAS_LAS_TIENDAS}
+            className={`chip${filtros.tienda === TODAS_LAS_TIENDAS ? " chip--on" : ""}`}
+            onClick={() => onChange({ ...filtros, tienda: TODAS_LAS_TIENDAS })}
+          >
+            Todas mis tiendas
+            <span className="chip__count">{deals.length}</span>
+          </button>
+          {concesionarios.map((c) => (
+            <button
+              key={c.concesionarioId}
+              type="button"
+              aria-pressed={filtros.tienda === c.concesionarioId}
+              className={`chip${filtros.tienda === c.concesionarioId ? " chip--on" : ""}`}
+              onClick={() => onChange({ ...filtros, tienda: c.concesionarioId })}
+            >
+              {c.nombre}
+              <span className="chip__count">
+                {deals.filter((d) => d.concesionarioId === c.concesionarioId).length}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="filters__row" role="group" aria-label="Filtrar por estado">
         {ESTADOS.map((e) => (
           <button
@@ -252,6 +293,7 @@ export function DealFilters({
 
         {(filtros.estado !== FILTROS_INICIALES.estado ||
           filtros.periodo !== FILTROS_INICIALES.periodo ||
+          filtros.tienda !== FILTROS_INICIALES.tienda ||
           filtros.busqueda.trim()) && (
           <button
             type="button"

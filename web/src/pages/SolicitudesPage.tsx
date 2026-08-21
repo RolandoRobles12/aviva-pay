@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useConcesionario } from "./ConcesionarioLayout";
 import { DealsTable } from "../components/DealsTable";
-import { DealFilters } from "../components/DealFilters";
+import { DealFilters, TODAS_LAS_TIENDAS } from "../components/DealFilters";
 import { Paginacion, POR_PAGINA } from "../components/Paginacion";
 import { Modal } from "../components/Modal";
 import { CotizacionUploadForm } from "../components/CotizacionUploadForm";
@@ -26,10 +26,19 @@ export function SolicitudesPage() {
     dealsFiltrados,
     labels,
     rolloutPorTienda,
+    concesionarios,
     concesionarioNombres,
     filtros,
     setFiltros,
   } = useConcesionario();
+
+  // Once you've filtered down to one store, every row says the same thing
+  // — so the "Tienda" column stops earning its width. Handing the table a
+  // single-entry map is what turns it off.
+  const nombresVisibles =
+    filtros.tienda === TODAS_LAS_TIENDAS
+      ? concesionarioNombres
+      : { [filtros.tienda]: concesionarioNombres[filtros.tienda] ?? "" };
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const [pagina, setPagina] = useState(0);
   const [sort, setSort] = useState<SortState | null>({
@@ -86,6 +95,7 @@ export function SolicitudesPage() {
           deals={deals}
           filtros={filtros}
           rolloutPorTienda={rolloutPorTienda}
+          concesionarios={concesionarios}
           onChange={setFiltros}
         />
       )}
@@ -115,7 +125,7 @@ export function SolicitudesPage() {
             deals={visibles}
             labels={labels}
             rolloutPorTienda={rolloutPorTienda}
-            concesionarioNombres={concesionarioNombres}
+            concesionarioNombres={nombresVisibles}
             sort={sort}
             onSort={handleSort}
             onUploadCotizacion={(dealId) => setActiveModal({ type: "cotizacion", dealId })}

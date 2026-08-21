@@ -11,7 +11,7 @@ import { scopeOf } from "../lib/dealScope";
  * to a period there and switch here to see that period's numbers.
  */
 export function ReportePage() {
-  const { deals, dealsFiltrados, rolloutPorTienda, filtros, setFiltros } =
+  const { deals, dealsFiltrados, rolloutPorTienda, concesionarios, filtros, setFiltros } =
     useConcesionario();
 
   // Pending counts skip historical deals: a sale that closed before its
@@ -45,6 +45,7 @@ export function ReportePage() {
           deals={deals}
           filtros={filtros}
           rolloutPorTienda={rolloutPorTienda}
+          concesionarios={concesionarios}
           onChange={setFiltros}
         />
       )}
