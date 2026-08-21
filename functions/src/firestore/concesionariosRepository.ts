@@ -1,4 +1,4 @@
-import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import type { PayDeskConcesionario } from "../types/deal";
 
 const COLLECTION = "paydesk_concesionarios";
@@ -14,15 +14,16 @@ export async function getConcesionario(
   return snap.exists ? (snap.data() as PayDeskConcesionario) : null;
 }
 
-/** Looks a store up by the código it logs in with. Returns null if no store claims that código. */
-export async function findConcesionarioByCodigo(
-  codigo: string,
-): Promise<PayDeskConcesionario | null> {
-  const snap = await concesionariosCollection()
-    .where("codigo", "==", codigo)
-    .limit(1)
-    .get();
-  return snap.empty ? null : (snap.docs[0].data() as PayDeskConcesionario);
+/** Every store in `ids`, skipping any that no longer exist. Order isn't guaranteed to match `ids`. */
+export async function getConcesionariosByIds(
+  ids: string[],
+): Promise<PayDeskConcesionario[]> {
+  const docs = await Promise.all(
+    ids.map((id) => concesionariosCollection().doc(id).get()),
+  );
+  return docs
+    .filter((d) => d.exists)
+    .map((d) => d.data() as PayDeskConcesionario);
 }
 
 export async function listConcesionarios(): Promise<PayDeskConcesionario[]> {
@@ -36,8 +37,8 @@ export async function listConcesionarios(): Promise<PayDeskConcesionario[]> {
  * "notify the store" workflow (requirement section 9) exactly once.
  *
  * Only ever writes the identity fields: an existing store's `nombre`
- * (possibly overridden by an admin), `codigo` and credentials are left
- * untouched, so a later HubSpot sync can't clobber them.
+ * (possibly overridden by an admin) and `usuarios` are left untouched, so
+ * a later HubSpot sync can't clobber them.
  */
 export async function ensureConcesionario(params: {
   concesionarioId: string;
@@ -61,14 +62,7 @@ export async function ensureConcesionario(params: {
     kiosco: params.kiosco,
     nombre: params.nombreSugerido,
     numero: params.numero,
-    // Default the login código to the store number — it's short, unique
-    // and something the store already knows. Admin can change it.
-    codigo: params.numero ?? params.concesionarioId,
-    nipHash: null,
-    nipActualizadoEn: null,
-    intentosFallidos: 0,
-    bloqueadoHasta: null,
-    ultimoAccesoEn: null,
+    usuarios: [],
     actualizadoEn: FieldValue.serverTimestamp(),
     creadoEn: FieldValue.serverTimestamp(),
   });
@@ -76,48 +70,9 @@ export async function ensureConcesionario(params: {
   return { isNew: true };
 }
 
-export async function recordFailedLogin(
-  concesionarioId: string,
-  bloqueadoHasta: Timestamp | null,
-): Promise<void> {
-  await concesionariosCollection()
-    .doc(concesionarioId)
-    .set(
-      {
-        intentosFallidos: FieldValue.increment(1),
-        ...(bloqueadoHasta ? { bloqueadoHasta } : {}),
-      },
-      { merge: true },
-    );
-}
-
-export async function recordSuccessfulLogin(
-  concesionarioId: string,
-): Promise<void> {
-  await concesionariosCollection()
-    .doc(concesionarioId)
-    .set(
-      {
-        intentosFallidos: 0,
-        bloqueadoHasta: null,
-        ultimoAccesoEn: FieldValue.serverTimestamp(),
-      },
-      { merge: true },
-    );
-}
-
-/** Clears a store's lockout and failed-attempt counter. */
-export async function clearLockout(concesionarioId: string): Promise<void> {
-  await concesionariosCollection()
-    .doc(concesionarioId)
-    .set({ intentosFallidos: 0, bloqueadoHasta: null }, { merge: true });
-}
-
 export async function updateConcesionarioFields(
   concesionarioId: string,
-  fields: Partial<
-    Pick<PayDeskConcesionario, "nombre" | "codigo" | "nipHash" | "rolloutDesde">
-  > & { nipActualizadoEn?: FieldValue },
+  fields: Partial<Pick<PayDeskConcesionario, "nombre" | "usuarios" | "rolloutDesde">>,
 ): Promise<void> {
   await concesionariosCollection()
     .doc(concesionarioId)

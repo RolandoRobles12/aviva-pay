@@ -11,15 +11,15 @@ import { scopeOf } from "../lib/dealScope";
  * to a period there and switch here to see that period's numbers.
  */
 export function ReportePage() {
-  const { deals, dealsFiltrados, rolloutDesde, filtros, setFiltros } =
+  const { deals, dealsFiltrados, rolloutPorTienda, filtros, setFiltros } =
     useConcesionario();
 
-  // Pending counts skip historical deals: a sale that closed before this
+  // Pending counts skip historical deals: a sale that closed before its
   // store started on Pay Desk has no document left to upload, so counting
   // it would report work that doesn't exist.
   const resumen = useMemo(() => {
     const activos = dealsFiltrados.filter(
-      (d) => scopeOf(d, rolloutDesde) === "activa",
+      (d) => scopeOf(d, rolloutPorTienda) === "activa",
     );
     return {
       pendientesCotizacion: activos.filter(
@@ -30,7 +30,7 @@ export function ReportePage() {
       ).length,
       montoTotal: dealsFiltrados.reduce((s, d) => s + (d.montoAprobado ?? 0), 0),
     };
-  }, [dealsFiltrados, rolloutDesde]);
+  }, [dealsFiltrados, rolloutPorTienda]);
 
   return (
     <>
@@ -44,7 +44,7 @@ export function ReportePage() {
         <DealFilters
           deals={deals}
           filtros={filtros}
-          rolloutDesde={rolloutDesde}
+          rolloutPorTienda={rolloutPorTienda}
           onChange={setFiltros}
         />
       )}

@@ -1,34 +1,114 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { loginConcesionario } from "../lib/firebase";
+import { enviarRestablecerContrasena, loginConcesionario } from "../lib/firebase";
 
 /**
- * Where a concesionario starts: código de tienda + NIP. There is no
- * per-store secret link — everyone comes to the same URL, which means a
- * forwarded link leaks nothing on its own.
+ * Where a concesionario starts: email + password, the same account an
+ * admin invited from the store catalog. There is no per-store secret link
+ * — everyone comes to the same URL, which means a forwarded link leaks
+ * nothing on its own.
  */
 export function LoginPage() {
   const navigate = useNavigate();
-  const [codigo, setCodigo] = useState("");
-  const [nip, setNip] = useState("");
+  const [modo, setModo] = useState<"entrar" | "recuperar">("entrar");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [recordar, setRecordar] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [recuperado, setRecuperado] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
     try {
-      await loginConcesionario(codigo, nip);
+      await loginConcesionario(email, password, recordar);
       navigate("/solicitudes", { replace: true });
     } catch (err) {
       setError(
-        err instanceof Error
+        err instanceof Error && err.message.includes("tienda")
           ? err.message
-          : "No pudimos validar tus datos. Inténtalo de nuevo.",
+          : "Correo o contraseña incorrectos.",
       );
       setSubmitting(false);
     }
+  }
+
+  async function handleRecuperar(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    setError(null);
+    try {
+      await enviarRestablecerContrasena(email);
+      setRecuperado(true);
+    } catch {
+      // Same message whether the account exists or not — otherwise this
+      // becomes a way to probe which emails have accounts.
+      setRecuperado(true);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (modo === "recuperar") {
+    return (
+      <main className="login-page">
+        <form className="login-card" onSubmit={handleRecuperar}>
+          <div className="brand-mark brand-mark--centered">
+            <span className="brand-mark__aviva">Aviva</span>
+            <span className="brand-mark__product">Pay Desk</span>
+          </div>
+
+          {recuperado ? (
+            <>
+              <p className="login-card__intro">
+                Si <strong>{email}</strong> tiene una cuenta, le acabamos de
+                mandar un correo para crear una nueva contraseña.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setModo("entrar");
+                  setRecuperado(false);
+                }}
+              >
+                Volver a entrar
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="login-card__intro">
+                Escribe el correo con el que te invitaron y te mandamos una
+                liga para crear tu contraseña.
+              </p>
+              <label>
+                Correo
+                <input
+                  type="email"
+                  autoComplete="username"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoFocus
+                />
+              </label>
+              {error && <p className="form-error">{error}</p>}
+              <button type="submit" disabled={submitting}>
+                {submitting ? "Enviando..." : "Enviar liga"}
+              </button>
+              <button
+                type="button"
+                className="link-button link-button--centered"
+                onClick={() => setModo("entrar")}
+              >
+                Volver a entrar
+              </button>
+            </>
+          )}
+        </form>
+      </main>
+    );
   }
 
   return (
@@ -40,35 +120,40 @@ export function LoginPage() {
         </div>
 
         <p className="login-card__intro">
-          Ingresa con los datos de tu tienda para consultar el estatus de los
-          créditos de tus clientes.
+          Ingresa con tu cuenta para consultar el estatus de los créditos de
+          tus clientes.
         </p>
 
         <label>
-          Código de tienda
+          Correo
           <input
-            type="text"
-            inputMode="numeric"
+            type="email"
             autoComplete="username"
-            value={codigo}
-            onChange={(e) => setCodigo(e.target.value)}
-            placeholder="0046"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             required
             autoFocus
           />
         </label>
 
         <label>
-          NIP
+          Contraseña
           <input
             type="password"
-            inputMode="numeric"
             autoComplete="current-password"
-            value={nip}
-            onChange={(e) => setNip(e.target.value)}
-            placeholder="••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
             required
           />
+        </label>
+
+        <label className="upload-form__checkbox">
+          <input
+            type="checkbox"
+            checked={recordar}
+            onChange={(e) => setRecordar(e.target.checked)}
+          />
+          Mantener sesión iniciada en este dispositivo
         </label>
 
         {error && <p className="form-error">{error}</p>}
@@ -77,8 +162,20 @@ export function LoginPage() {
           {submitting ? "Entrando..." : "Entrar"}
         </button>
 
+        <button
+          type="button"
+          className="link-button link-button--centered"
+          onClick={() => {
+            setModo("recuperar");
+            setError(null);
+          }}
+        >
+          ¿Olvidaste tu contraseña?
+        </button>
+
         <p className="login-card__help">
-          ¿No tienes tu NIP o lo olvidaste? Contacta a tu ejecutivo de Aviva.
+          ¿No tienes cuenta? Pídele a tu ejecutivo de Aviva que invite tu
+          correo desde el panel.
         </p>
 
         <Link to="/admin" className="link-button link-button--centered">

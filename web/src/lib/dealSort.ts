@@ -3,6 +3,7 @@ import { completados } from "./dealScope";
 
 export type SortKey =
   | "cliente"
+  | "tienda"
   | "avance"
   | "fechaSolicitud"
   | "montoAprobado"
@@ -19,10 +20,16 @@ export interface SortState {
 }
 
 /** A comparable value per column: string, number, or null for "not there yet". */
-function valorDe(deal: PayDeskDeal, key: SortKey): string | number | null {
+function valorDe(
+  deal: PayDeskDeal,
+  key: SortKey,
+  concesionarioNombres: Record<string, string>,
+): string | number | null {
   switch (key) {
     case "cliente":
       return deal.cliente;
+    case "tienda":
+      return deal.concesionarioId ? concesionarioNombres[deal.concesionarioId] ?? null : null;
     case "avance":
       return completados(deal);
     case "fechaSolicitud":
@@ -58,13 +65,14 @@ function valorDe(deal: PayDeskDeal, key: SortKey): string | number | null {
 export function ordenarDeals(
   deals: PayDeskDeal[],
   sort: SortState | null,
+  concesionarioNombres: Record<string, string> = {},
 ): PayDeskDeal[] {
   if (!sort) return deals;
   const signo = sort.dir === "asc" ? 1 : -1;
 
   return [...deals].sort((a, b) => {
-    const va = valorDe(a, sort.key);
-    const vb = valorDe(b, sort.key);
+    const va = valorDe(a, sort.key, concesionarioNombres);
+    const vb = valorDe(b, sort.key, concesionarioNombres);
     if (va === null && vb === null) return 0;
     if (va === null) return 1;
     if (vb === null) return -1;

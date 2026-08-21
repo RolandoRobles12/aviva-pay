@@ -21,31 +21,24 @@ El requerimiento (sección 2) dice "una página web... por cada solicitud de cr�
 
 - La tienda sale de la propiedad **"Kiosco"** del deal (`HUBSPOT_DEAL_PROPERTIES.kiosco`). No se usa el objeto Company de HubSpot ni ningún otro objeto — confirmado con el negocio: el concesionario se identifica con un campo en el deal, y cada tienda tiene un concesionario distinto (el corte es 1 tienda = 1 página).
 - Cada deal sincronizado guarda su `concesionarioId` en `paydesk_deals/{dealId}` para poder hacer la query "todos los deals de esta tienda".
-- `paydesk_concesionarios/{concesionarioId}` guarda el nombre visible de la tienda y sus credenciales de acceso.
+- `paydesk_concesionarios/{concesionarioId}` guarda el nombre visible de la tienda y la lista de correos invitados a entrar a ella (`usuarios`).
 
-## Acceso: código de tienda + NIP
+## Acceso: cuentas de correo + contraseña, muchas-a-muchas con tiendas
 
-**El requerimiento (secciones 3.2 y 8) descartaba el login y apostaba a que la URL no fuera adivinable.** Ese modelo se abandonó: la propiedad Kiosco resultó tener numeración secuencial (`#0001`…`#0481`), así que cualquier identificador derivado de ella era enumerable, y una URL secreta se filtra en cuanto alguien la reenvía por WhatsApp. En su lugar hay autenticación real:
+**El requerimiento (secciones 3.2 y 8) descartaba el login y apostaba a que la URL no fuera adivinable.** Ese modelo se abandonó primero por un código de tienda + NIP, y ese a su vez se reemplazó por completo: un NIP compartido no escala cuando una tienda tiene varias personas o una persona atiende varias tiendas. El modelo actual:
 
 - Todas las tiendas entran por la **misma URL**. Reenviar el link no expone nada.
-- El concesionario captura su **código de tienda** (por defecto el número, ej. `0046`) y su **NIP** de 6 dígitos.
-- `loginConcesionario` valida y emite un **custom token** cuyo único claim es el `concesionarioId`. El cliente se autentica con ese token y abre un listener `onSnapshot` sobre `paydesk_deals` filtrado por ese id.
-- Las reglas de Firestore (`firestore.rules`) solo permiten `get`/`list` cuando `resource.data.concesionarioId == request.auth.token.concesionarioId`. Firestore rechaza cualquier query que no incluya ese filtro exacto, así que el cliente no puede pedir un listado más amplio. Esto es lo que concilia "la página nunca lee Firestore directo" (sección 6) con "actualización en tiempo real".
+- Un concesionario es una cuenta real de **Firebase Auth (correo + contraseña)**, nunca un secreto compartido por tienda. Una tienda puede tener más de un correo invitado, y el mismo correo puede estar invitado a más de una tienda — quien entra ve la **lista combinada** de todos sus clientes, de todas sus tiendas, en una sola tabla.
+- El alta ocurre desde `/admin/tiendas`: un admin agrega uno o más correos a `usuarios` en el documento de la tienda. Eso crea (si no existía) una cuenta de Firebase Auth **sin contraseña utilizable** para ese correo — ver `concesionario/userSync.ts` — y dispara `sendPasswordResetEmail` desde el cliente, que es lo que convierte esa cuenta en una que la persona puede usar. No hay servicio de correo propio: las tiendas usan dominios y proveedores distintos entre sí, así que se apoya en el envío nativo de Firebase, que no depende del proveedor del destinatario.
+- "Olvidé mi contraseña" en el login es exactamente el mismo mecanismo (`enviarRestablecerContrasena`), y siempre muestra el mismo mensaje exista o no la cuenta — evita que la pantalla sirva para sondear qué correos están dados de alta.
+- El acceso de cada cuenta vive en `paydesk_concesionario_users/{uid}` (índice inverso uid → lista de `concesionarioId`), mantenido en sync con el `usuarios` de cada tienda por `syncConcesionarioUsuarios`. De ahí se recalcula el custom claim `concesionarioIds: string[]` en el token — la lista completa de tiendas que esa cuenta puede ver.
+- El cliente abre un listener `onSnapshot` sobre `paydesk_deals` filtrado con `where("concesionarioId", "in", ids)` (troceado de 30 en 30, el límite de Firestore para `in`).
+- Las reglas de Firestore (`firestore.rules`) solo permiten `get`/`list` cuando `resource.data.concesionarioId` está en `request.auth.token.concesionarioIds`. Firestore rechaza cualquier query que no incluya ese filtro exacto, así que el cliente no puede pedir un listado más amplio que sus propias tiendas.
+- El checkbox "Mantener sesión iniciada" en el login decide la persistencia (`browserLocalPersistence` vs `browserSessionPersistence`) antes de autenticar.
 
 Esto también resuelve el pendiente que traía la sección 8: el control de acceso ya no depende de que una URL no se adivine.
 
-### Cómo se protege el NIP
-
-Un NIP de 6 dígitos son 10⁶ combinaciones — suficiente con las defensas correctas, indefendible sin ellas:
-
-- **Nunca se guarda en claro.** Solo el hash **scrypt** (`functions/src/auth/nip.ts`). scrypt es deliberadamente lento, lo que importa aquí porque un espacio de 10⁶ con un hash rápido se agota en segundos si alguien obtiene la base.
-- **Bloqueo por intentos**: 5 fallos consecutivos bloquean la tienda 15 minutos. El contador vive en el documento de la tienda, así que el bloqueo aplica aunque los intentos caigan en instancias distintas de Cloud Functions.
-- **Mensajes de error idénticos** para "código inexistente", "NIP incorrecto" y "tienda sin NIP": distinguirlos permitiría sondear qué códigos existen.
-- **Se genera con CSPRNG** (`randomInt`), no con `Math.random()`.
-- **Se muestra una sola vez**, al generarlo en el panel. No es recuperable después; si se pierde, se genera otro.
-- El NIP **nunca se escribe en HubSpot**. El workflow de notificación (sección 9) manda la liga y el código; el NIP se entrega aparte.
-
-Los endpoints de subida (`uploadCotizacion`, `uploadComprobante`) también verifican el token y que el deal pertenezca a la tienda que llama — antes dependían de que la URL fuera secreta.
+Los endpoints de subida (`uploadCotizacion`, `uploadComprobante`) también verifican el token y que el deal pertenezca a una de las tiendas de `concesionarioIds` que llama — antes dependían de que la URL fuera secreta.
 
 ## Panel de administración
 
@@ -67,7 +60,7 @@ A partir de ahí, cualquier admin puede dar de alta a los siguientes desde `/adm
 
 | Pantalla | Para qué |
 |---|---|
-| **Tiendas** (`/admin/tiendas`) | Catálogo de las ~481 tiendas, que aparecen solas conforme llegan deals. Renombrar (de `#0046 - TEQ CR` al nombre real), cambiar el código de acceso, generar/regenerar NIP, ver último acceso y desbloquear. |
+| **Tiendas** (`/admin/tiendas`) | Catálogo de las ~481 tiendas, que aparecen solas conforme llegan deals. Renombrar (de `#0046 - TEQ CR` al nombre real), invitar o quitar correos con acceso, y fijar su fecha de arranque individual. |
 | **Diccionario de campos** (`/admin/diccionario`) | Mapeo de cada dato de Pay Desk a su propiedad interna de HubSpot, editable sin desplegar. |
 | **Administradores** (`/admin/administradores`) | Otorgar o revocar el acceso al panel, y ver el historial de quién se lo dio a quién y cuándo. |
 
@@ -103,8 +96,8 @@ La propiedad Kiosco es de tipo **multiple checkboxes**, con ~481 opciones cuyo t
 | HubSpot CRM | Fuente de verdad. Deals (solicitudes de crédito de los clientes), cada uno con la tienda de Construrama a la que pertenece. |
 | Workflow de HubSpot | Dispara `syncDealWebhook` en creación de deal / cambio de stage o propiedad relevante (pipeline de Solicitudes). |
 | Cloud Functions (`functions/`) | Sincroniza HubSpot → Firestore, autentica tiendas y admins, expone el API de lectura, y escribe de vuelta hacia HubSpot (propiedades y archivos del deal). |
-| Firestore (`paydesk_deals`, `paydesk_concesionarios`, `paydesk_config`) | Mirror operativo, catálogo de tiendas con credenciales, y diccionario de campos. |
-| Firebase Auth | Custom tokens con claim de tienda para concesionarios; correo/contraseña con claim `admin` para el equipo de Aviva. |
+| Firestore (`paydesk_deals`, `paydesk_concesionarios`, `paydesk_concesionario_users`, `paydesk_config`) | Mirror operativo, catálogo de tiendas con sus correos invitados, índice inverso uid → tiendas, y diccionario de campos. |
+| Firebase Auth | Correo/contraseña con claim `concesionarioIds: string[]` para concesionarios; correo/contraseña o Google con claim `admin` para el equipo de Aviva. |
 | Firebase Storage | No se usa como almacenamiento final — los archivos van directo a HubSpot Files API; ver nota en `storage.rules`. |
 | Aviva Pay Desk (`web/`) | React + Firebase Hosting. `/` login de tienda, `/solicitudes` tabla de clientes, `/admin/*` panel interno. |
 
@@ -113,7 +106,7 @@ La propiedad Kiosco es de tipo **multiple checkboxes**, con ~481 opciones cuyo t
 1. Un workflow de HubSpot (pipeline de Solicitudes) se dispara en creación de deal o cambio de stage/propiedad.
 2. El paso de Custom Code llama a `syncDealWebhook` (HTTPS) con `{ dealId }` y un header `Authorization: Bearer <HUBSPOT_WEBHOOK_SECRET>`.
 3. La función trae el deal de HubSpot (las propiedades del diccionario, incluida la tienda) y hace upsert en `paydesk_deals/{dealId}`.
-4. Si es la primera vez que se ve a esa tienda, se crea su documento en `paydesk_concesionarios` (sin NIP todavía) y se escriben de vuelta en el deal la liga de Pay Desk y el código de la tienda, para que un segundo workflow los mande al contacto (sección 9). El NIP no viaja por ahí: se genera en el panel y se entrega aparte. Deals posteriores de la misma tienda solo agregan una fila — no se repite la notificación.
+4. Si es la primera vez que se ve a esa tienda, se crea su documento en `paydesk_concesionarios` (sin usuarios invitados todavía) y se escribe de vuelta en el deal la liga de Pay Desk. Invitar a alguien de esa tienda es un paso aparte, manual, desde `/admin/tiendas`. Deals posteriores de la misma tienda solo agregan una fila.
 5. Si el deal todavía no trae la tienda capturada, el sync se omite (queda pendiente hasta el próximo disparo del workflow, cuando se espera que el campo ya esté lleno).
 
 ## Flujo de escritura (concesionario → HubSpot)
@@ -129,8 +122,8 @@ La propiedad Kiosco es de tipo **multiple checkboxes**, con ~481 opciones cuyo t
 - Confirmar con el admin de HubSpot si un deal puede tener más de un Kiosco marcado (hoy se toma el primero y se loguea el caso).
 - Crear las cuentas de admin y otorgarles el claim `admin` (ver "Alta de administradores").
 - Habilitar el proveedor Google en Firebase Console (Authentication → Sign-in method) — el botón "Continuar con Google" no funciona hasta activarlo en el proyecto.
-- Definir el proceso operativo de entrega de NIPs a las ~481 tiendas, y a quién contactan cuando lo olvidan.
-- Considerar caducidad/rotación de NIP y si el bloqueo de 15 minutos es el adecuado para la operación.
+- **Corte operativo del reemplazo de NIP por correo/contraseña**: el acceso viejo (código + NIP) quedó retirado por completo, así que ninguna tienda puede entrar hasta que un admin le invite al menos un correo desde `/admin/tiendas`. Falta correr ese alta inicial para las tiendas que ya estaban activas.
+- Revisar la plantilla del correo que envía `sendPasswordResetEmail` (Firebase Console → Authentication → Templates) — hoy es la genérica de Firebase; vale la pena personalizarla con la marca de Aviva ya que es el único correo que recibe una tienda invitada.
 - Confirmar pipeline/stage IDs de HubSpot (`HUBSPOT_PIPELINE` en `fields.ts`).
 - Confirmar con el dueño del workflow de HubSpot: cómo se dispara la notificación (sección 9) y a qué contacto de la tienda le llega.
 - Provisionar el private app de HubSpot dedicado (scopes: lectura/escritura de deals y files).

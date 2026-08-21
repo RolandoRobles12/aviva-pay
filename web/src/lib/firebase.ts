@@ -1,8 +1,11 @@
 import { initializeApp } from "firebase/app";
 import {
+  browserLocalPersistence,
+  browserSessionPersistence,
   getAuth,
   GoogleAuthProvider,
-  signInWithCustomToken,
+  sendPasswordResetEmail,
+  setPersistence,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
@@ -34,26 +37,64 @@ export const db = getFirestore(app);
 export const functions = getFunctions(app);
 
 // --- Concesionario ---
+//
+// A concesionario user is a real Firebase Auth email/password account,
+// created (bare, no usable password) the moment an admin invites their
+// email to a store — see functions/src/concesionario/userSync.ts. That
+// invite, and "olvidé mi contraseña" below, both work the same way: they
+// call Firebase's own sendPasswordResetEmail, which is what turns a bare
+// account into one the person can actually sign in with. Nothing custom
+// to send that email ourselves — see the "Envío de correo" decision this
+// was built around.
 
-const loginConcesionarioCallable = httpsCallable<
-  { codigo: string; nip: string },
-  { authToken: string; concesionario: PayDeskConcesionario }
->(functions, "loginConcesionario");
+/**
+ * Signed in, but this account isn't invited to any store — drop the
+ * session rather than leave the user in a half-authenticated state the
+ * page would keep rejecting. Access is granted from the admin catalog,
+ * never by the app itself.
+ */
+async function requireConcesionarioClaim(user: User) {
+  const token = await user.getIdTokenResult();
+  const ids = token.claims.concesionarioIds as string[] | undefined;
+  if (!ids || ids.length === 0) {
+    await signOut(auth);
+    throw new Error("Esta cuenta no tiene acceso a ninguna tienda todavía.");
+  }
+  return user;
+}
 
-/** Exchanges código + NIP for a scoped session. Throws with the backend's message on bad credentials or lockout. */
-export async function loginConcesionario(codigo: string, nip: string) {
-  const result = await loginConcesionarioCallable({ codigo, nip });
-  await signInWithCustomToken(auth, result.data.authToken);
-  return result.data.concesionario;
+/**
+ * Signs a concesionario in with email + password. `recordar` picks
+ * whether the session survives closing the browser (local) or ends with
+ * it (session) — set before signing in, since Firebase applies
+ * persistence to the sign-in call itself.
+ */
+export async function loginConcesionario(
+  email: string,
+  password: string,
+  recordar: boolean,
+) {
+  await setPersistence(
+    auth,
+    recordar ? browserLocalPersistence : browserSessionPersistence,
+  );
+  const credential = await signInWithEmailAndPassword(auth, email, password);
+  return requireConcesionarioClaim(credential.user);
+}
+
+/** "Olvidé mi contraseña" — and also what an invite becomes once the invited person uses it. */
+export async function enviarRestablecerContrasena(email: string) {
+  await sendPasswordResetEmail(auth, email);
 }
 
 export const getConcesionarioDealsCallable = httpsCallable<
   void,
   {
-    concesionario: PayDeskConcesionario;
+    concesionarios: PayDeskConcesionario[];
     deals: PayDeskDeal[];
     labels: FieldLabels;
-    rolloutDesde: string | null;
+    /** Rollout cutoff per store (concesionarioId → ISO date | null). */
+    rolloutPorTienda: Record<string, string | null>;
   }
 >(functions, "getConcesionarioDeals");
 
@@ -96,16 +137,12 @@ export const adminUpdateConcesionarioCallable = httpsCallable<
   {
     concesionarioId: string;
     nombre?: string;
-    codigo?: string;
+    /** Full replacement list of invited emails, or omit to leave untouched. */
+    usuarios?: string[];
     rolloutDesde?: string | null;
   },
-  { ok: true }
+  { ok: true; invitados: string[] }
 >(functions, "adminUpdateConcesionario");
-
-export const adminGenerarNipCallable = httpsCallable<
-  { concesionarioId: string },
-  { nip: string }
->(functions, "adminGenerarNip");
 
 export const adminGetFieldDictionaryCallable = httpsCallable<
   void,

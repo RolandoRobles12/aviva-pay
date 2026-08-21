@@ -1,41 +1,32 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  adminGenerarNipCallable,
   adminListConcesionariosCallable,
   adminGetRolloutCallable,
   adminSetRolloutCallable,
   adminSyncConstruramaCallable,
   adminUpdateConcesionarioCallable,
+  enviarRestablecerContrasena,
 } from "../../lib/firebase";
 import type { AdminConcesionario } from "../../types/admin";
 import { Modal } from "../../components/Modal";
 import { StatTiles } from "../../components/StatTiles";
 
-function formatFecha(millis: number | null): string {
-  if (!millis) return "—";
-  return new Date(millis).toLocaleDateString("es-MX", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-}
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
  * Store catalog. Rows appear on their own as deals sync from HubSpot —
  * this screen is for giving each store a name its people recognize
- * (HubSpot's `#0046 - TEQ CR` means nothing to them) and issuing the
- * credentials they log in with.
+ * (HubSpot's `#0046 - TEQ CR` means nothing to them) and inviting the
+ * people who work there. A store can have more than one invited email, and
+ * the same email can be invited to more than one store — someone with
+ * several stores sees all of them in one combined list once they sign in.
  */
 export function TiendasPage() {
   const [tiendas, setTiendas] = useState<AdminConcesionario[] | null>(null);
   const [busqueda, setBusqueda] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [editando, setEditando] = useState<AdminConcesionario | null>(null);
-  const [nipGenerado, setNipGenerado] = useState<{
-    tienda: AdminConcesionario;
-    nip: string;
-  } | null>(null);
   const [sincronizando, setSincronizando] = useState(false);
   const [resultadoSync, setResultadoSync] = useState<string | null>(null);
   const [fechaRollout, setFechaRollout] = useState<string | null>(null);
@@ -69,8 +60,8 @@ export function TiendasPage() {
     return tiendas.filter(
       (t) =>
         t.nombre.toLowerCase().includes(q) ||
-        t.codigo.toLowerCase().includes(q) ||
-        t.kiosco.toLowerCase().includes(q),
+        t.kiosco.toLowerCase().includes(q) ||
+        t.usuarios.some((u) => u.includes(q)),
     );
   }, [tiendas, busqueda]);
 
@@ -78,9 +69,8 @@ export function TiendasPage() {
     const lista = tiendas ?? [];
     return {
       total: lista.length,
-      conNip: lista.filter((t) => t.tieneNip).length,
-      sinNip: lista.filter((t) => !t.tieneNip).length,
-      bloqueadas: lista.filter((t) => t.bloqueado).length,
+      sinUsuarios: lista.filter((t) => t.usuarios.length === 0).length,
+      conVarios: lista.filter((t) => t.usuarios.length > 1).length,
     };
   }, [tiendas]);
 
@@ -101,18 +91,6 @@ export function TiendasPage() {
       setError(err instanceof Error ? err.message : "No se pudo sincronizar.");
     } finally {
       setSincronizando(false);
-    }
-  }
-
-  async function generarNip(tienda: AdminConcesionario) {
-    try {
-      const result = await adminGenerarNipCallable({
-        concesionarioId: tienda.concesionarioId,
-      });
-      setNipGenerado({ tienda, nip: result.data.nip });
-      await cargar();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo generar el NIP.");
     }
   }
 
@@ -146,7 +124,7 @@ export function TiendasPage() {
           <input
             type="search"
             className="admin-search"
-            placeholder="Buscar por nombre, código o kiosco"
+            placeholder="Buscar por nombre, kiosco o correo"
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
           />
@@ -170,16 +148,14 @@ export function TiendasPage() {
       <StatTiles
         stats={[
           { label: "Tiendas", value: resumen.total.toLocaleString("es-MX") },
-          { label: "Con NIP activo", value: resumen.conNip.toLocaleString("es-MX") },
           {
-            label: "Sin NIP",
-            value: resumen.sinNip.toLocaleString("es-MX"),
-            tone: resumen.sinNip > 0 ? "accion" : "neutral",
+            label: "Sin usuarios invitados",
+            value: resumen.sinUsuarios.toLocaleString("es-MX"),
+            tone: resumen.sinUsuarios > 0 ? "accion" : "neutral",
           },
           {
-            label: "Bloqueadas",
-            value: resumen.bloqueadas.toLocaleString("es-MX"),
-            tone: resumen.bloqueadas > 0 ? "accion" : "neutral",
+            label: "Con más de un usuario",
+            value: resumen.conVarios.toLocaleString("es-MX"),
           },
         ]}
       />
@@ -190,9 +166,8 @@ export function TiendasPage() {
             <tr>
               <th>Nombre visible</th>
               <th>Kiosco (HubSpot)</th>
-              <th>Código</th>
-              <th>NIP</th>
-              <th>Último acceso</th>
+              <th>Usuarios</th>
+              <th>Arranque</th>
               <th></th>
             </tr>
           </thead>
@@ -201,19 +176,18 @@ export function TiendasPage() {
               <tr key={t.concesionarioId}>
                 <td>{t.nombre}</td>
                 <td className="cell-mono">{t.kiosco}</td>
-                <td className="cell-mono">{t.codigo}</td>
                 <td>
-                  {t.bloqueado ? (
-                    <span className="pill pill--warn">Bloqueada</span>
-                  ) : t.tieneNip ? (
-                    <span className="cell-done">
-                      Activo · {formatFecha(t.nipActualizadoEn)}
-                    </span>
+                  {t.usuarios.length === 0 ? (
+                    <span className="cell-pending">Sin invitar</span>
                   ) : (
-                    <span className="cell-pending">Sin NIP</span>
+                    <span className="cell-done" title={t.usuarios.join(", ")}>
+                      {t.usuarios.length === 1
+                        ? t.usuarios[0]
+                        : `${t.usuarios.length} correos`}
+                    </span>
                   )}
                 </td>
-                <td>{formatFecha(t.ultimoAccesoEn)}</td>
+                <td>{t.rolloutDesde ?? "—"}</td>
                 <td className="cell-actions">
                   <Link to={`/admin/tiendas/${t.concesionarioId}`} className="link-button">
                     Ver solicitudes
@@ -224,13 +198,6 @@ export function TiendasPage() {
                     onClick={() => setEditando(t)}
                   >
                     Editar
-                  </button>
-                  <button
-                    type="button"
-                    className="upload-button"
-                    onClick={() => generarNip(t)}
-                  >
-                    {t.tieneNip ? "Regenerar NIP" : "Generar NIP"}
                   </button>
                 </td>
               </tr>
@@ -255,28 +222,6 @@ export function TiendasPage() {
           />
         </Modal>
       )}
-
-      {nipGenerado && (
-        <Modal onClose={() => setNipGenerado(null)}>
-          <div className="upload-form">
-            <h3>NIP de {nipGenerado.tienda.nombre}</h3>
-            <p className="nip-display">{nipGenerado.nip}</p>
-            <p className="form-note">
-              Anótalo y compártelo con la tienda ahora. Por seguridad solo se
-              guarda cifrado, así que esta es la única vez que se muestra — si
-              lo pierdes, genera uno nuevo.
-            </p>
-            <p className="form-note">
-              La tienda entra con el código <strong>{nipGenerado.tienda.codigo}</strong>.
-            </p>
-            <div className="upload-form__actions">
-              <button type="button" onClick={() => setNipGenerado(null)}>
-                Listo
-              </button>
-            </div>
-          </div>
-        </Modal>
-      )}
     </section>
   );
 }
@@ -291,26 +236,60 @@ function EditarTiendaForm({
   onSaved: () => void;
 }) {
   const [nombre, setNombre] = useState(tienda.nombre);
-  const [codigo, setCodigo] = useState(tienda.codigo);
+  const [usuarios, setUsuarios] = useState<string[]>(tienda.usuarios);
+  const [nuevoCorreo, setNuevoCorreo] = useState("");
   const [rolloutDesde, setRolloutDesde] = useState(tienda.rolloutDesde ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [invitando, setInvitando] = useState(false);
+
+  function agregarCorreo() {
+    const email = nuevoCorreo.trim().toLowerCase();
+    if (!email) return;
+    if (!EMAIL_RE.test(email)) {
+      setError(`"${email}" no parece un correo válido.`);
+      return;
+    }
+    if (usuarios.includes(email)) {
+      setNuevoCorreo("");
+      return;
+    }
+    setUsuarios([...usuarios, email]);
+    setNuevoCorreo("");
+    setError(null);
+  }
+
+  function quitarCorreo(email: string) {
+    setUsuarios(usuarios.filter((u) => u !== email));
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
     try {
-      await adminUpdateConcesionarioCallable({
+      const result = await adminUpdateConcesionarioCallable({
         concesionarioId: tienda.concesionarioId,
         nombre,
-        codigo,
+        usuarios,
         rolloutDesde: rolloutDesde || null,
       });
+
+      // The account exists the moment its email is added to usuarios, but
+      // it has no usable password yet — sendPasswordResetEmail is what
+      // actually invites it. Only the client SDK can send this, so it
+      // happens here, right after the backend confirms who's newly added.
+      const invitados = result.data.invitados;
+      if (invitados.length > 0) {
+        setInvitando(true);
+        await Promise.all(invitados.map((email) => enviarRestablecerContrasena(email)));
+      }
+
       onSaved();
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo guardar.");
       setSubmitting(false);
+      setInvitando(false);
     }
   }
 
@@ -331,17 +310,45 @@ function EditarTiendaForm({
         />
       </label>
 
-      <label>
-        Código de acceso
-        <input
-          type="text"
-          value={codigo}
-          onChange={(e) => setCodigo(e.target.value)}
-          required
-        />
-      </label>
+      <label>Usuarios con acceso</label>
       <p className="form-note">
-        Si cambias el código, la tienda deberá usar el nuevo para entrar.
+        Cualquiera de estos correos puede entrar a esta tienda con su propia
+        contraseña. Un correo puede tener acceso a más de una tienda.
+      </p>
+      <div className="chip-input">
+        {usuarios.map((email) => (
+          <span key={email} className="chip chip--removable">
+            {email}
+            <button
+              type="button"
+              aria-label={`Quitar a ${email}`}
+              onClick={() => quitarCorreo(email)}
+            >
+              ×
+            </button>
+          </span>
+        ))}
+      </div>
+      <div className="chip-input__add">
+        <input
+          type="email"
+          placeholder="correo@ejemplo.com"
+          value={nuevoCorreo}
+          onChange={(e) => setNuevoCorreo(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              agregarCorreo();
+            }
+          }}
+        />
+        <button type="button" className="button-secondary" onClick={agregarCorreo}>
+          Agregar
+        </button>
+      </div>
+      <p className="form-note">
+        Un correo nuevo recibe una liga por email para crear su contraseña en
+        cuanto guardes.
       </p>
 
       <label>
@@ -369,7 +376,7 @@ function EditarTiendaForm({
           Cancelar
         </button>
         <button type="submit" disabled={submitting}>
-          {submitting ? "Guardando..." : "Guardar"}
+          {invitando ? "Enviando invitaciones..." : submitting ? "Guardando..." : "Guardar"}
         </button>
       </div>
     </form>

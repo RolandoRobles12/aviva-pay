@@ -1,5 +1,5 @@
 import type { PayDeskDeal } from "../types/deal";
-import { estaCompleta, requiereAccion, scopeOf } from "../lib/dealScope";
+import { estaCompleta, requiereAccion, scopeOf, type RolloutMap } from "../lib/dealScope";
 
 export type FiltroEstado =
   | "todas"
@@ -119,7 +119,7 @@ export function rangoDelPeriodo(filtros: Filtros): {
 export function aplicarFiltros(
   deals: PayDeskDeal[],
   filtros: Filtros,
-  rolloutDesde: string | null,
+  rolloutPorTienda: RolloutMap,
 ): PayDeskDeal[] {
   const { desde, hasta } = rangoDelPeriodo(filtros);
   const q = filtros.busqueda.trim().toLowerCase();
@@ -135,16 +135,16 @@ export function aplicarFiltros(
 
     switch (filtros.estado) {
       case "requieren-accion":
-        return requiereAccion(deal, rolloutDesde);
+        return requiereAccion(deal, rolloutPorTienda);
       case "completadas":
         return estaCompleta(deal);
       case "historicas":
-        return scopeOf(deal, rolloutDesde) === "historica";
+        return scopeOf(deal, rolloutPorTienda) === "historica";
       case "en-proceso":
         return (
-          scopeOf(deal, rolloutDesde) === "activa" &&
+          scopeOf(deal, rolloutPorTienda) === "activa" &&
           !estaCompleta(deal) &&
-          !requiereAccion(deal, rolloutDesde)
+          !requiereAccion(deal, rolloutPorTienda)
         );
       default:
         return true;
@@ -153,17 +153,17 @@ export function aplicarFiltros(
 }
 
 /** Count per state chip, so each chip can show how many it would leave. */
-function conteos(deals: PayDeskDeal[], rolloutDesde: string | null) {
+function conteos(deals: PayDeskDeal[], rolloutPorTienda: RolloutMap) {
   return {
     todas: deals.length,
-    "requieren-accion": deals.filter((d) => requiereAccion(d, rolloutDesde)).length,
+    "requieren-accion": deals.filter((d) => requiereAccion(d, rolloutPorTienda)).length,
     completadas: deals.filter(estaCompleta).length,
-    historicas: deals.filter((d) => scopeOf(d, rolloutDesde) === "historica").length,
+    historicas: deals.filter((d) => scopeOf(d, rolloutPorTienda) === "historica").length,
     "en-proceso": deals.filter(
       (d) =>
-        scopeOf(d, rolloutDesde) === "activa" &&
+        scopeOf(d, rolloutPorTienda) === "activa" &&
         !estaCompleta(d) &&
-        !requiereAccion(d, rolloutDesde),
+        !requiereAccion(d, rolloutPorTienda),
     ).length,
   } satisfies Record<FiltroEstado, number>;
 }
@@ -177,15 +177,15 @@ function conteos(deals: PayDeskDeal[], rolloutDesde: string | null) {
 export function DealFilters({
   deals,
   filtros,
-  rolloutDesde,
+  rolloutPorTienda,
   onChange,
 }: {
   deals: PayDeskDeal[];
   filtros: Filtros;
-  rolloutDesde: string | null;
+  rolloutPorTienda: RolloutMap;
   onChange: (f: Filtros) => void;
 }) {
-  const n = conteos(deals, rolloutDesde);
+  const n = conteos(deals, rolloutPorTienda);
 
   return (
     <div className="filters">

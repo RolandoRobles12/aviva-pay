@@ -46,11 +46,13 @@ export interface PayDeskDeal {
 /**
  * Shape of a `paydesk_concesionarios/{concesionarioId}` document — one per
  * Construrama store, created automatically the first time a deal for that
- * Kiosco syncs. Holds the store's display name and its login credentials.
+ * Kiosco syncs. Holds the store's display name and who can sign in to it.
  *
- * Never sent to the client as-is: `nipHash` and the lockout counters stay
- * server-side (see http/loginConcesionario.ts and the admin endpoints,
- * which project only the safe fields).
+ * Identity itself lives in Firebase Auth (email/password) plus
+ * `paydesk_concesionario_users/{uid}`, which is the reverse index (uid →
+ * every store that uid can see) that custom claims are computed from —
+ * see concesionario/userSync.ts. `usuarios` here is only the forward
+ * direction (this store's invited emails), edited from the admin catalog.
  */
 export interface PayDeskConcesionario {
   concesionarioId: string;
@@ -65,19 +67,8 @@ export interface PayDeskConcesionario {
   /** Store number from the Kiosco option, e.g. `0046`. */
   numero: string | null;
 
-  /** What the store types to log in. Unique across stores; defaults to `numero`. */
-  codigo: string;
-  /** scrypt hash of the NIP, or null until the admin generates one (store can't log in yet). */
-  nipHash: string | null;
-  /** When the NIP was last generated, so the admin can see stale credentials. */
-  nipActualizadoEn: FirebaseFirestore.Timestamp | null;
-
-  /** Consecutive failed login attempts; reset on success. Drives the lockout. */
-  intentosFallidos: number;
-  /** While set and in the future, logins are refused regardless of NIP. */
-  bloqueadoHasta: FirebaseFirestore.Timestamp | null;
-  /** Last successful login, shown in the admin catalog. */
-  ultimoAccesoEn: FirebaseFirestore.Timestamp | null;
+  /** Emails invited to sign in to this store, lowercased. A store can have more than one. */
+  usuarios: string[];
 
   /**
    * This store's own rollout cutoff (ISO date), when it went live in a

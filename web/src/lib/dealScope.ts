@@ -1,6 +1,20 @@
 import type { PayDeskDeal } from "../types/deal";
 
 /**
+ * Each store's rollout cutoff, keyed by concesionarioId. A user can see
+ * deals from more than one store (see ConcesionarioLayout.tsx — deals from
+ * every store the signed-in user has access to are shown in one combined
+ * list), and different stores can have gone live on different dates, so
+ * "the" cutoff is only ever meaningful per deal, resolved via its own
+ * concesionarioId.
+ */
+export type RolloutMap = Record<string, string | null>;
+
+function cutoffFor(deal: PayDeskDeal, rolloutPorTienda: RolloutMap): string | null {
+  return rolloutPorTienda[deal.concesionarioId ?? ""] ?? null;
+}
+
+/**
  * Where a solicitud sits relative to Pay Desk's rollout, and therefore
  * whether the store is on the hook for anything.
  *
@@ -11,17 +25,15 @@ import type { PayDeskDeal } from "../types/deal";
  * - `activa` — approved on or after the cutoff. This is the store's real
  *   worklist.
  *
- * With no cutoff set yet (`rolloutDesde === null`) everything reads as
- * historical. That's the safe default while the rollout date is still
- * undecided: a store never gets chased for paperwork that doesn't exist,
- * and the number stops being alarming the day the real date is set.
+ * With no cutoff set yet (`null`) everything reads as historical. That's
+ * the safe default while the rollout date is still undecided: a store
+ * never gets chased for paperwork that doesn't exist, and the number
+ * stops being alarming the day the real date is set.
  */
 export type DealScope = "activa" | "historica";
 
-export function scopeOf(
-  deal: PayDeskDeal,
-  rolloutDesde: string | null,
-): DealScope {
+export function scopeOf(deal: PayDeskDeal, rolloutPorTienda: RolloutMap): DealScope {
+  const rolloutDesde = cutoffFor(deal, rolloutPorTienda);
   if (!rolloutDesde) return "historica";
   // Approved-date unknown: treat as live rather than silently hiding a
   // deal the store may well owe work on.
@@ -46,12 +58,9 @@ function desembolsada(deal: PayDeskDeal): boolean {
 }
 
 /** True when the store still owes a cotización or comprobante AND the deal is in scope. */
-export function requiereAccion(
-  deal: PayDeskDeal,
-  rolloutDesde: string | null,
-): boolean {
+export function requiereAccion(deal: PayDeskDeal, rolloutPorTienda: RolloutMap): boolean {
   if (desembolsada(deal)) return false;
-  if (scopeOf(deal, rolloutDesde) !== "activa") return false;
+  if (scopeOf(deal, rolloutPorTienda) !== "activa") return false;
   return (
     deal.cotizacionEstatus === "pendiente" ||
     deal.comprobanteEntregaEstatus === "pendiente"

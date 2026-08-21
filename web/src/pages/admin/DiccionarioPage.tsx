@@ -24,7 +24,6 @@ const ETIQUETAS: Record<string, string> = {
   comprobanteFirmaClienteConfirmada: "Comprobante de entrega · firma del cliente",
   desembolsoFecha: "Desembolso · fecha",
   paydeskUrl: "Notificación · liga de Pay Desk",
-  paydeskCodigo: "Notificación · código de la tienda",
 };
 
 /**

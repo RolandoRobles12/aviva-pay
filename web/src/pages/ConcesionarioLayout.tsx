@@ -4,31 +4,42 @@ import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { db, getConcesionarioDealsCallable, logout } from "../lib/firebase";
 import type { PayDeskConcesionario, PayDeskDeal } from "../types/deal";
 import type { FieldLabels } from "../types/admin";
+import type { RolloutMap } from "../lib/dealScope";
 import {
   FILTROS_INICIALES,
   aplicarFiltros,
   type Filtros,
 } from "../components/DealFilters";
 
+// Firestore's `in` operator caps at 30 values per query — a signed-in
+// user's store list should never get near that, but chunking here mirrors
+// the same cap the backend already works around in
+// dealsRepository.ts#getDealsByConcesionarioIds.
+const IN_CHUNK = 30;
+
 type LoadState =
   | { status: "loading" }
   | { status: "error"; message: string }
   | {
       status: "ready";
-      concesionario: PayDeskConcesionario;
+      concesionarios: PayDeskConcesionario[];
       deals: PayDeskDeal[];
       labels: FieldLabels;
-      /** This store's rollout cutoff; null while the rollout date is undecided. */
-      rolloutDesde: string | null;
+      /** Rollout cutoff per store; see dealScope.ts. */
+      rolloutPorTienda: RolloutMap;
     };
 
 export interface ConcesionarioContext {
-  /** Everything this store has, unfiltered — the filter chips need the full set to count against. */
+  /** Every store this account can see. */
+  concesionarios: PayDeskConcesionario[];
+  /** concesionarioId → nombre, for the "Tienda" column and its sort. */
+  concesionarioNombres: Record<string, string>;
+  /** Everything across every store, unfiltered — the filter chips need the full set to count against. */
   deals: PayDeskDeal[];
   /** What the current filters leave. Both the list and the report read this, so any slice can be reported on. */
   dealsFiltrados: PayDeskDeal[];
   labels: FieldLabels;
-  rolloutDesde: string | null;
+  rolloutPorTienda: RolloutMap;
   filtros: Filtros;
   setFiltros: (f: Filtros) => void;
 }
@@ -38,9 +49,11 @@ export function useConcesionario() {
 }
 
 /**
- * Loads the store's deals once and hands them to whichever child route is
- * showing. Filter state lives here too, so switching between the list and
- * the report keeps the slice the store had picked instead of resetting it.
+ * Loads every store this account has access to and hands them to whichever
+ * child route is showing, as one combined list — see the "multi-store UX"
+ * decision this was built around. Filter state lives here too, so
+ * switching between the list and the report keeps the slice the store had
+ * picked instead of resetting it.
  */
 export function ConcesionarioLayout() {
   const navigate = useNavigate();
@@ -54,27 +67,37 @@ export function ConcesionarioLayout() {
     (async () => {
       try {
         const result = await getConcesionarioDealsCallable();
-        const { concesionario, deals, labels, rolloutDesde } = result.data;
+        const { concesionarios, deals, labels, rolloutPorTienda } = result.data;
         if (cancelled) return;
 
-        setState({ status: "ready", concesionario, deals, labels, rolloutDesde });
+        setState({ status: "ready", concesionarios, deals, labels, rolloutPorTienda });
 
         // Realtime updates: the session's custom claim is what makes this
-        // query pass the Firestore rules, and it only ever matches this
-        // store's own deals.
-        const dealsQuery = query(
-          collection(db, "paydesk_deals"),
-          where("concesionarioId", "==", concesionario.concesionarioId),
+        // query pass the Firestore rules, and it only ever matches deals
+        // from stores this account has access to.
+        const ids = concesionarios.map((c) => c.concesionarioId);
+        const chunks: string[][] = [];
+        for (let i = 0; i < ids.length; i += IN_CHUNK) {
+          chunks.push(ids.slice(i, i + IN_CHUNK));
+        }
+
+        const porChunk = new Map<number, PayDeskDeal[]>();
+        const unsubs = chunks.map((chunk, i) =>
+          onSnapshot(
+            query(collection(db, "paydesk_deals"), where("concesionarioId", "in", chunk)),
+            (snap) => {
+              porChunk.set(i, snap.docs.map((doc) => doc.data() as PayDeskDeal));
+              setState({
+                status: "ready",
+                concesionarios,
+                labels,
+                rolloutPorTienda,
+                deals: chunks.flatMap((_, j) => porChunk.get(j) ?? []),
+              });
+            },
+          ),
         );
-        unsubscribe = onSnapshot(dealsQuery, (snap) => {
-          setState({
-            status: "ready",
-            concesionario,
-            labels,
-            rolloutDesde,
-            deals: snap.docs.map((doc) => doc.data() as PayDeskDeal),
-          });
-        });
+        unsubscribe = () => unsubs.forEach((u) => u());
       } catch (err) {
         if (!cancelled) {
           setState({
@@ -99,12 +122,18 @@ export function ConcesionarioLayout() {
     navigate("/", { replace: true });
   }
 
+  const concesionarios = state.status === "ready" ? state.concesionarios : [];
   const deals = state.status === "ready" ? state.deals : [];
-  const rolloutDesde = state.status === "ready" ? state.rolloutDesde : null;
+  const rolloutPorTienda = state.status === "ready" ? state.rolloutPorTienda : {};
+
+  const concesionarioNombres = useMemo(
+    () => Object.fromEntries(concesionarios.map((c) => [c.concesionarioId, c.nombre])),
+    [concesionarios],
+  );
 
   const dealsFiltrados = useMemo(
-    () => aplicarFiltros(deals, filtros, rolloutDesde),
-    [deals, filtros, rolloutDesde],
+    () => aplicarFiltros(deals, filtros, rolloutPorTienda),
+    [deals, filtros, rolloutPorTienda],
   );
 
   if (state.status === "loading") {
@@ -123,10 +152,12 @@ export function ConcesionarioLayout() {
   }
 
   const context: ConcesionarioContext = {
+    concesionarios: state.concesionarios,
+    concesionarioNombres,
     deals: state.deals,
     dealsFiltrados,
     labels: state.labels,
-    rolloutDesde: state.rolloutDesde,
+    rolloutPorTienda: state.rolloutPorTienda,
     filtros,
     setFiltros,
   };
@@ -140,10 +171,21 @@ export function ConcesionarioLayout() {
         </div>
         <div className="header-right">
           <div className="store-badge">
-            <span className="store-badge__nombre">{state.concesionario.nombre}</span>
-            {state.concesionario.numero && (
-              <span className="store-badge__numero">
-                Tienda {state.concesionario.numero}
+            {state.concesionarios.length === 1 ? (
+              <>
+                <span className="store-badge__nombre">{state.concesionarios[0].nombre}</span>
+                {state.concesionarios[0].numero && (
+                  <span className="store-badge__numero">
+                    Tienda {state.concesionarios[0].numero}
+                  </span>
+                )}
+              </>
+            ) : (
+              <span
+                className="store-badge__nombre"
+                title={state.concesionarios.map((c) => c.nombre).join(", ")}
+              >
+                {state.concesionarios.length} tiendas
               </span>
             )}
           </div>
