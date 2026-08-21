@@ -18,6 +18,12 @@
      queda para el logotipo, que es identidad de marca, no un control. */
   --verde-accion: #0a845b;
 
+  /* Superficie de marca. Regla del manual: las letras del logotipo Aviva
+     nunca van de color — siempre blancas sobre verde. Así que toda
+     superficie que carga el logo (barra de tienda, header de admin, banda
+     del login) usa este fondo, y el wordmark va en blanco encima. */
+  --verde-marca: #026149;
+
   /* Colores secundarios */
   --blanco: #ffffff;
   --gris-frio: #f0f5fa;
@@ -65,9 +71,11 @@ h3 {
   margin-bottom: 0.25rem;
 }
 
-/* The official wordmark (public/aviva-logo.svg). Height drives the lockup;
-   width follows the artwork's own aspect ratio. Tune --logo-alto if it
-   reads too big or small next to "Pay Desk". */
+/* The official wordmark (public/aviva-logo.svg), in its WHITE version —
+   the lockup always sits on --verde-marca, never on a light surface, so
+   the artwork straight out of the brand manual is the right one. Height
+   drives the lockup; width follows the artwork's own aspect ratio. Tune
+   --logo-alto if it reads too big or small next to "Pay Desk". */
 .brand-mark__logo {
   --logo-alto: 1.5rem;
   height: var(--logo-alto);
@@ -80,19 +88,22 @@ h3 {
 }
 
 /* Fallback only — see BrandMark.tsx. Approximates the wordmark when the
-   real asset isn't there. */
+   real asset isn't there. White for the same reason as the artwork. */
 .brand-mark__aviva {
   font-family: var(--font-body);
   font-weight: 800;
   font-size: 1.5rem;
-  color: var(--verde-musgo);
+  color: var(--blanco);
 }
 
+/* "Pay Desk" is our product name, not part of the Aviva wordmark, so it
+   keeps its own tone — Esmeralda rather than white, which preserves the
+   two-tone lockup and reads at ~5.6:1 on the brand green. */
 .brand-mark__product {
   font-family: var(--font-script);
   font-weight: 400;
   font-size: 2.25rem; /* Fustat (1.5rem) × 1.5, per brand spec for Satisfy substitute */
-  color: var(--verde-aviva);
+  color: var(--verde-esmeralda);
 }
 
 /* --- App shell -----------------------------------------------------------
@@ -113,8 +124,9 @@ h3 {
   flex-wrap: wrap;
   gap: 1rem;
   padding: 0.9rem var(--gutter);
-  background: var(--blanco);
-  border-bottom: 1px solid color-mix(in srgb, var(--verde-musgo) 12%, transparent);
+  /* Carries the logo, so it's a brand surface — see --verde-marca. The
+     white tabs directly below give the edge, so no border is needed. */
+  background: var(--verde-marca);
 }
 
 .app-body {
@@ -156,12 +168,15 @@ h3 {
 /* Which store you're looking at — the Kiosco value is internal HubSpot
    nomenclature (`#0046 - TEQ CR`), so the page shows a cleaned-up name
    with the store number as secondary detail. */
+/* Sits on the green app bar, so it's a translucent white chip rather than
+   the Esmeralda fill it used to be on white — that tone now belongs to
+   "Pay Desk" in the lockup, and repeating it here competed with it. */
 .store-badge {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  background: var(--verde-esmeralda);
-  color: var(--verde-musgo);
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--blanco);
   padding: 0.5rem 0.9rem;
   border-radius: 10px;
   line-height: 1.25;
@@ -443,6 +458,17 @@ h3 {
   justify-content: center;
 }
 
+/* The card is white, but the wordmark may only sit on green — so the
+   lockup gets a full-bleed band across the top of the card instead. The
+   negative margin cancels .login-card's 2rem padding to reach the edges,
+   and the top corners follow the card's own radius. */
+.login-card .brand-mark {
+  margin: -2rem -2rem 0;
+  padding: 1.4rem 2rem;
+  background: var(--verde-marca);
+  border-radius: 16px 16px 0 0;
+}
+
 .login-card__intro {
   margin: 0;
   text-align: center;
@@ -492,6 +518,23 @@ h3 {
 .login-card button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* .link-button is meant to read as a text link, but `.login-card button`
+   outranks it on specificity and was painting these solid green — so the
+   login screen showed "Entrar" and "¿Olvidaste tu contraseña?" as two
+   identical CTAs, and the same class rendered as a real link when it
+   happened to be an <a>. Put the ones that opted into link styling back. */
+.login-card button.link-button {
+  background: none;
+  color: var(--verde-musgo);
+  font-size: 0.9rem;
+  padding: 0;
+}
+
+.login-card button.link-button:hover:not(:disabled) {
+  background: none;
+  text-decoration: underline;
 }
 
 .login-card__divider {
@@ -627,6 +670,14 @@ h3 {
   text-align: center;
 }
 
+/* On the brand surfaces the default green is unreadable — but .link-button
+   is used all over the light parts of the app (tables, forms, empty
+   states), so this flips it only where it sits on green. */
+.app-bar .link-button,
+.admin-shell__header .link-button {
+  color: var(--blanco);
+}
+
 .cell-mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.85rem;
@@ -684,8 +735,8 @@ h3 {
   align-items: center;
   gap: 2rem;
   padding: 1rem var(--gutter);
-  background: var(--blanco);
-  border-bottom: 1px solid var(--blanco-off);
+  /* Brand surface, same as the concesionario app bar — see --verde-marca. */
+  background: var(--verde-marca);
 }
 
 .admin-nav {
@@ -694,8 +745,11 @@ h3 {
   flex: 1;
 }
 
+/* On the green header: the inactive links are held back with opacity
+   rather than a lighter green, so the active one is the only fully-white
+   item and stays the obvious "you are here". */
 .admin-nav a {
-  color: color-mix(in srgb, var(--negro-off) 70%, transparent);
+  color: rgba(255, 255, 255, 0.72);
   text-decoration: none;
   font-weight: 500;
   font-size: 0.92rem;
@@ -703,10 +757,14 @@ h3 {
   border-bottom: 2px solid transparent;
 }
 
+.admin-nav a:hover {
+  color: var(--blanco);
+}
+
 .admin-nav a.active {
-  color: var(--verde-musgo);
+  color: var(--blanco);
   font-weight: 700;
-  border-bottom-color: var(--verde-accion);
+  border-bottom-color: var(--verde-esmeralda);
 }
 
 .admin-shell__body {
