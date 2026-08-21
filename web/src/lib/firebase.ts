@@ -82,9 +82,20 @@ export async function loginConcesionario(
   return requireConcesionarioClaim(credential.user);
 }
 
-/** "Olvidé mi contraseña" — and also what an invite becomes once the invited person uses it. */
+/**
+ * "Olvidé mi contraseña" — and also what an invite becomes once the
+ * invited person uses it.
+ *
+ * `actionCodeSettings.url` + `handleCodeInApp: true` route the email link
+ * straight into RestablecerContrasenaPage (our own, Pay Desk-branded
+ * screen) instead of Firebase's generic, unbranded default handler at
+ * `<authDomain>/__/auth/action`.
+ */
 export async function enviarRestablecerContrasena(email: string) {
-  await sendPasswordResetEmail(auth, email);
+  await sendPasswordResetEmail(auth, email, {
+    url: `${window.location.origin}/restablecer`,
+    handleCodeInApp: true,
+  });
 }
 
 export const getConcesionarioDealsCallable = httpsCallable<
