@@ -23,7 +23,7 @@ const ETIQUETAS: Record<string, string> = {
   comprobanteFechaEntrega: "Comprobante de entrega · fecha",
   comprobanteFirmaClienteConfirmada: "Comprobante de entrega · firma del cliente",
   desembolsoFecha: "Desembolso · fecha",
-  paydeskUrl: "Notificación · liga de Pay Desk",
+  paydeskUrl: "Notificación · liga de Paydesk",
 };
 
 /**
@@ -82,7 +82,7 @@ export function DiccionarioPage() {
       <h1 className="admin-title">Diccionario de campos</h1>
       <p className="admin-subtitle">
         Nombre interno de la propiedad en HubSpot para cada dato que muestra
-        Pay Desk. Los valores que empiezan con <code>TODO_</code> siguen
+        Paydesk. Los valores que empiezan con <code>TODO_</code> siguen
         pendientes de mapear.
       </p>
 

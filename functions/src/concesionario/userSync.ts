@@ -10,7 +10,7 @@ import {
  * An account we created with `createUser({ email })` and nothing else has
  * no sign-in provider attached at all — the `password` provider only shows
  * up once they complete the reset link and actually set one. So this is
- * what separates "invited, never finished" from "already using Pay Desk".
+ * what separates "invited, never finished" from "already using Paydesk".
  */
 function yaTieneContrasena(user: UserRecord): boolean {
   return user.providerData.some((p) => p.providerId === "password");

@@ -78,7 +78,7 @@ function DateCell({ iso }: { iso: string | null }) {
  * the action that uploads it.
  *
  * On a historical deal the ask is deliberately demoted to a quiet link.
- * That sale closed before this store started using Pay Desk, so there is
+ * That sale closed before this store started using Paydesk, so there is
  * nothing left to upload and a green call-to-action would read as a chore
  * the store can never finish — but uploading stays *possible*, since the
  * cutoff governs what's demanded, not what's allowed.
@@ -269,7 +269,7 @@ export function DealsTable({
                 {historica && (
                   <span
                     className="tag-historica"
-                    title="Cerró antes de que tu tienda empezara a usar Pay Desk — no tienes que subir nada."
+                    title="Cerró antes de que tu tienda empezara a usar Paydesk — no tienes que subir nada."
                   >
                     Anterior
                   </span>

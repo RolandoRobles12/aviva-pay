@@ -1,4 +1,4 @@
-# Aviva Pay Desk — Requerimiento de creación de proyecto
+# Aviva Paydesk — Requerimiento de creación de proyecto
 
 > Copia en Markdown del documento fuente (`Aviva_Pay_Desk_Requerimiento_1.docx`) para referencia rápida dentro del repo.
 
@@ -6,7 +6,7 @@
 >
 > 1. **Una página por concesionario, no por deal.** El texto original (secciones 2 y 3.1) describe "una página por deal". El mockup mostró que en realidad es una página por tienda de Construrama, con una tabla de varias filas: una por cliente/solicitud.
 > 2. **El concesionario no es una company de HubSpot.** La sección 4 menciona "deals y companies"; en la práctica la tienda se identifica con una **propiedad del deal**, no con el objeto Company ni ningún otro objeto asociado.
-> 3. **Aviva Pay todavía no existe.** La vista del cliente final aparece en los diagramas de proceso, pero este repo construye únicamente Pay Desk.
+> 3. **Aviva Pay todavía no existe.** La vista del cliente final aparece en los diagramas de proceso, pero este repo construye únicamente Paydesk.
 > 4. **Sí hay login.** Las secciones 3.2 y 8 descartan cuentas de usuario y apuestan a una URL no adivinable. Ese modelo se abandonó: la propiedad Kiosco tiene numeración secuencial, así que cualquier URL derivada de ella sería enumerable. La tienda entra con **código + NIP**, y existe además un **panel de administración** para el equipo de Aviva (catálogo de tiendas y diccionario de campos).
 
 - **Autor:** Rolando Robles — Growth Ops Squad
@@ -20,7 +20,7 @@ Aviva está formalizando el ciclo de crédito con aliados comerciales que no ope
 
 Dentro de ese ciclo, hoy no existe una forma confiable de que el concesionario (la tienda o sucursal del aliado) consulte el estatus de una solicitud de crédito ni respalde el proceso de entrega. La validación actual del saldo autorizado se hace por WhatsApp/email, un mecanismo fácil de falsificar, y el respaldo de entrega de materiales dejó de gestionarse de forma estructurada.
 
-Este documento define el requerimiento para construir Aviva Pay Desk: una vista para el concesionario que muestra el estatus de sus solicitudes de crédito y le permite subir la cotización y el comprobante de entrega, alimentada automáticamente desde HubSpot.
+Este documento define el requerimiento para construir Aviva Paydesk: una vista para el concesionario que muestra el estatus de sus solicitudes de crédito y le permite subir la cotización y el comprobante de entrega, alimentada automáticamente desde HubSpot.
 
 ## 2. Objetivo del proyecto
 
@@ -54,7 +54,7 @@ HubSpot se mantiene como fuente de verdad del negocio; el proyecto no migra ni d
 | Workflow de HubSpot | Detecta la creación del deal o el cambio de stage/propiedad relevante y dispara la sincronización. |
 | Cloud Functions (Firebase) | Recibe el disparo del workflow, sincroniza los datos hacia Firestore, expone el API que consume la página y escribe de vuelta hacia HubSpot (propiedades y archivos). |
 | Firestore y Storage | Almacena los datos operativos que consume la página (solo las propiedades necesarias, no el deal completo) y los archivos subidos por el concesionario antes de enviarlos a HubSpot. |
-| Aviva Pay Desk (React) | Aplicación en Firebase Hosting con una ruta dinámica por deal. Sin login: el identificador del deal en la URL determina qué información se muestra. |
+| Aviva Paydesk (React) | Aplicación en Firebase Hosting con una ruta dinámica por deal. Sin login: el identificador del deal en la URL determina qué información se muestra. |
 
 ## 5. Requerimientos funcionales
 

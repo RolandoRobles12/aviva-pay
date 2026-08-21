@@ -1,4 +1,4 @@
-# Aviva Pay Desk
+# Aviva Paydesk
 
 Portal para el concesionario (tienda de Construrama): entra con su código de tienda y NIP, ve a los clientes de su tienda con el avance de cada solicitud de crédito, y sube la cotización y el comprobante de entrega firmado. Los datos vienen de HubSpot y lo que captura la tienda se escribe de vuelta ahí.
 

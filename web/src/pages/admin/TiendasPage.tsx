@@ -555,8 +555,8 @@ function RolloutCard({
           ) : (
             <>
               Sin definir. Mientras no la pongas, ninguna tienda ve
-              pendientes: todos sus créditos se tratan como anteriores a Pay
-              Desk. Defínela el día que arranques con ellas.
+              pendientes: todos sus créditos se tratan como anteriores a
+              Paydesk. Defínela el día que arranques con ellas.
             </>
           )}
         </p>

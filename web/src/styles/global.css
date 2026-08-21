@@ -69,8 +69,8 @@ h3 {
   align-items: baseline;
   /* The manual's clear-space rule is 2x, where x is the dot on the i —
      ~30 of the wordmark's 483 units wide. At --logo-alto: 2rem the mark is
-     ~103px wide, so x ≈ 6.4px and 2x ≈ 0.8rem. That's the minimum "Pay
-     Desk" may sit from it. */
+     ~103px wide, so x ≈ 6.4px and 2x ≈ 0.8rem. That's the minimum
+     "Paydesk" may sit from it. */
   gap: 0.8rem;
   margin-bottom: 0.25rem;
 }
@@ -79,12 +79,12 @@ h3 {
    the lockup always sits on --verde-marca, never on a light surface, so
    the artwork straight out of the brand manual is the right one. Height
    drives the lockup; width follows the artwork's own aspect ratio. Tune
-   --logo-alto if it reads too big or small next to "Pay Desk". */
+   --logo-alto if it reads too big or small next to "Paydesk". */
 .brand-mark__logo {
   /* 2rem, not the text's 1.5rem: the artwork's height spans from the dot
      on the i down to the baseline, so its x-height — the mass the eye
      actually reads — is only ~70% of that. At 1.5rem the wordmark looked
-     dwarfed next to "Pay Desk"; this evens them out. */
+     dwarfed next to "Paydesk"; this evens them out. */
   --logo-alto: 2rem;
   height: var(--logo-alto);
   width: auto;
@@ -103,7 +103,7 @@ h3 {
   color: var(--blanco);
 }
 
-/* "Pay Desk" is our product name, not part of the Aviva wordmark, so it
+/* "Paydesk" is our product name, not part of the Aviva wordmark, so it
    keeps its own tone — Esmeralda rather than white, which preserves the
    two-tone lockup and reads at ~5.6:1 on the brand green. */
 .brand-mark__product {
@@ -177,7 +177,7 @@ h3 {
    with the store number as secondary detail. */
 /* Sits on the green app bar, so it's a translucent white chip rather than
    the Esmeralda fill it used to be on white — that tone now belongs to
-   "Pay Desk" in the lockup, and repeating it here competed with it. */
+   "Paydesk" in the lockup, and repeating it here competed with it. */
 .store-badge {
   display: flex;
   flex-direction: column;
@@ -1560,7 +1560,7 @@ h3 {
 }
 
 /* --- Historical deals ----------------------------------------------------
-   Closed before this store started on Pay Desk. Present for visibility,
+   Closed before this store started on Paydesk. Present for visibility,
    visibly de-emphasised, never counted as pending. */
 
 .row--historica td:not(.col-sticky) {

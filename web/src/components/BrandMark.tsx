@@ -1,8 +1,8 @@
 import { useState } from "react";
 
 /**
- * The Aviva Pay Desk lockup: the official Aviva wordmark followed by "Pay
- * Desk" in the script face.
+ * The Aviva Paydesk lockup: the official Aviva wordmark followed by
+ * "Paydesk" in the script face.
  *
  * The wordmark is the real asset from the brand manual, served from
  * `web/public/aviva-logo.svg`. It must be the version for LIGHT
@@ -30,7 +30,7 @@ export function BrandMark({ centered = false }: { centered?: boolean }) {
           onError={() => setLogoFailed(true)}
         />
       )}
-      <span className="brand-mark__product">Pay Desk</span>
+      <span className="brand-mark__product">Paydesk</span>
     </div>
   );
 }

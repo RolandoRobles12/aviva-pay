@@ -54,7 +54,7 @@ function toBoolean(raw: string | null | undefined): boolean | null {
  * `cotizacionEstatus` and `comprobanteEntregaEstatus` are HubSpot "single
  * checkbox" properties (confirmed against the real portal) — their
  * internal option values are the literal strings "true" / "false", not
- * "completado" / "pendiente". Pay Desk's own vocabulary is
+ * "completado" / "pendiente". Paydesk's own vocabulary is
  * "completado"/"pendiente"; this is the read-side half of that
  * translation (see uploadCotizacion.ts / uploadComprobante.ts for the
  * write-side half).
@@ -80,8 +80,8 @@ async function allDealProperties(): Promise<{
 }
 
 /**
- * Maps a deal's raw HubSpot properties into the subset of fields Aviva Pay
- * Desk needs (section 7), plus which pipeline it's in. Shared by
+ * Maps a deal's raw HubSpot properties into the subset of fields Aviva
+ * Paydesk needs (section 7), plus which pipeline it's in. Shared by
  * `fetchDealById` (one deal via getById) and the bulk backfill (many deals
  * via search, which returns properties directly — no per-deal getById
  * needed).
