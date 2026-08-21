@@ -1253,6 +1253,27 @@ h3 {
   flex: 1;
 }
 
+/* Marks an invited email that already works at other stores — the count of
+   those stores, with their names on the tooltip. Paired with the list
+   below the chips, so this is never the only place it's said. */
+.chip__badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  background: var(--verde-esmeralda);
+  color: var(--verde-musgo);
+  cursor: help;
+}
+
+.otras-tiendas {
+  margin: 0 0 0.5rem;
+  padding-left: 1.1rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--negro-off) 62%, transparent);
+}
+
 /* --- "Te toca a ti" banner ----------------------------------------------
    The one thing worth interrupting for. Tapping it filters the table down
    to exactly those clients. */

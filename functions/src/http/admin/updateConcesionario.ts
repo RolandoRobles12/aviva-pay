@@ -24,6 +24,11 @@ interface UpdateRequest {
  * (or de-invites) exactly the emails that changed — see
  * concesionario/userSync.ts for what "invite" actually does to Firebase
  * Auth and each user's claim.
+ *
+ * Returns the added emails split in two: `invitados` still need the
+ * "create your password" email (the caller sends it), and `yaActivos`
+ * already have a working password from another store and must not be
+ * emailed again.
  */
 export const adminUpdateConcesionario = onCall<UpdateRequest>(
   { region: "us-central1" },
@@ -77,10 +82,11 @@ export const adminUpdateConcesionario = onCall<UpdateRequest>(
     }
 
     if (Object.keys(cambios).length === 0) {
-      return { ok: true, sinCambios: true, invitados: [] };
+      return { ok: true, sinCambios: true, invitados: [], yaActivos: [] };
     }
 
     let invitados: string[] = [];
+    let yaActivos: string[] = [];
     if (nuevosUsuarios !== undefined) {
       const resultado = await syncConcesionarioUsuarios(
         concesionarioId,
@@ -88,14 +94,18 @@ export const adminUpdateConcesionario = onCall<UpdateRequest>(
         nuevosUsuarios,
       );
       invitados = resultado.invitados;
+      yaActivos = resultado.yaActivos;
     }
 
     await updateConcesionarioFields(concesionarioId, cambios);
     logger.info(
       `adminUpdateConcesionario: ${concesionarioId} updated by ${admin.email ?? admin.uid}` +
-        (invitados.length ? ` (invited: ${invitados.join(", ")})` : ""),
+        (invitados.length ? ` (invited: ${invitados.join(", ")})` : "") +
+        (yaActivos.length
+          ? ` (already active, no email sent: ${yaActivos.join(", ")})`
+          : ""),
     );
 
-    return { ok: true, invitados };
+    return { ok: true, invitados, yaActivos };
   },
 );
