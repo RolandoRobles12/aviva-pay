@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useNavigate, useOutletContext } from "react-router-dom";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
-import { db, getConcesionarioDealsCallable, logout } from "../lib/firebase";
+import { auth, db, getConcesionarioDealsCallable, logout } from "../lib/firebase";
 import type { PayDeskConcesionario, PayDeskDeal } from "../types/deal";
 import type { FieldLabels } from "../types/admin";
 import type { RolloutMap } from "../lib/dealScope";
 import { BrandMark } from "../components/BrandMark";
+import { SelectorTiendas } from "../components/SelectorTiendas";
 import {
   FILTROS_INICIALES,
   aplicarFiltros,
@@ -67,6 +68,14 @@ export function ConcesionarioLayout() {
 
     (async () => {
       try {
+        // `concesionarioIds` travels inside the ID token, which Firebase
+        // caches for up to an hour. Without forcing a refresh, a store an
+        // admin just granted stays invisible until that expires — the
+        // callable and the Firestore rules both read the stale claim — and
+        // signing out was the only way to see it. Forcing it here makes a
+        // plain page reload enough.
+        await auth.currentUser?.getIdToken(true);
+
         const result = await getConcesionarioDealsCallable();
         const { concesionarios, deals, labels, rolloutPorTienda } = result.data;
         if (cancelled) return;
@@ -168,25 +177,23 @@ export function ConcesionarioLayout() {
       <header className="app-bar">
         <BrandMark />
         <div className="header-right">
-          <div className="store-badge">
-            {state.concesionarios.length === 1 ? (
-              <>
-                <span className="store-badge__nombre">{state.concesionarios[0].nombre}</span>
-                {state.concesionarios[0].numero && (
-                  <span className="store-badge__numero">
-                    Tienda {state.concesionarios[0].numero}
-                  </span>
-                )}
-              </>
-            ) : (
-              <span
-                className="store-badge__nombre"
-                title={state.concesionarios.map((c) => c.nombre).join(", ")}
-              >
-                {state.concesionarios.length} tiendas
-              </span>
-            )}
-          </div>
+          {state.concesionarios.length === 1 ? (
+            <div className="store-badge">
+              <span className="store-badge__nombre">{state.concesionarios[0].nombre}</span>
+              {state.concesionarios[0].numero && (
+                <span className="store-badge__numero">
+                  Tienda {state.concesionarios[0].numero}
+                </span>
+              )}
+            </div>
+          ) : (
+            <SelectorTiendas
+              concesionarios={state.concesionarios}
+              deals={state.deals}
+              seleccion={filtros.tienda}
+              onSeleccion={(tienda) => setFiltros({ ...filtros, tienda })}
+            />
+          )}
           <button type="button" className="link-button" onClick={handleLogout}>
             Salir
           </button>
