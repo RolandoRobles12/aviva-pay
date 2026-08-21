@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { db, getConcesionarioDealsCallable, logout } from "../lib/firebase";
 import type { PayDeskConcesionario, PayDeskDeal } from "../types/deal";
+import { BrandMark } from "../components/BrandMark";
 import { DealsTable } from "../components/DealsTable";
 import { Modal } from "../components/Modal";
 import { CotizacionUploadForm } from "../components/CotizacionUploadForm";
@@ -95,10 +96,7 @@ export function ConcesionarioPage() {
   return (
     <main className="concesionario-page">
       <header className="concesionario-page__header">
-        <div className="brand-mark">
-          <span className="brand-mark__aviva">Aviva</span>
-          <span className="brand-mark__product">Pay Desk</span>
-        </div>
+        <BrandMark />
         <div className="header-right">
           <div className="store-badge">
             <span className="store-badge__nombre">{state.concesionario.nombre}</span>

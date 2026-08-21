@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginConcesionario } from "../lib/firebase";
+import { BrandMark } from "../components/BrandMark";
 
 /**
  * Where a concesionario starts: código de tienda + NIP. There is no
@@ -34,10 +35,7 @@ export function LoginPage() {
   return (
     <main className="login-page">
       <form className="login-card" onSubmit={handleSubmit}>
-        <div className="brand-mark brand-mark--centered">
-          <span className="brand-mark__aviva">Aviva</span>
-          <span className="brand-mark__product">Pay Desk</span>
-        </div>
+        <BrandMark centered />
 
         <p className="login-card__intro">
           Ingresa con los datos de tu tienda para consultar el estatus de los

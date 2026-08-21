@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginAdmin } from "../../lib/firebase";
+import { BrandMark } from "../../components/BrandMark";
 
 /** Aviva team sign-in. Firebase Auth email/password — accounts are created by the team, not self-service. */
 export function AdminLoginPage() {
@@ -30,10 +31,7 @@ export function AdminLoginPage() {
   return (
     <main className="login-page">
       <form className="login-card" onSubmit={handleSubmit}>
-        <div className="brand-mark brand-mark--centered">
-          <span className="brand-mark__aviva">Aviva</span>
-          <span className="brand-mark__product">Pay Desk</span>
-        </div>
+        <BrandMark centered />
         <p className="login-card__intro">Panel de administración</p>
 
         <label>
