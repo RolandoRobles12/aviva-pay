@@ -33,6 +33,12 @@ const firebaseConfig = {
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+// Which language Firebase renders its auth emails in (invite, password
+// reset) — independent of the template's configured language in Console.
+// Without this it defaults to English regardless of that setting, which is
+// exactly what happened: the "Restablecer contraseña" template was already
+// in español but the emails kept arriving in English.
+auth.languageCode = "es";
 export const db = getFirestore(app);
 export const functions = getFunctions(app);
 
