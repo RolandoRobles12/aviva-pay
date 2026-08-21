@@ -1,55 +1,60 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { getConcesionario } from "../firestore/concesionariosRepository";
-import { getDealsByConcesionario } from "../firestore/dealsRepository";
+import { getConcesionariosByIds } from "../firestore/concesionariosRepository";
+import { getDealsByConcesionarioIds } from "../firestore/dealsRepository";
 import { getFieldLabels } from "../firestore/fieldLabelsRepository";
 import { getRollout, resolveRolloutForStore } from "../firestore/rolloutRepository";
 
 /**
- * Returns the signed-in store's deals plus its display name and the
- * current field labels — so the page can render "Fecha de entrega
- * acordada" or whatever the admin has renamed it to, without a deploy.
+ * Returns every deal across every store the signed-in user has access to,
+ * plus each store's display name and the current field labels — so the
+ * page can render "Fecha de entrega acordada" or whatever the admin has
+ * renamed it to, without a deploy.
  *
- * The concesionarioId comes from the caller's auth token claim — set by
- * loginConcesionario after checking the código and NIP — never from the
- * request body, so a client can't ask for another store's data by
- * changing a parameter.
+ * The list of stores comes from the caller's auth token claim
+ * (`concesionarioIds`, set by concesionario/userSync.ts when an admin
+ * invites this email to a store) — never from the request body, so a
+ * client can't ask for another store's data by changing a parameter. A
+ * user with access to more than one store sees them combined in one list,
+ * distinguished by a "Tienda" column on the frontend.
  */
 export const getConcesionarioDeals = onCall(
   { region: "us-central1" },
   async (request) => {
-    const concesionarioId = request.auth?.token?.concesionarioId as
-      | string
+    const concesionarioIds = request.auth?.token?.concesionarioIds as
+      | string[]
       | undefined;
 
-    if (!concesionarioId) {
-      throw new HttpsError("unauthenticated", "Inicia sesión para continuar.");
-    }
-
-    const concesionario = await getConcesionario(concesionarioId);
-    if (!concesionario) {
+    if (!concesionarioIds || concesionarioIds.length === 0) {
       throw new HttpsError(
-        "not-found",
-        "No se encontró información para este concesionario.",
+        "unauthenticated",
+        "Tu cuenta no tiene acceso a ninguna tienda todavía.",
       );
     }
 
-    const [deals, labels, rollout] = await Promise.all([
-      getDealsByConcesionario(concesionarioId),
+    const [concesionarios, deals, labels, rollout] = await Promise.all([
+      getConcesionariosByIds(concesionarioIds),
+      getDealsByConcesionarioIds(concesionarioIds),
       getFieldLabels(),
       getRollout(),
     ]);
 
     return {
-      concesionario: {
-        concesionarioId: concesionario.concesionarioId,
-        nombre: concesionario.nombre,
-        numero: concesionario.numero,
-      },
+      concesionarios: concesionarios.map((c) => ({
+        concesionarioId: c.concesionarioId,
+        nombre: c.nombre,
+        numero: c.numero,
+      })),
       deals,
       labels,
-      // The cutoff this store is held to: deals approved before it are
-      // historical and never counted as pending. See rolloutRepository.ts.
-      rolloutDesde: resolveRolloutForStore(rollout, concesionario.rolloutDesde),
+      // Each store's own cutoff: deals approved before it are historical
+      // and never counted as pending. See rolloutRepository.ts. Keyed by
+      // concesionarioId since stores can be on different cutoffs.
+      rolloutPorTienda: Object.fromEntries(
+        concesionarios.map((c) => [
+          c.concesionarioId,
+          resolveRolloutForStore(rollout, c.rolloutDesde),
+        ]),
+      ),
     };
   },
 );

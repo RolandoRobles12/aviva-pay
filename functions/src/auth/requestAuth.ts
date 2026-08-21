@@ -12,14 +12,14 @@ import type { Request } from "firebase-functions/v2/https";
  */
 export async function verifyBearerToken(
   req: Request,
-): Promise<{ concesionarioId?: string; admin?: boolean } | null> {
+): Promise<{ concesionarioIds?: string[]; admin?: boolean } | null> {
   const header = req.get("Authorization") ?? "";
   if (!header.startsWith("Bearer ")) return null;
 
   try {
     const decoded = await getAuth().verifyIdToken(header.slice(7));
     return {
-      concesionarioId: decoded.concesionarioId as string | undefined,
+      concesionarioIds: decoded.concesionarioIds as string[] | undefined,
       admin: decoded.admin === true,
     };
   } catch {

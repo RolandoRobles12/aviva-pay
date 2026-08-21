@@ -23,7 +23,7 @@ export const uploadCotizacion = onRequest(
     }
 
     const auth = await verifyBearerToken(req);
-    if (!auth?.concesionarioId) {
+    if (!auth?.concesionarioIds?.length) {
       res.status(401).json({ error: "Inicia sesión para continuar" });
       return;
     }
@@ -39,7 +39,7 @@ export const uploadCotizacion = onRequest(
     const deal = await getDeal(dealId);
     // Same response whether the deal is missing or belongs to another
     // store — a store shouldn't be able to probe for other stores' deals.
-    if (!deal || deal.concesionarioId !== auth.concesionarioId) {
+    if (!deal || !deal.concesionarioId || !auth.concesionarioIds.includes(deal.concesionarioId)) {
       res.status(404).json({ error: "Solicitud no encontrada" });
       return;
     }

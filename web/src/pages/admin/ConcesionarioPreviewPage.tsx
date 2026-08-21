@@ -19,9 +19,9 @@ type LoadState =
     };
 
 /**
- * What a store sees, viewed by an admin — read-only snapshot, no NIP
- * needed. No upload buttons: uploading requires the store's own auth
- * claim, which this admin session doesn't carry.
+ * What a store sees, viewed by an admin — read-only snapshot, no
+ * credentials needed. No upload buttons: uploading requires the store's
+ * own auth claim, which this admin session doesn't carry.
  */
 export function ConcesionarioPreviewPage() {
   const { concesionarioId } = useParams<{ concesionarioId: string }>();
@@ -101,7 +101,7 @@ export function ConcesionarioPreviewPage() {
           (pagina + 1) * POR_PAGINA,
         )}
         labels={state.labels}
-        rolloutDesde={state.rolloutDesde}
+        rolloutPorTienda={{ [state.concesionario.concesionarioId]: state.rolloutDesde }}
         sort={sort}
         onSort={handleSort}
       />

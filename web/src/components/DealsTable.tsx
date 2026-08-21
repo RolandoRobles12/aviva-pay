@@ -1,6 +1,6 @@
 import type { PayDeskDeal } from "../types/deal";
 import type { FieldLabels } from "../types/admin";
-import { completados, milestones, scopeOf } from "../lib/dealScope";
+import { completados, milestones, scopeOf, type RolloutMap } from "../lib/dealScope";
 import type { SortKey, SortState } from "../lib/dealSort";
 
 /** Used until the real labels (fetched from the admin's Etiquetas config) arrive, and for any key it doesn't cover. */
@@ -171,7 +171,8 @@ function SortableHeader({
 export function DealsTable({
   deals,
   labels,
-  rolloutDesde = null,
+  rolloutPorTienda = {},
+  concesionarioNombres,
   sort,
   onSort,
   onUploadCotizacion,
@@ -180,8 +181,16 @@ export function DealsTable({
   deals: PayDeskDeal[];
   /** From the admin's Etiquetas config. Falls back to DEFAULT_LABELS for any missing key. */
   labels?: FieldLabels;
-  /** This store's rollout cutoff. Deals approved before it are shown but never demanded. */
-  rolloutDesde?: string | null;
+  /** Rollout cutoff per store. Deals approved before their store's cutoff are shown but never demanded. */
+  rolloutPorTienda?: RolloutMap;
+  /**
+   * concesionarioId → store name. A signed-in user can have more than one
+   * store, so the list is a combined view across all of them — the
+   * "Tienda" column (and its ability to distinguish rows) only earns its
+   * place once there's more than one to distinguish. Omit for the
+   * single-store admin preview, which doesn't need it.
+   */
+  concesionarioNombres?: Record<string, string>;
   /** Current sort, or null/omitted for none. Pass alongside onSort to make headers clickable. */
   sort?: SortState | null;
   /** Sorting the *unpaginated* set is the caller's job — this only reports which column was clicked. Omit both to render plain, unsortable headers. */
@@ -191,6 +200,7 @@ export function DealsTable({
   onUploadComprobante?: (dealId: string) => void;
 }) {
   const l = { ...DEFAULT_LABELS, ...labels };
+  const mostrarTienda = Object.keys(concesionarioNombres ?? {}).length > 1;
 
   if (deals.length === 0) {
     return (
@@ -215,6 +225,11 @@ export function DealsTable({
             <SortableHeader sortKey="cliente" sort={sort} onSort={onSort} className="col-sticky">
               {l.cliente}
             </SortableHeader>
+            {mostrarTienda && (
+              <SortableHeader sortKey="tienda" sort={sort} onSort={onSort}>
+                Tienda
+              </SortableHeader>
+            )}
             <SortableHeader sortKey="avance" sort={sort} onSort={onSort}>
               Avance
             </SortableHeader>
@@ -246,7 +261,7 @@ export function DealsTable({
         </thead>
         <tbody>
           {deals.map((deal) => {
-            const historica = scopeOf(deal, rolloutDesde) === "historica";
+            const historica = scopeOf(deal, rolloutPorTienda) === "historica";
             return (
             <tr key={deal.dealId} className={historica ? "row--historica" : undefined}>
               <td className="col-sticky cell-cliente">
@@ -260,6 +275,11 @@ export function DealsTable({
                   </span>
                 )}
               </td>
+              {mostrarTienda && (
+                <td className="cell-tienda">
+                  {(deal.concesionarioId && concesionarioNombres?.[deal.concesionarioId]) ?? "—"}
+                </td>
+              )}
               <td>
                 <ProgressMeter deal={deal} />
               </td>

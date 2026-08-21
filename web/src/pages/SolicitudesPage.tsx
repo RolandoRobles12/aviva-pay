@@ -21,8 +21,15 @@ type ActiveModal =
  * Reporte tab.
  */
 export function SolicitudesPage() {
-  const { deals, dealsFiltrados, labels, rolloutDesde, filtros, setFiltros } =
-    useConcesionario();
+  const {
+    deals,
+    dealsFiltrados,
+    labels,
+    rolloutPorTienda,
+    concesionarioNombres,
+    filtros,
+    setFiltros,
+  } = useConcesionario();
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const [pagina, setPagina] = useState(0);
   const [sort, setSort] = useState<SortState | null>({
@@ -39,8 +46,8 @@ export function SolicitudesPage() {
   }
 
   const porHacer = useMemo(
-    () => deals.filter((d) => requiereAccion(d, rolloutDesde)).length,
-    [deals, rolloutDesde],
+    () => deals.filter((d) => requiereAccion(d, rolloutPorTienda)).length,
+    [deals, rolloutPorTienda],
   );
 
   // A filter change can leave the current page past the end of the new
@@ -50,8 +57,8 @@ export function SolicitudesPage() {
   }, [filtros]);
 
   const ordenados = useMemo(
-    () => ordenarDeals(dealsFiltrados, sort),
-    [dealsFiltrados, sort],
+    () => ordenarDeals(dealsFiltrados, sort, concesionarioNombres),
+    [dealsFiltrados, sort, concesionarioNombres],
   );
 
   const visibles = ordenados.slice(pagina * POR_PAGINA, (pagina + 1) * POR_PAGINA);
@@ -78,7 +85,7 @@ export function SolicitudesPage() {
         <DealFilters
           deals={deals}
           filtros={filtros}
-          rolloutDesde={rolloutDesde}
+          rolloutPorTienda={rolloutPorTienda}
           onChange={setFiltros}
         />
       )}
@@ -107,7 +114,8 @@ export function SolicitudesPage() {
           <DealsTable
             deals={visibles}
             labels={labels}
-            rolloutDesde={rolloutDesde}
+            rolloutPorTienda={rolloutPorTienda}
+            concesionarioNombres={concesionarioNombres}
             sort={sort}
             onSort={handleSort}
             onUploadCotizacion={(dealId) => setActiveModal({ type: "cotizacion", dealId })}

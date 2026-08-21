@@ -5,8 +5,7 @@ initializeApp();
 // --- HubSpot → Firestore ---
 export { syncDealWebhook } from "./http/syncDealWebhook";
 
-// --- Concesionario (código + NIP) ---
-export { loginConcesionario } from "./http/loginConcesionario";
+// --- Concesionario (email + password; access granted via userSync.ts) ---
 export { getConcesionarioDeals } from "./http/getConcesionarioDeals";
 export { uploadCotizacion } from "./http/uploadCotizacion";
 export { uploadComprobante } from "./http/uploadComprobante";
@@ -14,7 +13,6 @@ export { uploadComprobante } from "./http/uploadComprobante";
 // --- Admin (Firebase Auth email/password + `admin` claim) ---
 export { adminListConcesionarios } from "./http/admin/listConcesionarios";
 export { adminUpdateConcesionario } from "./http/admin/updateConcesionario";
-export { adminGenerarNip } from "./http/admin/generarNip";
 export {
   adminGetFieldDictionary,
   adminSetFieldDictionary,

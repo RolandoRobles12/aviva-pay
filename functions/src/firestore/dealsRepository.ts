@@ -25,6 +25,31 @@ export async function getDealsByConcesionario(
 }
 
 /**
+ * All deals across every store in `ids` — for a user with access to more
+ * than one store, whose list combines all of them. Firestore's `in`
+ * operator caps at 30 values, so this chunks and merges; a user with more
+ * than 30 stores is not a case Pay Desk has today, but this doesn't fall
+ * over if it happens.
+ */
+export async function getDealsByConcesionarioIds(
+  ids: string[],
+): Promise<PayDeskDeal[]> {
+  const CHUNK = 30;
+  const chunks: string[][] = [];
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    chunks.push(ids.slice(i, i + CHUNK));
+  }
+
+  const results = await Promise.all(
+    chunks.map((chunk) =>
+      dealsCollection().where("concesionarioId", "in", chunk).get(),
+    ),
+  );
+
+  return results.flatMap((snap) => snap.docs.map((doc) => doc.data() as PayDeskDeal));
+}
+
+/**
  * Upserts a deal document from freshly-fetched HubSpot data, creating the
  * store's document if this is the first deal we've seen for that Kiosco.
  * Returns `isNewConcesionario: true` only on that first sight — the signal

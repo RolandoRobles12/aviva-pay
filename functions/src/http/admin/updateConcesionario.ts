@@ -2,30 +2,34 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions/v2";
 import { assertAdmin } from "../../auth/adminGuard";
 import {
-  findConcesionarioByCodigo,
   getConcesionario,
   updateConcesionarioFields,
 } from "../../firestore/concesionariosRepository";
+import { syncConcesionarioUsuarios } from "../../concesionario/userSync";
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface UpdateRequest {
   concesionarioId?: string;
   nombre?: string;
-  codigo?: string;
+  /** Full replacement list of invited emails for this store, or omit to leave untouched. */
+  usuarios?: string[];
   /** ISO date (YYYY-MM-DD), or null to fall back to the global rollout date. */
   rolloutDesde?: string | null;
 }
 
 /**
- * Renames a store or changes the código it logs in with — this is the
- * "dictionary" part of the catalog: mapping HubSpot's internal Kiosco
- * nomenclature (`#0046 - TEQ CR`) to the name the concesionario actually
- * recognizes.
+ * Renames a store, sets which emails can sign in to it, and/or its rollout
+ * cutoff. Changing `usuarios` diffs against the stored list and invites
+ * (or de-invites) exactly the emails that changed — see
+ * concesionario/userSync.ts for what "invite" actually does to Firebase
+ * Auth and each user's claim.
  */
 export const adminUpdateConcesionario = onCall<UpdateRequest>(
   { region: "us-central1" },
   async (request) => {
     const admin = assertAdmin(request);
-    const { concesionarioId, nombre, codigo, rolloutDesde } = request.data ?? {};
+    const { concesionarioId, nombre, usuarios, rolloutDesde } = request.data ?? {};
 
     if (!concesionarioId) {
       throw new HttpsError("invalid-argument", "concesionarioId es requerido");
@@ -38,7 +42,7 @@ export const adminUpdateConcesionario = onCall<UpdateRequest>(
 
     const cambios: {
       nombre?: string;
-      codigo?: string;
+      usuarios?: string[];
       rolloutDesde?: string | null;
     } = {};
 
@@ -50,23 +54,16 @@ export const adminUpdateConcesionario = onCall<UpdateRequest>(
       cambios.nombre = limpio;
     }
 
-    if (codigo !== undefined) {
-      const limpio = codigo.trim();
-      if (!limpio) {
-        throw new HttpsError("invalid-argument", "El código no puede estar vacío");
-      }
-      // Códigos are how stores identify themselves at login, so a
-      // duplicate would send one store into another's data.
-      if (limpio !== concesionario.codigo) {
-        const enUso = await findConcesionarioByCodigo(limpio);
-        if (enUso) {
-          throw new HttpsError(
-            "already-exists",
-            `El código "${limpio}" ya lo usa ${enUso.nombre}.`,
-          );
+    let nuevosUsuarios: string[] | undefined;
+    if (usuarios !== undefined) {
+      const limpios = usuarios.map((e) => e.trim().toLowerCase()).filter(Boolean);
+      for (const email of limpios) {
+        if (!EMAIL_RE.test(email)) {
+          throw new HttpsError("invalid-argument", `Correo inválido: "${email}"`);
         }
       }
-      cambios.codigo = limpio;
+      nuevosUsuarios = [...new Set(limpios)];
+      cambios.usuarios = nuevosUsuarios;
     }
 
     if (rolloutDesde !== undefined) {
@@ -80,14 +77,25 @@ export const adminUpdateConcesionario = onCall<UpdateRequest>(
     }
 
     if (Object.keys(cambios).length === 0) {
-      return { ok: true, sinCambios: true };
+      return { ok: true, sinCambios: true, invitados: [] };
+    }
+
+    let invitados: string[] = [];
+    if (nuevosUsuarios !== undefined) {
+      const resultado = await syncConcesionarioUsuarios(
+        concesionarioId,
+        concesionario.usuarios ?? [],
+        nuevosUsuarios,
+      );
+      invitados = resultado.invitados;
     }
 
     await updateConcesionarioFields(concesionarioId, cambios);
     logger.info(
-      `adminUpdateConcesionario: ${concesionarioId} updated by ${admin.email ?? admin.uid}`,
+      `adminUpdateConcesionario: ${concesionarioId} updated by ${admin.email ?? admin.uid}` +
+        (invitados.length ? ` (invited: ${invitados.join(", ")})` : ""),
     );
 
-    return { ok: true };
+    return { ok: true, invitados };
   },
 );

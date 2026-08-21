@@ -587,19 +587,6 @@ h3 {
   color: #6b4000;
 }
 
-.nip-display {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 2.25rem;
-  font-weight: 700;
-  letter-spacing: 0.25em;
-  text-align: center;
-  background: var(--verde-esmeralda);
-  color: var(--verde-musgo);
-  border-radius: 10px;
-  padding: 1rem;
-  margin: 0;
-}
-
 /* --- Admin shell --- */
 
 .admin-shell__header {
@@ -1066,6 +1053,49 @@ h3 {
 
 .chip--on .chip__count {
   background: rgba(255, 255, 255, 0.22);
+}
+
+/* An invited email, shown as a removable chip in the store edit form —
+   distinct from the filter chips above, which select a view rather than
+   holding a value. */
+.chip--removable {
+  cursor: default;
+  gap: 0.4rem;
+}
+
+.chip--removable button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--negro-off) 10%, transparent);
+  color: var(--negro-off);
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.chip--removable button:hover {
+  background: color-mix(in srgb, var(--rojo, #b3261e) 20%, transparent);
+}
+
+.chip-input {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.chip-input__add {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.chip-input__add input {
+  flex: 1;
 }
 
 /* --- "Te toca a ti" banner ----------------------------------------------
