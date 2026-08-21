@@ -242,6 +242,27 @@ function EditarTiendaForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [invitando, setInvitando] = useState(false);
+  // Emails whose store record saved fine but whose invite email failed to
+  // send (throttling, a transient network error). Re-submitting the form
+  // won't retry these on its own — usuarios already reflects them, so the
+  // backend sees no diff to (re-)invite — so a dedicated retry is the only
+  // way to actually resend.
+  const [fallidos, setFallidos] = useState<string[]>([]);
+
+  async function enviarInvitaciones(emails: string[]) {
+    setInvitando(true);
+    const nuevosFallidos: string[] = [];
+    await Promise.all(
+      emails.map((email) =>
+        enviarRestablecerContrasena(email).catch(() => {
+          nuevosFallidos.push(email);
+        }),
+      ),
+    );
+    setInvitando(false);
+    setFallidos(nuevosFallidos);
+    return nuevosFallidos;
+  }
 
   function agregarCorreo() {
     const email = nuevoCorreo.trim().toLowerCase();
@@ -267,6 +288,9 @@ function EditarTiendaForm({
     e.preventDefault();
     setSubmitting(true);
     setError(null);
+    setFallidos([]);
+
+    let invitados: string[];
     try {
       const result = await adminUpdateConcesionarioCallable({
         concesionarioId: tienda.concesionarioId,
@@ -274,23 +298,30 @@ function EditarTiendaForm({
         usuarios,
         rolloutDesde: rolloutDesde || null,
       });
-
-      // The account exists the moment its email is added to usuarios, but
-      // it has no usable password yet — sendPasswordResetEmail is what
-      // actually invites it. Only the client SDK can send this, so it
-      // happens here, right after the backend confirms who's newly added.
-      const invitados = result.data.invitados;
-      if (invitados.length > 0) {
-        setInvitando(true);
-        await Promise.all(invitados.map((email) => enviarRestablecerContrasena(email)));
-      }
-
-      onSaved();
+      invitados = result.data.invitados;
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo guardar.");
       setSubmitting(false);
-      setInvitando(false);
+      return;
     }
+
+    // The store record is already saved at this point — everything past
+    // here is best-effort delivery of the invite email, not the save
+    // itself, so a failure here must never be reported as "no se pudo
+    // guardar" (it did) nor silently swallowed (the invite still needs to
+    // reach that email somehow).
+    if (invitados.length > 0) {
+      const noEnviados = await enviarInvitaciones(invitados);
+      if (noEnviados.length > 0) {
+        setError(
+          `La tienda se guardó, pero no se pudo enviar la invitación a: ${noEnviados.join(", ")}. Usa "Reintentar invitación" abajo.`,
+        );
+        setSubmitting(false);
+        return;
+      }
+    }
+
+    onSaved();
   }
 
   return (
@@ -366,16 +397,37 @@ function EditarTiendaForm({
 
       {error && <p className="form-error">{error}</p>}
 
+      {fallidos.length > 0 && (
+        <button
+          type="button"
+          className="button-secondary"
+          disabled={invitando}
+          onClick={async () => {
+            setError(null);
+            const noEnviados = await enviarInvitaciones(fallidos);
+            if (noEnviados.length > 0) {
+              setError(
+                `Sigue sin poder enviarse a: ${noEnviados.join(", ")}. Intenta de nuevo en unos minutos.`,
+              );
+            } else {
+              onSaved();
+            }
+          }}
+        >
+          {invitando ? "Reintentando..." : "Reintentar invitación"}
+        </button>
+      )}
+
       <div className="upload-form__actions">
         <button
           type="button"
           className="button-secondary"
           onClick={onCancel}
-          disabled={submitting}
+          disabled={submitting || invitando}
         >
           Cancelar
         </button>
-        <button type="submit" disabled={submitting}>
+        <button type="submit" disabled={submitting || invitando}>
           {invitando ? "Enviando invitaciones..." : submitting ? "Guardando..." : "Guardar"}
         </button>
       </div>

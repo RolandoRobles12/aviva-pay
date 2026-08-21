@@ -74,7 +74,10 @@ export const adminCreateAdmin = onCall<CreateAdminRequest>(
       throw new HttpsError("already-exists", "Esa cuenta ya es administradora.");
     }
 
-    await auth.setCustomUserClaims(user.uid, { admin: true });
+    // Spread the existing claims — this account may also be an invited
+    // concesionario user (concesionarioIds), and setCustomUserClaims
+    // replaces the whole claims object rather than merging into it.
+    await auth.setCustomUserClaims(user.uid, { ...user.customClaims, admin: true });
     await recordAdminGranted({
       uid: user.uid,
       email,
@@ -117,7 +120,11 @@ export const adminRevokeAdmin = onCall<RevokeAdminRequest>(
       throw new HttpsError("not-found", "Esa cuenta no está en la lista de administradores.");
     }
 
-    await getAuth().setCustomUserClaims(uid, { admin: false });
+    const auth = getAuth();
+    const user = await auth.getUser(uid);
+    // Spread the existing claims for the same reason as adminCreateAdmin —
+    // this account may also carry a concesionarioIds claim.
+    await auth.setCustomUserClaims(uid, { ...user.customClaims, admin: false });
     await recordAdminRevoked({
       uid,
       email: entry.email,

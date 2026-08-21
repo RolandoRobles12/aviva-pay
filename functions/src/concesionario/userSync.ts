@@ -18,7 +18,11 @@ import {
  *
  * A user's `concesionarioIds` claim is always recomputed from the
  * reverse-index doc after either kind of change, since the same email can
- * be invited to more than one store.
+ * be invited to more than one store. `setCustomUserClaims` replaces the
+ * *entire* claims object, so every call here spreads the account's
+ * existing claims first — otherwise inviting an Aviva admin's own email to
+ * a store (e.g. to test the concesionario view) would silently wipe their
+ * `admin: true` claim, and vice versa in adminCreateAdmin.
  */
 export async function syncConcesionarioUsuarios(
   concesionarioId: string,
@@ -45,7 +49,7 @@ export async function syncConcesionarioUsuarios(
     ids.add(concesionarioId);
     const concesionarioIds = [...ids];
     await setConcesionarioUserStores(user.uid, email, concesionarioIds);
-    await auth.setCustomUserClaims(user.uid, { concesionarioIds });
+    await auth.setCustomUserClaims(user.uid, { ...user.customClaims, concesionarioIds });
   }
 
   for (const email of removed) {
@@ -61,7 +65,7 @@ export async function syncConcesionarioUsuarios(
       (id) => id !== concesionarioId,
     );
     await setConcesionarioUserStores(user.uid, email, concesionarioIds);
-    await auth.setCustomUserClaims(user.uid, { concesionarioIds });
+    await auth.setCustomUserClaims(user.uid, { ...user.customClaims, concesionarioIds });
   }
 
   return { invitados: added };
