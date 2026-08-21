@@ -1,22 +1,35 @@
+import { useState } from "react";
+
 /**
- * The Aviva Pay Desk lockup: the Aviva logo followed by "Pay Desk" in the
- * script face.
+ * The Aviva Pay Desk lockup: the official Aviva wordmark followed by "Pay
+ * Desk" in the script face.
  *
- * TODO — the "Aviva" half is NOT the real logo yet. It's the word set in
- * Fustat Bold, which only approximates it: the real wordmark is a custom
- * typeface (see the brand manual) and can't be reproduced with a webfont.
- * To fix, drop the official SVG at `web/public/aviva-logo.svg` and swap the
- * <span> below for:
+ * The wordmark is the real asset from the brand manual, served from
+ * `web/public/aviva-logo.svg`. It must be the version for LIGHT
+ * backgrounds — every surface this renders on (login card, app bar, admin
+ * header) is Blanco, not the dark green of the manual's examples.
  *
- *   <img src="/aviva-logo.svg" alt="Aviva" className="brand-mark__logo" />
- *
- * Use the version meant for light backgrounds — the app's surfaces are
- * Blanco and Gris Frío, not the dark green of the manual's examples.
+ * If that file is missing the component falls back to the word set in
+ * Fustat Bold, which only approximates the real wordmark (it's a custom
+ * typeface and can't be reproduced with a webfont). That fallback exists so
+ * a deploy without the asset degrades instead of showing a broken image —
+ * it is not the intended final state.
  */
 export function BrandMark({ centered = false }: { centered?: boolean }) {
+  const [logoFailed, setLogoFailed] = useState(false);
+
   return (
     <div className={`brand-mark${centered ? " brand-mark--centered" : ""}`}>
-      <span className="brand-mark__aviva">Aviva</span>
+      {logoFailed ? (
+        <span className="brand-mark__aviva">Aviva</span>
+      ) : (
+        <img
+          src="/aviva-logo.svg"
+          alt="Aviva"
+          className="brand-mark__logo"
+          onError={() => setLogoFailed(true)}
+        />
+      )}
       <span className="brand-mark__product">Pay Desk</span>
     </div>
   );
