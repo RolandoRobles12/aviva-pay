@@ -11,6 +11,8 @@ interface UpdateRequest {
   concesionarioId?: string;
   nombre?: string;
   codigo?: string;
+  /** ISO date (YYYY-MM-DD), or null to fall back to the global rollout date. */
+  rolloutDesde?: string | null;
 }
 
 /**
@@ -23,7 +25,7 @@ export const adminUpdateConcesionario = onCall<UpdateRequest>(
   { region: "us-central1" },
   async (request) => {
     const admin = assertAdmin(request);
-    const { concesionarioId, nombre, codigo } = request.data ?? {};
+    const { concesionarioId, nombre, codigo, rolloutDesde } = request.data ?? {};
 
     if (!concesionarioId) {
       throw new HttpsError("invalid-argument", "concesionarioId es requerido");
@@ -34,7 +36,11 @@ export const adminUpdateConcesionario = onCall<UpdateRequest>(
       throw new HttpsError("not-found", "Concesionario no encontrado");
     }
 
-    const cambios: { nombre?: string; codigo?: string } = {};
+    const cambios: {
+      nombre?: string;
+      codigo?: string;
+      rolloutDesde?: string | null;
+    } = {};
 
     if (nombre !== undefined) {
       const limpio = nombre.trim();
@@ -61,6 +67,16 @@ export const adminUpdateConcesionario = onCall<UpdateRequest>(
         }
       }
       cambios.codigo = limpio;
+    }
+
+    if (rolloutDesde !== undefined) {
+      if (rolloutDesde !== null && !/^\d{4}-\d{2}-\d{2}$/.test(rolloutDesde)) {
+        throw new HttpsError(
+          "invalid-argument",
+          "La fecha de arranque debe venir como YYYY-MM-DD.",
+        );
+      }
+      cambios.rolloutDesde = rolloutDesde;
     }
 
     if (Object.keys(cambios).length === 0) {

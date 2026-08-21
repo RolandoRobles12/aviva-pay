@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   adminGenerarNipCallable,
   adminListConcesionariosCallable,
+  adminGetRolloutCallable,
+  adminSetRolloutCallable,
+  adminSyncConstruramaCallable,
   adminUpdateConcesionarioCallable,
 } from "../../lib/firebase";
 import type { AdminConcesionario } from "../../types/admin";
 import { Modal } from "../../components/Modal";
+import { StatTiles } from "../../components/StatTiles";
 
 function formatFecha(millis: number | null): string {
   if (!millis) return "—";
@@ -31,6 +36,9 @@ export function TiendasPage() {
     tienda: AdminConcesionario;
     nip: string;
   } | null>(null);
+  const [sincronizando, setSincronizando] = useState(false);
+  const [resultadoSync, setResultadoSync] = useState<string | null>(null);
+  const [fechaRollout, setFechaRollout] = useState<string | null>(null);
 
   async function cargar() {
     try {
@@ -44,6 +52,14 @@ export function TiendasPage() {
 
   useEffect(() => {
     void cargar();
+    void (async () => {
+      try {
+        const r = await adminGetRolloutCallable();
+        setFechaRollout(r.data.fechaRollout);
+      } catch {
+        // Non-fatal: the catalog is still usable without the rollout date.
+      }
+    })();
   }, []);
 
   const filtradas = useMemo(() => {
@@ -57,6 +73,36 @@ export function TiendasPage() {
         t.kiosco.toLowerCase().includes(q),
     );
   }, [tiendas, busqueda]);
+
+  const resumen = useMemo(() => {
+    const lista = tiendas ?? [];
+    return {
+      total: lista.length,
+      conNip: lista.filter((t) => t.tieneNip).length,
+      sinNip: lista.filter((t) => !t.tieneNip).length,
+      bloqueadas: lista.filter((t) => t.bloqueado).length,
+    };
+  }, [tiendas]);
+
+  async function sincronizar() {
+    setSincronizando(true);
+    setResultadoSync(null);
+    setError(null);
+    try {
+      const result = await adminSyncConstruramaCallable();
+      const { totalFound, synced, newStores, skippedNoConcesionario, failed } = result.data;
+      setResultadoSync(
+        `${synced} de ${totalFound} deals sincronizados · ${newStores} tiendas nuevas` +
+          (skippedNoConcesionario ? ` · ${skippedNoConcesionario} sin Kiosco` : "") +
+          (failed ? ` · ${failed} con error` : ""),
+      );
+      await cargar();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo sincronizar.");
+    } finally {
+      setSincronizando(false);
+    }
+  }
 
   async function generarNip(tienda: AdminConcesionario) {
     try {
@@ -88,16 +134,55 @@ export function TiendasPage() {
             solicitudes desde HubSpot. {tiendas.length} registradas.
           </p>
         </div>
-        <input
-          type="search"
-          className="admin-search"
-          placeholder="Buscar por nombre, código o kiosco"
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-        />
+        <div className="admin-page-head__actions">
+          <button
+            type="button"
+            className="upload-button"
+            onClick={sincronizar}
+            disabled={sincronizando}
+          >
+            {sincronizando ? "Sincronizando..." : "Sincronizar ahora"}
+          </button>
+          <input
+            type="search"
+            className="admin-search"
+            placeholder="Buscar por nombre, código o kiosco"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+          />
+        </div>
       </div>
 
+      {sincronizando && (
+        <p className="page-message">
+          Trayendo los deals de Construrama desde HubSpot — puede tardar varios minutos, no cierres esta pantalla.
+        </p>
+      )}
+      {resultadoSync && <p className="form-success">{resultadoSync}</p>}
       {error && <p className="form-error">{error}</p>}
+
+      <RolloutCard
+        fecha={fechaRollout}
+        onSaved={setFechaRollout}
+        onError={setError}
+      />
+
+      <StatTiles
+        stats={[
+          { label: "Tiendas", value: resumen.total.toLocaleString("es-MX") },
+          { label: "Con NIP activo", value: resumen.conNip.toLocaleString("es-MX") },
+          {
+            label: "Sin NIP",
+            value: resumen.sinNip.toLocaleString("es-MX"),
+            tone: resumen.sinNip > 0 ? "accion" : "neutral",
+          },
+          {
+            label: "Bloqueadas",
+            value: resumen.bloqueadas.toLocaleString("es-MX"),
+            tone: resumen.bloqueadas > 0 ? "accion" : "neutral",
+          },
+        ]}
+      />
 
       <div className="deals-table-wrapper">
         <table className="deals-table">
@@ -130,6 +215,9 @@ export function TiendasPage() {
                 </td>
                 <td>{formatFecha(t.ultimoAccesoEn)}</td>
                 <td className="cell-actions">
+                  <Link to={`/admin/tiendas/${t.concesionarioId}`} className="link-button">
+                    Ver solicitudes
+                  </Link>
                   <button
                     type="button"
                     className="link-button"
@@ -204,6 +292,7 @@ function EditarTiendaForm({
 }) {
   const [nombre, setNombre] = useState(tienda.nombre);
   const [codigo, setCodigo] = useState(tienda.codigo);
+  const [rolloutDesde, setRolloutDesde] = useState(tienda.rolloutDesde ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -216,6 +305,7 @@ function EditarTiendaForm({
         concesionarioId: tienda.concesionarioId,
         nombre,
         codigo,
+        rolloutDesde: rolloutDesde || null,
       });
       onSaved();
     } catch (err) {
@@ -254,6 +344,19 @@ function EditarTiendaForm({
         Si cambias el código, la tienda deberá usar el nuevo para entrar.
       </p>
 
+      <label>
+        Arranque solo para esta tienda (opcional)
+        <input
+          type="date"
+          value={rolloutDesde}
+          onChange={(e) => setRolloutDesde(e.target.value)}
+        />
+      </label>
+      <p className="form-note">
+        Úsalo si esta tienda arrancó en otra fecha que el resto. Vacío = sigue
+        la fecha general.
+      </p>
+
       {error && <p className="form-error">{error}</p>}
 
       <div className="upload-form__actions">
@@ -270,5 +373,107 @@ function EditarTiendaForm({
         </button>
       </div>
     </form>
+  );
+}
+
+/**
+ * The date from which stores are actually asked for cotizaciones and
+ * comprobantes. Deals approved before it are historical — visible, but
+ * never counted as pending and never nagged about.
+ *
+ * Left unset (the default) every deal reads as historical, so no store is
+ * chased for paperwork that doesn't exist. That is the safe state to sit
+ * in while the rollout date is still undecided, which is why this card
+ * says so plainly rather than looking like a missing setting.
+ */
+function RolloutCard({
+  fecha,
+  onSaved,
+  onError,
+}: {
+  fecha: string | null;
+  onSaved: (f: string | null) => void;
+  onError: (msg: string | null) => void;
+}) {
+  const [valor, setValor] = useState(fecha ?? "");
+  const [guardando, setGuardando] = useState(false);
+  const [ok, setOk] = useState(false);
+
+  useEffect(() => {
+    setValor(fecha ?? "");
+  }, [fecha]);
+
+  async function guardar(nueva: string | null) {
+    setGuardando(true);
+    setOk(false);
+    onError(null);
+    try {
+      await adminSetRolloutCallable({ fechaRollout: nueva });
+      onSaved(nueva);
+      setOk(true);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "No se pudo guardar la fecha.");
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <div className={`rollout-card${fecha ? "" : " rollout-card--pendiente"}`}>
+      <div className="rollout-card__texto">
+        <strong>Fecha de arranque</strong>
+        <p>
+          {fecha ? (
+            <>
+              A las tiendas se les piden cotizaciones y comprobantes de los
+              créditos aprobados <strong>desde el {fecha}</strong>. Los
+              anteriores se ven en su tabla, pero marcados como "Anterior" y
+              sin pedirles nada.
+            </>
+          ) : (
+            <>
+              Sin definir. Mientras no la pongas, ninguna tienda ve
+              pendientes: todos sus créditos se tratan como anteriores a Pay
+              Desk. Defínela el día que arranques con ellas.
+            </>
+          )}
+        </p>
+      </div>
+      <div className="rollout-card__control">
+        <input
+          type="date"
+          value={valor}
+          onChange={(e) => setValor(e.target.value)}
+          aria-label="Fecha de arranque"
+        />
+        <button
+          type="button"
+          className="upload-button"
+          disabled={guardando || valor === (fecha ?? "")}
+          onClick={() => guardar(valor || null)}
+        >
+          {guardando ? "Guardando..." : "Guardar"}
+        </button>
+        <button
+          type="button"
+          className="link-button"
+          disabled={guardando}
+          onClick={() => guardar(new Date().toISOString().slice(0, 10))}
+        >
+          Arrancar hoy
+        </button>
+        {fecha && (
+          <button
+            type="button"
+            className="link-button link-button--muted"
+            disabled={guardando}
+            onClick={() => guardar(null)}
+          >
+            Quitar
+          </button>
+        )}
+        {ok && <span className="form-success">Guardada.</span>}
+      </div>
+    </div>
   );
 }

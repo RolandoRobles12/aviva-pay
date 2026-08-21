@@ -1,6 +1,13 @@
 import { logger } from "firebase-functions/v2";
+import { FilterOperatorEnum } from "@hubspot/api-client/lib/codegen/crm/deals/models/Filter";
 import { getHubspotClient } from "./client";
 import type { HubspotDealPropertyKey } from "../config/fields";
+import {
+  HUBSPOT_EXCLUDED_STAGES,
+  HUBSPOT_PIPELINES,
+  HUBSPOT_PRODUCT_FILTER,
+  LEGACY_PIPELINE_STAGE_PROPERTIES,
+} from "../config/fields";
 import { getFieldDictionary } from "../firestore/fieldDictionaryRepository";
 import {
   deriveConcesionarioId,
@@ -10,15 +17,31 @@ import type { PayDeskDeal, UploadStatus } from "../types/deal";
 
 type RawProperties = Record<string, string | null | undefined>;
 
+/** First value that isn't null/undefined/empty, in order. Used to prefer the current pipeline's stage-date property over the legacy pipeline's. */
+function firstNonEmpty(
+  ...values: Array<string | null | undefined>
+): string | null | undefined {
+  return values.find((v) => v !== null && v !== undefined && v !== "");
+}
+
 function toNumber(raw: string | null | undefined): number | null {
   if (raw === null || raw === undefined || raw === "") return null;
   const n = Number(raw);
   return Number.isNaN(n) ? null : n;
 }
 
+/**
+ * HubSpot returns "date" properties as epoch-millis strings (e.g.
+ * "1699999999000") but "datetime" properties as ISO-8601 strings — which
+ * one depends on how the property is configured in HubSpot, not on
+ * anything this app controls. `new Date("1699999999000")` is Invalid Date
+ * (the string form isn't treated as a timestamp), so a purely-numeric raw
+ * value is parsed as millis explicitly instead of handed to `new Date()`
+ * as-is.
+ */
 function toIsoDate(raw: string | null | undefined): string | null {
   if (!raw) return null;
-  const d = new Date(raw);
+  const d = /^\d+$/.test(raw) ? new Date(Number(raw)) : new Date(raw);
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
@@ -27,52 +50,95 @@ function toBoolean(raw: string | null | undefined): boolean | null {
   return raw === "true" || raw === "Yes" || raw === "1";
 }
 
+/**
+ * `cotizacionEstatus` and `comprobanteEntregaEstatus` are HubSpot "single
+ * checkbox" properties (confirmed against the real portal) — their
+ * internal option values are the literal strings "true" / "false", not
+ * "completado" / "pendiente". Pay Desk's own vocabulary is
+ * "completado"/"pendiente"; this is the read-side half of that
+ * translation (see uploadCotizacion.ts / uploadComprobante.ts for the
+ * write-side half).
+ */
 function toUploadStatus(raw: string | null | undefined): UploadStatus {
-  return raw === "completado" ? "completado" : "pendiente";
+  return raw === "true" ? "completado" : "pendiente";
+}
+
+/** Every property this app might need from a deal: the field dictionary's values, the legacy-pipeline fallbacks, and "pipeline" itself. Shared so a single HubSpot request (getById or search) can fetch everything at once. */
+async function allDealProperties(): Promise<{
+  dictionary: Awaited<ReturnType<typeof getFieldDictionary>>;
+  properties: string[];
+}> {
+  const dictionary = await getFieldDictionary();
+  return {
+    dictionary,
+    properties: [
+      ...Object.values(dictionary),
+      ...Object.values(LEGACY_PIPELINE_STAGE_PROPERTIES),
+      "pipeline",
+    ],
+  };
 }
 
 /**
- * Fetches a deal from HubSpot and maps it into the subset of fields Aviva
- * Pay Desk needs (section 7). Returns null if the deal doesn't exist.
+ * Maps a deal's raw HubSpot properties into the subset of fields Aviva Pay
+ * Desk needs (section 7), plus which pipeline it's in. Shared by
+ * `fetchDealById` (one deal via getById) and the bulk backfill (many deals
+ * via search, which returns properties directly — no per-deal getById
+ * needed).
+ *
+ * The pipeline comes along because this portal isn't exclusive to
+ * Construrama — other Aviva products' deals live in the same HubSpot
+ * account. Callers that care (the backfill) compare `pipelineId`
+ * themselves rather than this function silently filtering, since a
+ * general-purpose mapper shouldn't bake in that policy. The ongoing
+ * webhook doesn't check it at all — it only ever gets called for deals the
+ * HubSpot Workflow itself already scoped to this product.
+ *
+ * The five pipeline-stage dates (fechaSolicitud, estatusKyc,
+ * creditoLiberadoFecha, disposicionCreditoFecha, desembolsoFecha) prefer
+ * the current pipeline's property and fall back to the legacy pipeline's —
+ * see LEGACY_PIPELINE_STAGE_PROPERTIES. A deal only ever has one of the
+ * two populated, since it only entered stages in whichever pipeline it
+ * actually lived in.
  */
-export async function fetchDealById(
+function mapDealProperties(
   dealId: string,
-): Promise<Omit<PayDeskDeal, "actualizadoEn" | "creadoEn"> | null> {
-  const hubspot = getHubspotClient();
-  const p = await getFieldDictionary();
-
-  let response;
-  try {
-    response = await hubspot.crm.deals.basicApi.getById(
-      dealId,
-      Object.values(p),
-    );
-  } catch (err: unknown) {
-    const status = (err as { code?: number })?.code;
-    if (status === 404) return null;
-    throw err;
-  }
-
-  const props = response.properties as RawProperties;
-
+  props: RawProperties,
+  p: Awaited<ReturnType<typeof getFieldDictionary>>,
+): {
+  deal: Omit<PayDeskDeal, "actualizadoEn" | "creadoEn">;
+  pipelineId: string | null;
+} {
   const kiosco = parseKioscoValue(props[p.kiosco]);
   if (kiosco.all.length > 1) {
     logger.warn(
-      `fetchDealById: deal ${dealId} has ${kiosco.all.length} Kioscos selected ` +
+      `mapDealProperties: deal ${dealId} has ${kiosco.all.length} Kioscos selected ` +
         `(${kiosco.all.join(", ")}); using the first one`,
     );
   }
 
-  return {
+  const stageDate = (key: keyof typeof LEGACY_PIPELINE_STAGE_PROPERTIES) => {
+    const legacyProperty = LEGACY_PIPELINE_STAGE_PROPERTIES[key];
+    return toIsoDate(
+      firstNonEmpty(
+        props[p[key]],
+        legacyProperty ? props[legacyProperty] : undefined,
+      ),
+    );
+  };
+
+  const deal = {
     dealId,
     concesionarioId: kiosco.primary
       ? deriveConcesionarioId(kiosco.primary)
       : null,
     kiosco: kiosco.primary,
     cliente: props[p.cliente] ?? null,
-    fechaSolicitud: toIsoDate(props[p.fechaSolicitud]),
+    fechaSolicitud: stageDate("fechaSolicitud"),
     montoAprobado: toNumber(props[p.montoAprobado]),
-    estatusKyc: props[p.estatusKyc] ?? null,
+    // A HubSpot stage-entry date ("hs_v2_date_entered_<stageId>"), not a
+    // status label — same treatment as the other pipeline-stage dates.
+    estatusKyc: stageDate("estatusKyc"),
 
     cotizacionEstatus: toUploadStatus(props[p.cotizacionEstatus]),
     cotizacionUrl: props[p.cotizacionUrl] ?? null,
@@ -81,8 +147,8 @@ export async function fetchDealById(
     ),
     cotizacionMontoTotalCompra: toNumber(props[p.cotizacionMontoTotalCompra]),
 
-    creditoLiberadoFecha: toIsoDate(props[p.creditoLiberadoFecha]),
-    disposicionCreditoFecha: toIsoDate(props[p.disposicionCreditoFecha]),
+    creditoLiberadoFecha: stageDate("creditoLiberadoFecha"),
+    disposicionCreditoFecha: stageDate("disposicionCreditoFecha"),
 
     comprobanteEntregaEstatus: toUploadStatus(
       props[p.comprobanteEntregaEstatus],
@@ -93,8 +159,131 @@ export async function fetchDealById(
       props[p.comprobanteFirmaClienteConfirmada],
     ),
 
-    desembolsoFecha: toIsoDate(props[p.desembolsoFecha]),
+    desembolsoFecha: stageDate("desembolsoFecha"),
   };
+
+  return { deal, pipelineId: props["pipeline"] ?? null };
+}
+
+/**
+ * Fetches a single deal from HubSpot and maps it (see mapDealProperties).
+ * Returns null if the deal doesn't exist.
+ */
+export async function fetchDealById(dealId: string): Promise<{
+  deal: Omit<PayDeskDeal, "actualizadoEn" | "creadoEn">;
+  pipelineId: string | null;
+} | null> {
+  const hubspot = getHubspotClient();
+  const { dictionary: p, properties } = await allDealProperties();
+
+  let response;
+  try {
+    response = await hubspot.crm.deals.basicApi.getById(dealId, properties);
+  } catch (err: unknown) {
+    const status = (err as { code?: number })?.code;
+    if (status === 404) return null;
+    throw err;
+  }
+
+  return mapDealProperties(dealId, response.properties as RawProperties, p);
+}
+
+const SEARCH_PAGE_SIZE = 100;
+
+/**
+ * Every Construrama deal that has actually reached the "Aprobado" stage,
+ * across both pipelines (current + legacy), mapped and ready to upsert —
+ * for the admin-triggered backfill (adminSyncConstrurama). Nothing else
+ * calls this; ongoing syncing is the per-deal webhook.
+ *
+ * Base filters mirror the team's original reporting script: `aos_product`
+ * = "Construrama HomeLoan", `pipeline` IN [current, legacy], `dealstage`
+ * NOT_IN [canceled stages]. On top of that, `fechaSolicitud`'s HubSpot
+ * property is deliberately mapped to the "entered Aprobado" stage-date
+ * (not literally "when the deal was created") specifically so its
+ * presence marks a deal as approved — a deal that was only ever rejected
+ * never gets that property set. So this requires it via HAS_PROPERTY,
+ * checked against whichever of the two pipelines' equivalent property the
+ * deal would actually carry (current pipeline's `p.fechaSolicitud`, or the
+ * legacy pipeline's LEGACY_PIPELINE_STAGE_PROPERTIES.fechaSolicitud) — one
+ * filter group per property, since HubSpot filter groups are OR'd
+ * together while filters within a group are AND'd. A rejected deal has
+ * neither, so it matches neither group and is excluded.
+ *
+ * Properties come back directly in the search results, so this doesn't do
+ * a getById per deal.
+ */
+export async function searchConstruramaDeals(): Promise<
+  Array<{
+    deal: Omit<PayDeskDeal, "actualizadoEn" | "creadoEn">;
+    pipelineId: string | null;
+  }>
+> {
+  const hubspot = getHubspotClient();
+  const { dictionary: p, properties } = await allDealProperties();
+
+  const baseFilters = [
+    {
+      propertyName: HUBSPOT_PRODUCT_FILTER.property,
+      operator: FilterOperatorEnum.Eq,
+      value: HUBSPOT_PRODUCT_FILTER.value,
+    },
+    {
+      propertyName: "pipeline",
+      operator: FilterOperatorEnum.In,
+      values: [HUBSPOT_PIPELINES.current, HUBSPOT_PIPELINES.legacy],
+    },
+    {
+      propertyName: "dealstage",
+      operator: FilterOperatorEnum.NotIn,
+      values: [...HUBSPOT_EXCLUDED_STAGES],
+    },
+  ];
+
+  const approvedDateProperties = [
+    p.fechaSolicitud,
+    LEGACY_PIPELINE_STAGE_PROPERTIES.fechaSolicitud,
+  ].filter((prop): prop is string => Boolean(prop));
+
+  const filterGroups = approvedDateProperties.map((propertyName) => ({
+    filters: [
+      ...baseFilters,
+      { propertyName, operator: FilterOperatorEnum.HasProperty },
+    ],
+  }));
+
+  const results: Array<{
+    deal: Omit<PayDeskDeal, "actualizadoEn" | "creadoEn">;
+    pipelineId: string | null;
+  }> = [];
+
+  let after = "";
+  let page = 0;
+  do {
+    const response = await hubspot.crm.deals.searchApi.doSearch({
+      filterGroups,
+      properties,
+      limit: SEARCH_PAGE_SIZE,
+      after,
+      sorts: [],
+      query: "",
+    });
+
+    for (const result of response.results) {
+      results.push(
+        mapDealProperties(result.id, result.properties as RawProperties, p),
+      );
+    }
+
+    after = response.paging?.next?.after ?? "";
+    page += 1;
+    logger.info(
+      `searchConstruramaDeals: page ${page}, ${response.results.length} deals ` +
+        `(${results.length} total so far)`,
+    );
+  } while (after);
+
+  return results;
 }
 
 /**
@@ -113,9 +302,19 @@ export async function updateDealProperties(
 
   for (const [logicalKey, value] of Object.entries(values)) {
     const hubspotProperty = dictionary[logicalKey as HubspotDealPropertyKey];
-    if (hubspotProperty && value !== undefined) {
-      properties[hubspotProperty] = value;
+    if (!hubspotProperty || value === undefined) continue;
+    if (hubspotProperty.startsWith("TODO_")) {
+      // Unmapped field (or one left as TODO_ on purpose, like paydeskUrl/
+      // paydeskCodigo pending a different process) — HubSpot has no
+      // property with this literal name, so writing it would 400 and
+      // fail the whole update, including the properties that ARE mapped.
+      logger.warn(
+        `updateDealProperties: skipping "${logicalKey}" for deal ${dealId} — ` +
+          `still unmapped in the field dictionary (${hubspotProperty})`,
+      );
+      continue;
     }
+    properties[hubspotProperty] = value;
   }
 
   if (Object.keys(properties).length === 0) return;

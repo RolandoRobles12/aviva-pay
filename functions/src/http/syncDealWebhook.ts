@@ -44,13 +44,19 @@ export const syncDealWebhook = onRequest(
       return;
     }
 
-    const deal = await fetchDealById(dealId);
-    if (!deal) {
+    const result = await fetchDealById(dealId);
+    if (!result) {
       logger.warn(`syncDealWebhook: deal ${dealId} not found in HubSpot`);
       res.status(404).send("Deal not found");
       return;
     }
+    const { deal } = result;
 
+    // No product/pipeline check here on purpose: this portal isn't
+    // exclusive to Construrama, but this endpoint is only ever called by
+    // the HubSpot Workflow that's already scoped to this product — unlike
+    // the admin-triggered backfill (adminSyncConstrurama), which scans the
+    // whole portal and has to filter for itself.
     if (!deal.concesionarioId) {
       // The deal doesn't name a concesionario yet — nothing to group it
       // under. The workflow re-triggers on the next relevant property

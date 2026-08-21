@@ -67,12 +67,94 @@ export const HUBSPOT_DEAL_PROPERTIES = {
 
 export type HubspotDealPropertyKey = keyof typeof HUBSPOT_DEAL_PROPERTIES;
 
-/** HubSpot deal pipeline/stage this project watches (section 9). TODO: confirm real pipeline/stage IDs. */
-export const HUBSPOT_PIPELINE = {
-  pipelineId: "TODO_pipeline_solicitudes",
-  stages: {
-    // TODO: fill in with the real stage IDs once known, e.g.:
-    // solicitudCreada: "TODO_stage_id",
-  },
+/**
+ * Default display labels for the fields a concesionario actually sees —
+ * table columns and upload form fields. Editable from the admin panel
+ * (see firestore/fieldLabelsRepository.ts) so wording can match how a
+ * given process talks about these fields without a deploy. Purely
+ * cosmetic: renaming a label here never changes which HubSpot property it
+ * reads from, whether it's required, or anything else about the logic.
+ *
+ * Only fields with concesionario-facing text are listed — `kiosco`, the
+ * file URL fields, and the notification fields (paydeskUrl/paydeskCodigo)
+ * never render as a standalone label, so they're not here.
+ */
+export const FIELD_LABELS: Partial<Record<HubspotDealPropertyKey, string>> = {
+  cliente: "Cliente",
+  fechaSolicitud: "Fecha de solicitud",
+  montoAprobado: "Monto aprobado",
+  estatusKyc: "Estatus de KYC",
+  cotizacionEstatus: "Cotización",
+  cotizacionFechaEntregaAcordada: "Fecha de entrega acordada",
+  cotizacionMontoTotalCompra: "Monto total de la compra",
+  creditoLiberadoFecha: "Crédito liberado",
+  disposicionCreditoFecha: "Disposición del crédito",
+  comprobanteEntregaEstatus: "Comprobante de entrega",
+  comprobanteFechaEntrega: "Fecha de entrega",
+  comprobanteFirmaClienteConfirmada:
+    "Confirma que el cliente firmó el documento de entrega",
+  desembolsoFecha: "Desembolso del crédito",
 } as const;
+
+export type FieldLabelKey = keyof typeof FIELD_LABELS;
+
+/**
+ * The two HubSpot pipelines that hold Construrama deals. `current` is what
+ * every new deal uses going forward; `legacy` is HubSpot's built-in
+ * "default" pipeline — obsolete, nothing new lands there, but old deals
+ * still live there and need to be included when backfilling history.
+ *
+ * Only the bulk backfill (adminSyncConstrurama) needs this. The ongoing
+ * webhook (syncDealWebhook) doesn't filter by pipeline at all — it only
+ * ever gets called for deals the HubSpot Workflow itself already scoped to
+ * this product, one at a time.
+ */
+export const HUBSPOT_PIPELINES = {
+  current: "890269050",
+  legacy: "default",
+} as const;
+
+/**
+ * What scopes a deal to this product among others sharing the same
+ * HubSpot portal, for the bulk backfill's search query.
+ */
+export const HUBSPOT_PRODUCT_FILTER = {
+  property: "aos_product",
+  value: "Construrama HomeLoan",
+} as const;
+
+/**
+ * Canceled-deal stages, excluded from the backfill entirely — these
+ * aren't shown to a store at all. Applies across both pipelines in one
+ * list; a deal's `dealstage` only ever matches an id from its own
+ * pipeline's stage set, so mixing both pipelines' ids here is harmless.
+ *
+ * TODO: this only keeps canceled deals out of the *initial* sync. Once a
+ * deal that's already in Firestore gets canceled afterward, nothing yet
+ * removes it from the store's page — a separate feature, not built yet.
+ */
+export const HUBSPOT_EXCLUDED_STAGES = [
+  "1341580191",
+  "1341580192",
+  "33823869",
+] as const;
+
+/**
+ * For a deal sitting in the obsolete `legacy` pipeline, these five
+ * milestones' dates live under a different property than the `current`
+ * pipeline's — each pipeline stage gets its own
+ * `hs_v2_date_entered_<stageId>` system property, and the two pipelines
+ * don't share stage ids. Only the backfill needs this fallback: the
+ * ongoing webhook only ever sees deals already in the current pipeline,
+ * where the regular field dictionary mapping is enough.
+ */
+export const LEGACY_PIPELINE_STAGE_PROPERTIES: Partial<
+  Record<HubspotDealPropertyKey, string>
+> = {
+  fechaSolicitud: "hs_v2_date_entered_36073275",
+  estatusKyc: "hs_v2_date_entered_183822132",
+  creditoLiberadoFecha: "hs_v2_date_entered_33642516",
+  disposicionCreditoFecha: "hs_v2_date_entered_171655337",
+  desembolsoFecha: "hs_v2_date_entered_33823866",
+};
 

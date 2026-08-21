@@ -21,7 +21,8 @@ export interface PayDeskDeal {
   cliente: string | null;
   fechaSolicitud: string | null; // ISO date
   montoAprobado: number | null;
-  estatusKyc: string | null;
+  /** Date the deal entered the KYC pipeline stage in HubSpot — not a status label. */
+  estatusKyc: string | null; // ISO date
 
   cotizacionEstatus: UploadStatus;
   cotizacionUrl: string | null;
@@ -77,6 +78,13 @@ export interface PayDeskConcesionario {
   bloqueadoHasta: FirebaseFirestore.Timestamp | null;
   /** Last successful login, shown in the admin catalog. */
   ultimoAccesoEn: FirebaseFirestore.Timestamp | null;
+
+  /**
+   * This store's own rollout cutoff (ISO date), when it went live in a
+   * different wave than the rest. Null falls back to the global date —
+   * see firestore/rolloutRepository.ts.
+   */
+  rolloutDesde?: string | null;
 
   actualizadoEn: FirebaseFirestore.Timestamp;
   creadoEn: FirebaseFirestore.Timestamp;

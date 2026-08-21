@@ -1,13 +1,17 @@
 import { useState } from "react";
 import { uploadCotizacion } from "../lib/uploads";
+import { CurrencyInput } from "./CurrencyInput";
+import type { FieldLabels } from "../types/admin";
 
 /** "Nueva cotización" module (section 5.2). */
 export function CotizacionUploadForm({
   dealId,
+  labels,
   onUploaded,
   onCancel,
 }: {
   dealId: string;
+  labels?: FieldLabels;
   onUploaded: () => void;
   onCancel: () => void;
 }) {
@@ -54,7 +58,7 @@ export function CotizacionUploadForm({
       </label>
 
       <label>
-        Fecha de entrega acordada
+        {labels?.cotizacionFechaEntregaAcordada ?? "Fecha de entrega acordada"}
         <input
           type="date"
           value={fechaEntregaAcordada}
@@ -62,17 +66,17 @@ export function CotizacionUploadForm({
           required
         />
       </label>
-      <label>
-        Monto total de la compra
-        <input
-          type="number"
-          min="0"
-          step="0.01"
+      <div className="upload-form__field">
+        <label htmlFor="monto-total-compra">
+          {labels?.cotizacionMontoTotalCompra ?? "Monto total de la compra"}
+        </label>
+        <CurrencyInput
+          id="monto-total-compra"
           value={montoTotalCompra}
-          onChange={(e) => setMontoTotalCompra(e.target.value)}
+          onChange={setMontoTotalCompra}
           required
         />
-      </label>
+      </div>
       {error && <p className="form-error">{error}</p>}
       <div className="upload-form__actions">
         <button type="button" className="button-secondary" onClick={onCancel} disabled={submitting}>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { loginConcesionario } from "../lib/firebase";
 import { BrandMark } from "../components/BrandMark";
 
@@ -78,6 +78,10 @@ export function LoginPage() {
         <p className="login-card__help">
           ¿No tienes tu NIP o lo olvidaste? Contacta a tu ejecutivo de Aviva.
         </p>
+
+        <Link to="/admin" className="link-button link-button--centered">
+          Ingreso para personal de Aviva
+        </Link>
       </form>
     </main>
   );

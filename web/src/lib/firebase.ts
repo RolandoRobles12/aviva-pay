@@ -1,16 +1,22 @@
 import { initializeApp } from "firebase/app";
 import {
   getAuth,
+  GoogleAuthProvider,
   signInWithCustomToken,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signOut,
+  type User,
 } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import type { PayDeskConcesionario, PayDeskDeal } from "../types/deal";
 import type {
+  AdminAuditEntry,
   AdminConcesionario,
+  AdminUser,
   FieldDictionary,
+  FieldLabels,
 } from "../types/admin";
 
 const firebaseConfig = {
@@ -43,21 +49,42 @@ export async function loginConcesionario(codigo: string, nip: string) {
 
 export const getConcesionarioDealsCallable = httpsCallable<
   void,
-  { concesionario: PayDeskConcesionario; deals: PayDeskDeal[] }
+  {
+    concesionario: PayDeskConcesionario;
+    deals: PayDeskDeal[];
+    labels: FieldLabels;
+    rolloutDesde: string | null;
+  }
 >(functions, "getConcesionarioDeals");
 
 // --- Admin ---
 
-export async function loginAdmin(email: string, password: string) {
-  const credential = await signInWithEmailAndPassword(auth, email, password);
-  const token = await credential.user.getIdTokenResult();
+/**
+ * Signed in, but not an admin — drop the session rather than leave the
+ * user in a half-authenticated state the panel would keep rejecting.
+ * The `admin` claim is granted out of band (see docs/ARCHITECTURE.md —
+ * "Alta de administradores"); having any account, Google or otherwise,
+ * is not enough on its own.
+ */
+async function requireAdminClaim(user: User) {
+  const token = await user.getIdTokenResult();
   if (token.claims.admin !== true) {
-    // Signed in, but not an admin — drop the session rather than leave the
-    // user in a half-authenticated state the panel would keep rejecting.
     await signOut(auth);
     throw new Error("Esta cuenta no tiene acceso al panel de administración.");
   }
-  return credential.user;
+  return user;
+}
+
+export async function loginAdmin(email: string, password: string) {
+  const credential = await signInWithEmailAndPassword(auth, email, password);
+  return requireAdminClaim(credential.user);
+}
+
+const googleProvider = new GoogleAuthProvider();
+
+export async function loginAdminWithGoogle() {
+  const credential = await signInWithPopup(auth, googleProvider);
+  return requireAdminClaim(credential.user);
 }
 
 export const adminListConcesionariosCallable = httpsCallable<
@@ -66,7 +93,12 @@ export const adminListConcesionariosCallable = httpsCallable<
 >(functions, "adminListConcesionarios");
 
 export const adminUpdateConcesionarioCallable = httpsCallable<
-  { concesionarioId: string; nombre?: string; codigo?: string },
+  {
+    concesionarioId: string;
+    nombre?: string;
+    codigo?: string;
+    rolloutDesde?: string | null;
+  },
   { ok: true }
 >(functions, "adminUpdateConcesionario");
 
@@ -84,6 +116,65 @@ export const adminSetFieldDictionaryCallable = httpsCallable<
   { campos: FieldDictionary },
   { ok: true }
 >(functions, "adminSetFieldDictionary");
+
+export const adminListAdminsCallable = httpsCallable<
+  void,
+  { admins: AdminUser[]; auditLog: AdminAuditEntry[] }
+>(functions, "adminListAdmins");
+
+export const adminCreateAdminCallable = httpsCallable<
+  { email: string },
+  { ok: true }
+>(functions, "adminCreateAdmin");
+
+export const adminRevokeAdminCallable = httpsCallable<
+  { uid: string },
+  { ok: true }
+>(functions, "adminRevokeAdmin");
+
+export const adminGetConcesionarioDealsCallable = httpsCallable<
+  { concesionarioId: string },
+  {
+    concesionario: PayDeskConcesionario;
+    deals: PayDeskDeal[];
+    labels: FieldLabels;
+    rolloutDesde: string | null;
+  }
+>(functions, "adminGetConcesionarioDeals");
+
+export const adminGetFieldLabelsCallable = httpsCallable<
+  void,
+  { etiquetas: FieldLabels; defaults: FieldLabels }
+>(functions, "adminGetFieldLabels");
+
+export const adminSetFieldLabelsCallable = httpsCallable<
+  { etiquetas: FieldLabels },
+  { ok: true }
+>(functions, "adminSetFieldLabels");
+
+// Matches the backend's timeoutSeconds (540s) — the default 70s client
+// timeout would give up on a large backfill long before the function does.
+export const adminSyncConstruramaCallable = httpsCallable<
+  void,
+  {
+    ok: true;
+    totalFound: number;
+    synced: number;
+    newStores: number;
+    skippedNoConcesionario: number;
+    failed: number;
+  }
+>(functions, "adminSyncConstrurama", { timeout: 540_000 });
+
+export const adminGetRolloutCallable = httpsCallable<
+  void,
+  { fechaRollout: string | null }
+>(functions, "adminGetRollout");
+
+export const adminSetRolloutCallable = httpsCallable<
+  { fechaRollout: string | null },
+  { ok: true }
+>(functions, "adminSetRollout");
 
 export async function logout() {
   await signOut(auth);

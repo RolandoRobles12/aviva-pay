@@ -54,8 +54,14 @@ export const uploadComprobante = onRequest(
     });
 
     await updateDealProperties(dealId, {
-      comprobanteEntregaEstatus: "completado",
-      comprobanteUrl: uploaded.url,
+      // comprobanteEntregaEstatus is a HubSpot single-checkbox property:
+      // its real values are "true"/"false", not "completado"/"pendiente"
+      // — see hubspot/deals.ts (toUploadStatus) for the read-side of this.
+      comprobanteEntregaEstatus: "true",
+      // comprobanteUrl is a HubSpot *file* property, which stores the
+      // uploaded file's id, not a URL — HubSpot resolves the URL from the
+      // id on its own side.
+      comprobanteUrl: uploaded.fileId,
       comprobanteFechaEntrega: fechaEntrega,
       comprobanteFirmaClienteConfirmada: firmaClienteConfirmada,
     });

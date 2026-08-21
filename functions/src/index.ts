@@ -19,3 +19,12 @@ export {
   adminGetFieldDictionary,
   adminSetFieldDictionary,
 } from "./http/admin/fieldDictionary";
+export { adminGetFieldLabels, adminSetFieldLabels } from "./http/admin/fieldLabels";
+export {
+  adminListAdmins,
+  adminCreateAdmin,
+  adminRevokeAdmin,
+} from "./http/admin/admins";
+export { adminGetConcesionarioDeals } from "./http/admin/viewConcesionarioDeals";
+export { adminSyncConstrurama } from "./http/admin/syncConstrurama";
+export { adminGetRollout, adminSetRollout } from "./http/admin/rollout";

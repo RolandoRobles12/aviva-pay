@@ -10,6 +10,14 @@
   --verde-aviva: #16b877;
   --verde-musgo: #026149;
 
+  /* Mismo verde de marca, un paso más oscuro, para lo *funcional*: fondos
+     de botón con texto blanco, anillos de foco y el relleno de la barra de
+     avance. --verde-aviva da 2.57:1 contra blanco, debajo del mínimo — y
+     eso deja el texto de los botones difícil de leer. Este da 4.70:1
+     (texto) y 3.89:1 contra la pista de la barra (UI). --verde-aviva se
+     queda para el logotipo, que es identidad de marca, no un control. */
+  --verde-accion: #0a845b;
+
   /* Colores secundarios */
   --blanco: #ffffff;
   --gris-frio: #f0f5fa;
@@ -19,6 +27,15 @@
   --blanco-hueso: #f6f4f0;
   --blanco-off: #f5f5f5;
   --negro-off: #1e2024;
+
+  /* Estado "requiere acción" — reservado para eso, nunca como un acento
+     decorativo más. Siempre acompaña a una etiqueta que dice qué es, para
+     que no se lea solo por color. */
+  --ambar: #a55a00;
+  --ambar-suave: #fdf4e6;
+
+  /* Side padding for the full-bleed shell. */
+  --gutter: 2rem;
 
   font-family: var(--font-body);
 }
@@ -62,6 +79,35 @@ h3 {
   color: var(--verde-aviva);
 }
 
+/* --- App shell -----------------------------------------------------------
+   Full-bleed, the way a CRM record list works: the bar and the tabs span
+   the window and the table gets the whole width, instead of everything
+   sitting in a centred column with empty margins either side. */
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 0.9rem var(--gutter);
+  background: var(--blanco);
+  border-bottom: 1px solid color-mix(in srgb, var(--verde-musgo) 12%, transparent);
+}
+
+.app-body {
+  flex: 1;
+  padding: 1.5rem var(--gutter) 3rem;
+}
+
+/* Kept for the login screens, which are the one place a narrow column is
+   the right answer. */
 .concesionario-page {
   max-width: 1200px;
   margin: 0 auto;
@@ -116,11 +162,16 @@ h3 {
 }
 
 .deals-table-wrapper {
-  overflow-x: auto;
+  /* `overflow-x: auto` makes this a scroll container on both axes, so the
+     sticky header only holds if the box has a height to scroll within.
+     Capping it to the viewport gives the CRM behaviour: filters and tabs
+     stay put, the rows scroll under a fixed header row. */
+  overflow: auto;
+  max-height: max(420px, calc(100vh - 19rem));
   background: var(--blanco);
-  border-radius: 14px;
-  box-shadow: 0 1px 2px rgba(2, 97, 73, 0.08);
-  margin: 1.75rem 0;
+  border: 1px solid color-mix(in srgb, var(--verde-musgo) 10%, transparent);
+  border-radius: 12px;
+  margin: 1.25rem 0;
 }
 
 .deals-table {
@@ -144,6 +195,10 @@ h3 {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   background: var(--gris-frio);
+  /* Column names stay put while a long page of rows scrolls past. */
+  position: sticky;
+  top: 0;
+  z-index: 3;
 }
 
 .deals-table tbody tr:last-child td {
@@ -178,7 +233,7 @@ h3 {
 
 .upload-button {
   font-family: var(--font-body);
-  background: var(--verde-aviva);
+  background: var(--verde-accion);
   color: var(--blanco);
   border: none;
   border-radius: 8px;
@@ -189,8 +244,13 @@ h3 {
   transition: background 0.15s ease;
 }
 
-.upload-button:hover {
+.upload-button:hover:not(:disabled) {
   background: var(--verde-musgo);
+}
+
+.upload-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .modal-overlay {
@@ -282,7 +342,7 @@ h3 {
 }
 
 .upload-form input:focus {
-  outline: 2px solid var(--verde-aviva);
+  outline: 2px solid var(--verde-accion);
   outline-offset: 1px;
 }
 
@@ -294,7 +354,7 @@ h3 {
 
 .upload-form button {
   font-family: var(--font-body);
-  background: var(--verde-aviva);
+  background: var(--verde-accion);
   color: var(--blanco);
   border: none;
   border-radius: 8px;
@@ -392,13 +452,13 @@ h3 {
 }
 
 .login-card input:focus {
-  outline: 2px solid var(--verde-aviva);
+  outline: 2px solid var(--verde-accion);
   outline-offset: 1px;
 }
 
 .login-card button {
   font-family: var(--font-body);
-  background: var(--verde-aviva);
+  background: var(--verde-accion);
   color: var(--blanco);
   border: none;
   border-radius: 8px;
@@ -416,6 +476,33 @@ h3 {
 .login-card button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.login-card__divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0;
+  color: color-mix(in srgb, var(--negro-off) 55%, transparent);
+  font-size: 0.82rem;
+}
+
+.login-card__divider::before,
+.login-card__divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--blanco-off);
+}
+
+.login-card button.button-secondary {
+  background: transparent;
+  color: var(--negro-off);
+  border: 1px solid var(--blanco-off);
+}
+
+.login-card button.button-secondary:hover:not(:disabled) {
+  background: var(--blanco-off);
 }
 
 .login-card__help {
@@ -443,6 +530,11 @@ h3 {
   color: var(--verde-musgo);
   cursor: pointer;
   text-decoration: underline;
+}
+
+.link-button--centered {
+  display: block;
+  text-align: center;
 }
 
 .cell-mono {
@@ -514,7 +606,7 @@ h3 {
   display: flex;
   align-items: center;
   gap: 2rem;
-  padding: 1rem 1.75rem;
+  padding: 1rem var(--gutter);
   background: var(--blanco);
   border-bottom: 1px solid var(--blanco-off);
 }
@@ -537,13 +629,11 @@ h3 {
 .admin-nav a.active {
   color: var(--verde-musgo);
   font-weight: 700;
-  border-bottom-color: var(--verde-aviva);
+  border-bottom-color: var(--verde-accion);
 }
 
 .admin-shell__body {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem 1.75rem 4rem;
+  padding: 1.5rem var(--gutter) 4rem;
 }
 
 .admin-page-head {
@@ -567,6 +657,18 @@ h3 {
   max-width: 60ch;
 }
 
+.admin-title--secondary {
+  font-size: 1.15rem;
+  margin-top: 2.5rem;
+}
+
+.admin-page-head__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
 .admin-search {
   padding: 0.55rem 0.8rem;
   border: 1px solid var(--blanco-off);
@@ -578,7 +680,7 @@ h3 {
 }
 
 .admin-search:focus {
-  outline: 2px solid var(--verde-aviva);
+  outline: 2px solid var(--verde-accion);
   outline-offset: 1px;
 }
 
@@ -631,7 +733,7 @@ h3 {
 }
 
 .dictionary-row__input input:focus {
-  outline: 2px solid var(--verde-aviva);
+  outline: 2px solid var(--verde-accion);
   outline-offset: 1px;
 }
 
@@ -648,7 +750,7 @@ h3 {
 
 .dictionary-form__actions button {
   font-family: var(--font-body);
-  background: var(--verde-aviva);
+  background: var(--verde-accion);
   color: var(--blanco);
   border: none;
   border-radius: 8px;
@@ -661,4 +763,694 @@ h3 {
 .dictionary-form__actions button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* --- KPI row (stat tiles) ------------------------------------------------
+   The handful of numbers that answer "what do I need to do today?" before
+   anyone reads a table row. Current counts, so no sparkline or delta. */
+
+.stat-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.85rem;
+  margin: 1.75rem 0 0;
+}
+
+.stat-tile {
+  background: var(--blanco);
+  border: 1px solid color-mix(in srgb, var(--verde-musgo) 10%, transparent);
+  border-radius: 14px;
+  padding: 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.stat-tile__label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, var(--negro-off) 60%, transparent);
+}
+
+/* Proportional figures on purpose: tabular-nums pads every digit to the
+   width of a 0, which reads loose at this size. Tabular is for columns. */
+.stat-tile__value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--verde-musgo);
+}
+
+/* Something to act on. The label already says what it is — the tint is a
+   second channel, never the only one. */
+.stat-tile--accion {
+  background: var(--ambar-suave);
+  border-color: color-mix(in srgb, var(--ambar) 25%, transparent);
+}
+
+.stat-tile--accion .stat-tile__value {
+  color: var(--ambar);
+}
+
+/* --- Toolbar above a table --- */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 1.75rem;
+}
+
+.toolbar__count {
+  font-size: 0.85rem;
+  color: color-mix(in srgb, var(--negro-off) 55%, transparent);
+}
+
+/* --- Per-row progress meter ---------------------------------------------
+   Seven segments, one per milestone, filled left to right. The count beside
+   it carries the same information in text so it never reads by color alone. */
+
+.progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.progress__track {
+  display: flex;
+  gap: 2px;
+}
+
+.progress__seg {
+  width: 10px;
+  height: 6px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--verde-musgo) 12%, transparent);
+}
+
+.progress__seg--on {
+  background: var(--verde-accion);
+}
+
+.progress__seg--on.progress__seg--complete {
+  background: var(--verde-musgo);
+}
+
+.progress__count {
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--negro-off) 60%, transparent);
+}
+
+/* --- Sticky first column ------------------------------------------------
+   Nine columns don't fit most screens. The client's name is what a store
+   navigates by, so it stays put while the rest scrolls under it. */
+
+.deals-table .col-sticky {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--blanco);
+  border-right: 1px solid var(--blanco-off);
+  /* Reads as pinned once the rest of the row slides underneath it. */
+  box-shadow: 6px 0 8px -6px rgba(2, 97, 73, 0.18);
+}
+
+.deals-table thead .col-sticky {
+  background: var(--gris-frio);
+  /* Above both the sticky header row (3) and the sticky body column (1). */
+  z-index: 4;
+}
+
+.deals-table tbody tr:hover .col-sticky {
+  background: var(--blanco-hueso);
+}
+
+.cell-cliente {
+  font-weight: 600;
+  color: var(--negro-off);
+}
+
+/* Money and other figures that must line up down a column. */
+.deals-table .col-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.cell-done__check {
+  font-weight: 700;
+}
+
+/* --- Empty state --- */
+
+.empty-state {
+  background: var(--blanco);
+  border-radius: 14px;
+  padding: 3rem 1.5rem;
+  text-align: center;
+  margin: 1.25rem 0;
+  border: 1px dashed color-mix(in srgb, var(--verde-musgo) 18%, transparent);
+}
+
+.empty-state__icon {
+  font-size: 2rem;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.empty-state__title {
+  margin: 0;
+  font-weight: 700;
+  color: var(--verde-musgo);
+}
+
+.empty-state__hint {
+  margin: 0.35rem auto 0;
+  max-width: 46ch;
+  font-size: 0.9rem;
+  color: color-mix(in srgb, var(--negro-off) 60%, transparent);
+}
+
+/* --- Currency field ------------------------------------------------------
+   Replaces <input type="number">, which shows spinner arrows and won't
+   group thousands. The $ and MXN are adornments, not part of the value. */
+
+.currency-input {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--blanco-off);
+  border-radius: 8px;
+  background: var(--blanco);
+  padding: 0 0.7rem;
+}
+
+.currency-input:focus-within {
+  outline: 2px solid var(--verde-accion);
+  outline-offset: 1px;
+}
+
+.currency-input__symbol {
+  font-weight: 700;
+  color: var(--verde-musgo);
+}
+
+.currency-input__currency {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--negro-off) 45%, transparent);
+}
+
+.currency-input input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  padding: 0.5rem 0;
+  font-size: 1rem;
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
+  background: transparent;
+}
+
+.upload-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.upload-form__field label {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+/* --- Filter chips --------------------------------------------------------
+   Chips rather than dropdowns: every option visible without opening
+   anything, each with its own count, one tap to switch. */
+
+.filters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin: 1.75rem 0 0;
+}
+
+.filters__row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.filters__row--secondary {
+  gap: 0.75rem;
+}
+
+.filters__group {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--negro-off);
+  background: var(--blanco);
+  border: 1px solid color-mix(in srgb, var(--verde-musgo) 15%, transparent);
+  border-radius: 999px;
+  /* Generous target: this gets tapped on a phone at the counter. */
+  padding: 0.5rem 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.chip:hover {
+  border-color: var(--verde-accion);
+}
+
+.chip--on {
+  background: var(--verde-musgo);
+  border-color: var(--verde-musgo);
+  color: var(--blanco);
+}
+
+.chip--sm {
+  font-size: 0.82rem;
+  padding: 0.35rem 0.75rem;
+}
+
+/* Has something waiting on the store. The count and label carry the same
+   message, so the tint is never the only signal. */
+.chip--accion:not(.chip--on) {
+  background: var(--ambar-suave);
+  border-color: color-mix(in srgb, var(--ambar) 30%, transparent);
+  color: var(--ambar);
+}
+
+.chip__count {
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--negro-off) 8%, transparent);
+}
+
+.chip--on .chip__count {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* --- "Te toca a ti" banner ----------------------------------------------
+   The one thing worth interrupting for. Tapping it filters the table down
+   to exactly those clients. */
+
+.callout-accion {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  width: 100%;
+  text-align: left;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ambar);
+  background: var(--ambar-suave);
+  border: 1px solid color-mix(in srgb, var(--ambar) 28%, transparent);
+  border-radius: 14px;
+  padding: 0.9rem 1.1rem;
+  margin-top: 1.5rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.callout-accion:hover {
+  border-color: var(--ambar);
+}
+
+.callout-accion__count {
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.callout-accion__cta {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-top: 0.15rem;
+}
+
+/* --- Summary: funnel + insights --- */
+
+.summary {
+  display: grid;
+  /* The funnel takes the room; the numbers panel stays a fixed, readable
+     width instead of stretching to half of an ultrawide screen. */
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+  gap: 0.85rem;
+  margin-top: 1.25rem;
+  max-width: 1600px;
+}
+
+@media (max-width: 860px) {
+  .summary {
+    grid-template-columns: 1fr;
+  }
+}
+
+.summary__panel {
+  background: var(--blanco);
+  border: 1px solid color-mix(in srgb, var(--verde-musgo) 10%, transparent);
+  border-radius: 14px;
+  padding: 1.1rem 1.25rem 1.25rem;
+}
+
+.summary__title {
+  font-size: 1rem;
+  color: var(--verde-musgo);
+}
+
+.summary__hint {
+  margin: 0.2rem 0 0.9rem;
+  font-size: 0.85rem;
+  color: color-mix(in srgb, var(--negro-off) 60%, transparent);
+}
+
+/* Seven ordered stages, one hue, length as the only variable — the stage
+   name carries identity, so no legend and no per-stage color. */
+.funnel {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.funnel__row {
+  display: grid;
+  grid-template-columns: 9.5rem minmax(0, 1fr) 4.5rem;
+  align-items: center;
+  gap: 0.7rem;
+  font-size: 0.85rem;
+}
+
+.funnel__label {
+  color: color-mix(in srgb, var(--negro-off) 75%, transparent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.funnel__track {
+  height: 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--verde-musgo) 8%, transparent);
+  overflow: hidden;
+}
+
+/* Thin mark, rounded data-end, anchored to the baseline at left. */
+.funnel__bar {
+  display: block;
+  height: 100%;
+  min-width: 3px;
+  border-radius: 999px;
+  background: var(--verde-accion);
+  transition: width 0.25s ease;
+}
+
+.funnel__value {
+  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--verde-musgo);
+}
+
+.funnel__pct {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--negro-off) 50%, transparent);
+}
+
+.insights {
+  margin: 0;
+  display: grid;
+  /* Fixed 2x2 rather than auto-fit: the labels are long enough that a
+     3-then-1 row leaves an obvious hole in the panel. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.1rem 0.9rem;
+}
+
+@media (max-width: 420px) {
+  .insights {
+    grid-template-columns: 1fr;
+  }
+}
+
+.insight dt {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, var(--negro-off) 58%, transparent);
+}
+
+.insight dd {
+  margin: 0;
+}
+
+.insight__value {
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--verde-musgo);
+  margin-top: 0.15rem !important;
+}
+
+.insight__note {
+  font-size: 0.76rem;
+  color: color-mix(in srgb, var(--negro-off) 55%, transparent);
+}
+
+/* --- Historical deals ----------------------------------------------------
+   Closed before this store started on Pay Desk. Present for visibility,
+   visibly de-emphasised, never counted as pending. */
+
+.row--historica td:not(.col-sticky) {
+  opacity: 0.72;
+}
+
+.tag-historica {
+  display: inline-block;
+  margin-left: 0.5rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, var(--negro-off) 55%, transparent);
+  background: var(--blanco-off);
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  vertical-align: middle;
+}
+
+.link-button--muted {
+  color: color-mix(in srgb, var(--negro-off) 55%, transparent);
+  font-weight: 500;
+}
+
+/* --- Rollout config card (admin) --- */
+
+.rollout-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  background: var(--blanco);
+  border: 1px solid color-mix(in srgb, var(--verde-musgo) 12%, transparent);
+  border-radius: 14px;
+  padding: 1.1rem 1.25rem;
+  margin-top: 1.5rem;
+}
+
+/* Not an error — a deliberate, safe state. Tinted only to say "still to
+   decide", with the text spelling out what it means meanwhile. */
+.rollout-card--pendiente {
+  background: var(--ambar-suave);
+  border-color: color-mix(in srgb, var(--ambar) 25%, transparent);
+}
+
+.rollout-card__texto {
+  max-width: 62ch;
+}
+
+.rollout-card__texto strong {
+  color: var(--verde-musgo);
+}
+
+.rollout-card__texto p {
+  margin: 0.25rem 0 0;
+  font-size: 0.88rem;
+  color: color-mix(in srgb, var(--negro-off) 70%, transparent);
+}
+
+.rollout-card__control {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.rollout-card__control input[type="date"] {
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--blanco-off);
+  border-radius: 8px;
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  background: var(--blanco);
+}
+
+.rollout-card__control input[type="date"]:focus {
+  outline: 2px solid var(--verde-accion);
+  outline-offset: 1px;
+}
+
+/* --- Tabs (store: list vs report) --- */
+
+.tabs {
+  display: flex;
+  gap: 1.5rem;
+  padding: 0 var(--gutter);
+  background: var(--blanco);
+  border-bottom: 1px solid color-mix(in srgb, var(--verde-musgo) 12%, transparent);
+}
+
+.tabs a {
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.98rem;
+  color: color-mix(in srgb, var(--negro-off) 62%, transparent);
+  padding: 0.6rem 0.15rem;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.tabs a:hover {
+  color: var(--verde-musgo);
+}
+
+.tabs a.active {
+  color: var(--verde-musgo);
+  font-weight: 700;
+  border-bottom-color: var(--verde-accion);
+}
+
+/* --- Pagination --- */
+
+.paginacion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin: -0.5rem 0 1rem;
+}
+
+.paginacion__rango,
+.paginacion__pagina {
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--negro-off) 58%, transparent);
+}
+
+.paginacion__controles {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.paginacion__controles .chip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.paginacion__controles .chip:disabled:hover {
+  border-color: color-mix(in srgb, var(--verde-musgo) 15%, transparent);
+}
+
+/* --- Custom date range --- */
+
+.filters__rango {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: color-mix(in srgb, var(--negro-off) 55%, transparent);
+}
+
+.filters__rango input[type="date"] {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid color-mix(in srgb, var(--verde-musgo) 15%, transparent);
+  border-radius: 8px;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  background: var(--blanco);
+  color: var(--negro-off);
+}
+
+.filters__rango input[type="date"]:focus {
+  outline: 2px solid var(--verde-accion);
+  outline-offset: 1px;
+}
+
+/* On the list page the table follows the filters directly, so it doesn't
+   need the extra top margin it carries when panels sit above it. */
+.filters + .deals-table-wrapper {
+  margin-top: 1.25rem;
+}
+
+/* --- Sortable column headers ---------------------------------------------
+   Both arrows sit faint on every sortable header so the affordance is
+   visible without hovering — this gets used on touchscreens. The active
+   column's active direction lights up in the header's own ink. */
+
+.deals-table th button.sort-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.sort-header__arrows {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 0.55rem;
+  line-height: 0.55rem;
+}
+
+.sort-header__arrow {
+  color: color-mix(in srgb, var(--verde-pino) 30%, transparent);
+}
+
+.sort-header--asc .sort-header__arrow--up,
+.sort-header--desc .sort-header__arrow--down {
+  color: var(--verde-accion);
 }

@@ -1,13 +1,16 @@
 import { useState } from "react";
 import { uploadComprobante } from "../lib/uploads";
+import type { FieldLabels } from "../types/admin";
 
 /** "Comprobante de entrega" module (section 5.3). */
 export function ComprobanteUploadForm({
   dealId,
+  labels,
   onUploaded,
   onCancel,
 }: {
   dealId: string;
+  labels?: FieldLabels;
   onUploaded: () => void;
   onCancel: () => void;
 }) {
@@ -58,7 +61,7 @@ export function ComprobanteUploadForm({
       </label>
 
       <label>
-        Fecha de entrega
+        {labels?.comprobanteFechaEntrega ?? "Fecha de entrega"}
         <input
           type="date"
           value={fechaEntrega}
@@ -72,7 +75,8 @@ export function ComprobanteUploadForm({
           checked={firmaClienteConfirmada}
           onChange={(e) => setFirmaClienteConfirmada(e.target.checked)}
         />
-        Confirma que el cliente firmó el documento de entrega
+        {labels?.comprobanteFirmaClienteConfirmada ??
+          "Confirma que el cliente firmó el documento de entrega"}
       </label>
       {error && <p className="form-error">{error}</p>}
       <div className="upload-form__actions">
