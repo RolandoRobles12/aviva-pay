@@ -1,5 +1,6 @@
 import { Route, Routes } from "react-router-dom";
 import { LoginPage } from "./pages/LoginPage";
+import { RestablecerContrasenaPage } from "./pages/RestablecerContrasenaPage";
 import { ConcesionarioLayout } from "./pages/ConcesionarioLayout";
 import { SolicitudesPage } from "./pages/SolicitudesPage";
 import { ReportePage } from "./pages/ReportePage";
@@ -18,6 +19,7 @@ export function App() {
     <Routes>
       {/* Concesionario */}
       <Route path="/" element={<LoginPage />} />
+      <Route path="/restablecer" element={<RestablecerContrasenaPage />} />
       <Route
         path="/solicitudes"
         element={

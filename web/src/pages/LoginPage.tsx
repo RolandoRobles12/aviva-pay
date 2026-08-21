@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { enviarRestablecerContrasena, loginConcesionario } from "../lib/firebase";
 import { BrandMark } from "../components/BrandMark";
+import { PasswordInput } from "../components/PasswordInput";
 
 /**
  * Where a concesionario starts: email + password, the same account an
@@ -133,11 +134,10 @@ export function LoginPage() {
 
         <label>
           Contraseña
-          <input
-            type="password"
-            autoComplete="current-password"
+          <PasswordInput
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={setPassword}
+            autoComplete="current-password"
             required
           />
         </label>
