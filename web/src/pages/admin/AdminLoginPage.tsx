@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginAdmin, loginAdminWithGoogle } from "../../lib/firebase";
 import { BrandMark } from "../../components/BrandMark";
+import { PasswordInput } from "../../components/PasswordInput";
 
 /** Aviva team sign-in. Firebase Auth (email/password or Google) — accounts are created by the team, not self-service. */
 export function AdminLoginPage() {
@@ -69,11 +70,10 @@ export function AdminLoginPage() {
 
         <label>
           Contraseña
-          <input
-            type="password"
-            autoComplete="current-password"
+          <PasswordInput
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={setPassword}
+            autoComplete="current-password"
             required
           />
         </label>
