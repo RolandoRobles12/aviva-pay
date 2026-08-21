@@ -67,7 +67,11 @@ h3 {
 .brand-mark {
   display: flex;
   align-items: baseline;
-  gap: 0.35rem;
+  /* The manual's clear-space rule is 2x, where x is the dot on the i —
+     ~30 of the wordmark's 483 units wide. At --logo-alto: 2rem the mark is
+     ~103px wide, so x ≈ 6.4px and 2x ≈ 0.8rem. That's the minimum "Pay
+     Desk" may sit from it. */
+  gap: 0.8rem;
   margin-bottom: 0.25rem;
 }
 
@@ -77,14 +81,17 @@ h3 {
    drives the lockup; width follows the artwork's own aspect ratio. Tune
    --logo-alto if it reads too big or small next to "Pay Desk". */
 .brand-mark__logo {
-  --logo-alto: 1.5rem;
+  /* 2rem, not the text's 1.5rem: the artwork's height spans from the dot
+     on the i down to the baseline, so its x-height — the mass the eye
+     actually reads — is only ~70% of that. At 1.5rem the wordmark looked
+     dwarfed next to "Pay Desk"; this evens them out. */
+  --logo-alto: 2rem;
   height: var(--logo-alto);
   width: auto;
   display: block;
-  /* An <img> baseline sits at its bottom edge, which drops it low against
-     the script's baseline — nudge it back up to sit on the same line. */
-  position: relative;
-  top: 0.12em;
+  /* No baseline nudge needed: "aviva" has no descenders, so the artwork's
+     bottom edge IS its baseline, which is exactly where flexbox aligns an
+     img against the script's baseline. */
 }
 
 /* Fallback only — see BrandMark.tsx. Approximates the wordmark when the
