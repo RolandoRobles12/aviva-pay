@@ -5,7 +5,10 @@ import { fetchDealById, updateDealProperties } from "../hubspot/deals";
 import { upsertDealFromHubspot } from "../firestore/dealsRepository";
 
 interface SyncWebhookBody {
-  dealId?: string;
+  // HubSpot's Record ID property is numeric, and the workflow webhook
+  // action serializes a numeric property as a JSON number, not a string —
+  // accept either.
+  dealId?: string | number;
 }
 
 /**
@@ -46,11 +49,12 @@ export const syncDealWebhook = onRequest(
       return;
     }
 
-    const { dealId } = req.body as SyncWebhookBody;
-    if (!dealId || typeof dealId !== "string") {
+    const { dealId: rawDealId } = req.body as SyncWebhookBody;
+    if (rawDealId === undefined || rawDealId === null || rawDealId === "") {
       res.status(400).send("Missing dealId");
       return;
     }
+    const dealId = String(rawDealId);
 
     const result = await fetchDealById(dealId);
     if (!result) {
