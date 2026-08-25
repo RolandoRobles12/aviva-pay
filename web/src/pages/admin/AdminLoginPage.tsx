@@ -1,33 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { loginAdmin, loginAdminWithGoogle } from "../../lib/firebase";
+import { loginAdminWithGoogle } from "../../lib/firebase";
 import { BrandMark } from "../../components/BrandMark";
-import { PasswordInput } from "../../components/PasswordInput";
 
-/** Aviva team sign-in. Firebase Auth (email/password or Google) — accounts are created by the team, not self-service. */
+/** Aviva team sign-in. Google only — accounts are created by the team, not self-service. */
 export function AdminLoginPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setSubmitting(true);
-    setError(null);
-    try {
-      await loginAdmin(email, password);
-      navigate("/admin/tiendas", { replace: true });
-    } catch (err) {
-      setError(
-        err instanceof Error && err.message.includes("panel")
-          ? err.message
-          : "Correo o contraseña incorrectos.",
-      );
-      setSubmitting(false);
-    }
-  }
 
   async function handleGoogleLogin() {
     setSubmitting(true);
@@ -52,39 +32,11 @@ export function AdminLoginPage() {
 
   return (
     <main className="login-page">
-      <form className="login-card" onSubmit={handleSubmit}>
+      <div className="login-card">
         <BrandMark centered />
         <p className="login-card__intro">Panel de administración</p>
 
-        <label>
-          Correo
-          <input
-            type="email"
-            autoComplete="username"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            autoFocus
-          />
-        </label>
-
-        <label>
-          Contraseña
-          <PasswordInput
-            value={password}
-            onChange={setPassword}
-            autoComplete="current-password"
-            required
-          />
-        </label>
-
         {error && <p className="form-error">{error}</p>}
-
-        <button type="submit" disabled={submitting}>
-          {submitting ? "Entrando..." : "Entrar"}
-        </button>
-
-        <div className="login-card__divider">o</div>
 
         <button
           type="button"
@@ -92,9 +44,9 @@ export function AdminLoginPage() {
           disabled={submitting}
           onClick={handleGoogleLogin}
         >
-          Continuar con Google
+          {submitting ? "Entrando..." : "Continuar con Google"}
         </button>
-      </form>
+      </div>
     </main>
   );
 }
