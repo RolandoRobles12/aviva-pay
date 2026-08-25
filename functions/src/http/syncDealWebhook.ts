@@ -22,7 +22,11 @@ interface SyncWebhookBody {
  * page — no repeat notification.
  */
 export const syncDealWebhook = onRequest(
-  { cors: false, region: "us-central1" },
+  {
+    cors: false,
+    region: "us-central1",
+    secrets: ["HUBSPOT_WEBHOOK_SECRET", "HUBSPOT_PRIVATE_APP_TOKEN"],
+  },
   async (req, res) => {
     if (req.method !== "POST") {
       res.status(405).send("Method Not Allowed");

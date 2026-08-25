@@ -20,7 +20,12 @@ const CONCURRENCY = 10;
  * separate rollout (see docs/ARCHITECTURE.md — "Pendientes conocidos").
  */
 export const adminSyncConstrurama = onCall(
-  { region: "us-central1", timeoutSeconds: 540, memory: "512MiB" },
+  {
+    region: "us-central1",
+    timeoutSeconds: 540,
+    memory: "512MiB",
+    secrets: ["HUBSPOT_PRIVATE_APP_TOKEN"],
+  },
   async (request) => {
     const admin = assertAdmin(request);
     logger.info(`adminSyncConstrurama: started by ${admin.email ?? admin.uid}`);

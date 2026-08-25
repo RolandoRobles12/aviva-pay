@@ -15,7 +15,7 @@ import { verifyBearerToken } from "../auth/requestAuth";
  * immediately, without waiting for the next HubSpot workflow sync).
  */
 export const uploadCotizacion = onRequest(
-  { region: "us-central1" },
+  { region: "us-central1", secrets: ["HUBSPOT_PRIVATE_APP_TOKEN"] },
   async (req, res) => {
     if (req.method !== "POST") {
       res.status(405).send("Method Not Allowed");
