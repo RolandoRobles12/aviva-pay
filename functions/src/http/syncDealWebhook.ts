@@ -9,11 +9,17 @@ interface SyncWebhookBody {
 }
 
 /**
- * HTTPS endpoint called by the HubSpot workflow's Custom Code action
+ * HTTPS endpoint called by the HubSpot workflow's "Send a webhook" action
  * (section 9) whenever a deal in the Solicitudes pipeline is created or
  * changes stage/relevant properties. Pulls the current deal state from
  * HubSpot and upserts it into Firestore, grouped by the concesionario
  * (Construrama store) named on the deal itself.
+ *
+ * Auth: the raw HUBSPOT_WEBHOOK_SECRET value must arrive verbatim in the
+ * `Authorization` header — no `Bearer ` scheme prefix. Keeping it a plain
+ * string match (rather than requiring both sides to agree on a prefix
+ * format) is deliberate: HubSpot's workflow "API Key" auth type sends
+ * whatever raw value its secret holds, with no scheme of its own.
  *
  * The first time a given concesionario is seen, also writes the Paydesk
  * URL back onto the triggering deal so a second HubSpot workflow can pick
@@ -34,8 +40,7 @@ export const syncDealWebhook = onRequest(
     }
 
     const authHeader = req.get("Authorization") ?? "";
-    const expected = `Bearer ${env.hubspotWebhookSecret}`;
-    if (authHeader !== expected) {
+    if (authHeader !== env.hubspotWebhookSecret) {
       logger.warn("syncDealWebhook: rejected request with invalid auth header");
       res.status(401).send("Unauthorized");
       return;
