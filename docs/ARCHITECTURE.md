@@ -42,7 +42,7 @@ Los endpoints de subida (`uploadCotizacion`, `uploadComprobante`) también verif
 
 ## Panel de administración
 
-En `/admin`, con cuentas de **Firebase Auth (correo + contraseña, o Google)** que llevan un custom claim `admin: true`. Cada endpoint admin verifica el claim vía `assertAdmin()` — el proveedor con el que se inició sesión no importa, solo el claim en el token.
+En `/admin`, con cuentas de **Firebase Auth (Google)** que llevan un custom claim `admin: true`. Cada endpoint admin verifica el claim vía `assertAdmin()`. El login de admin siempre persiste la sesión entre reinicios del navegador (`browserLocalPersistence`) — no hay checkbox "recordar" como en el login de concesionario.
 
 ### Alta de administradores
 

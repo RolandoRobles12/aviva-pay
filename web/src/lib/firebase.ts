@@ -133,14 +133,18 @@ async function requireAdminClaim(user: User) {
   return user;
 }
 
-export async function loginAdmin(email: string, password: string) {
-  const credential = await signInWithEmailAndPassword(auth, email, password);
-  return requireAdminClaim(credential.user);
-}
-
 const googleProvider = new GoogleAuthProvider();
 
+/**
+ * Admins only ever sign in with Google (see docs/ARCHITECTURE.md — "Alta de
+ * administradores"), so there's no "recordar" checkbox to key off of —
+ * always persist across browser restarts, same as `recordar: true` would
+ * for a concesionario. Set before signing in, since Firebase applies
+ * persistence to the sign-in call itself, and `auth` is shared with the
+ * concesionario login, which may have last set it to session-only.
+ */
 export async function loginAdminWithGoogle() {
+  await setPersistence(auth, browserLocalPersistence);
   const credential = await signInWithPopup(auth, googleProvider);
   return requireAdminClaim(credential.user);
 }
