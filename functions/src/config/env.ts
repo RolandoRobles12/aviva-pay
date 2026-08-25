@@ -18,7 +18,7 @@ export const env = {
   get hubspotPrivateAppToken(): string {
     return required("HUBSPOT_PRIVATE_APP_TOKEN");
   },
-  /** Shared secret the HubSpot workflow's Custom Code action sends so the webhook can verify the caller. */
+  /** Shared secret the HubSpot workflow's "Send a webhook" action sends verbatim (no "Bearer " prefix) so the webhook can verify the caller. */
   get hubspotWebhookSecret(): string {
     return required("HUBSPOT_WEBHOOK_SECRET");
   },
