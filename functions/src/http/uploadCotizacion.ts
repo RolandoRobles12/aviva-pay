@@ -54,10 +54,11 @@ export const uploadCotizacion = onRequest(
         // values are "true"/"false", not "completado"/"pendiente" — see
         // hubspot/deals.ts (toUploadStatus) for the read-side of this.
         cotizacionEstatus: "true",
-        // cotizacionUrl is a HubSpot *file* property, which stores the
-        // uploaded file's id, not a URL — HubSpot resolves the URL from the
-        // id on its own side.
-        cotizacionUrl: uploaded.fileId,
+        // cotizacionUrl validates as a URL property (confirmed against the
+        // real portal: it 400s on anything without an http(s):// scheme),
+        // not a HubSpot *file*-type property — send the file's actual URL,
+        // not its id.
+        cotizacionUrl: uploaded.url,
         // HubSpot date property: needs midnight-UTC epoch millis, not the
         // "YYYY-MM-DD" the <input type="date"> gives us — see
         // hubspot/deals.ts (toHubspotDateProperty).
@@ -79,9 +80,13 @@ export const uploadCotizacion = onRequest(
       logger.info(`uploadCotizacion: completed for deal ${dealId}`);
       res.status(200).json({ ok: true, url: uploaded.url });
     } catch (err) {
+      // Full detail (HubSpot's raw API error, stack, etc.) goes to the
+      // Cloud Functions log for debugging — a concesionario gets a plain
+      // Spanish message instead of a wall of JSON they can't act on.
       logger.error("uploadCotizacion: failed", err);
       res.status(500).json({
-        error: err instanceof Error ? err.message : "Error interno al subir la cotización",
+        error:
+          "No se pudo guardar la cotización. Intenta de nuevo en unos minutos; si el problema sigue, contacta a soporte.",
       });
     }
   },
