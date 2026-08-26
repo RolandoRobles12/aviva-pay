@@ -3,7 +3,7 @@ import { logger } from "firebase-functions/v2";
 import { parseMultipart } from "./multipart";
 import { getDeal, patchDealFields } from "../firestore/dealsRepository";
 import { uploadDealFile } from "../hubspot/files";
-import { updateDealProperties } from "../hubspot/deals";
+import { updateDealProperties, toHubspotDateProperty } from "../hubspot/deals";
 import { verifyBearerToken } from "../auth/requestAuth";
 
 /**
@@ -57,7 +57,10 @@ export const uploadCotizacion = onRequest(
       // uploaded file's id, not a URL — HubSpot resolves the URL from the
       // id on its own side.
       cotizacionUrl: uploaded.fileId,
-      cotizacionFechaEntregaAcordada: fechaEntregaAcordada,
+      // HubSpot date property: needs midnight-UTC epoch millis, not the
+      // "YYYY-MM-DD" the <input type="date"> gives us — see
+      // hubspot/deals.ts (toHubspotDateProperty).
+      cotizacionFechaEntregaAcordada: toHubspotDateProperty(fechaEntregaAcordada),
       cotizacionMontoTotalCompra: montoTotalCompra,
     });
 
