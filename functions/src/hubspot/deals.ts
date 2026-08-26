@@ -51,6 +51,17 @@ function toBoolean(raw: string | null | undefined): boolean | null {
 }
 
 /**
+ * Write-side counterpart to `toIsoDate`, for HubSpot "date" properties
+ * (cotizacionFechaEntregaAcordada, comprobanteFechaEntrega): these expect
+ * midnight UTC of that calendar day as an epoch-millis string, not an
+ * arbitrary date string — confirmed against the real portal. `raw` comes
+ * from an `<input type="date">`, i.e. already a plain "YYYY-MM-DD".
+ */
+export function toHubspotDateProperty(raw: string): string {
+  return String(Date.parse(`${raw}T00:00:00.000Z`));
+}
+
+/**
  * `cotizacionEstatus` and `comprobanteEntregaEstatus` are HubSpot "single
  * checkbox" properties (confirmed against the real portal) — their
  * internal option values are the literal strings "true" / "false", not
