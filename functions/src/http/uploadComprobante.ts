@@ -13,7 +13,7 @@ import { verifyBearerToken } from "../auth/requestAuth";
  * Firestore mirror so the page updates in realtime.
  */
 export const uploadComprobante = onRequest(
-  { region: "us-central1", secrets: ["HUBSPOT_PRIVATE_APP_TOKEN"] },
+  { region: "us-central1", secrets: ["HUBSPOT_PRIVATE_APP_TOKEN"], cors: true },
   async (req, res) => {
     if (req.method !== "POST") {
       res.status(405).send("Method Not Allowed");
