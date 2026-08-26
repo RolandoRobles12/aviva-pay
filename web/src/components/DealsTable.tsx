@@ -100,35 +100,38 @@ function UploadCell({
   historica: boolean;
 }) {
   if (estatus === "completado") {
+    const pill = (
+      <span className="cell-done">
+        <span className="cell-done__check" aria-hidden>
+          ✓
+        </span>
+        {formatDate(dateIso)}
+      </span>
+    );
     return (
       <div className="cell-upload-done">
-        <span className="cell-done">
-          <span className="cell-done__check" aria-hidden>
-            ✓
-          </span>
-          {formatDate(dateIso)}
-        </span>
-        <span className="cell-done__actions">
-          {url && (
-            <a
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="link-button link-button--muted"
-            >
-              Ver archivo
-            </a>
-          )}
-          {onUpload && (
-            <button
-              type="button"
-              className="link-button link-button--muted"
-              onClick={onUpload}
-            >
-              Reemplazar
-            </button>
-          )}
-        </span>
+        {url ? (
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="cell-done-link"
+            title="Ver archivo"
+          >
+            {pill}
+          </a>
+        ) : (
+          pill
+        )}
+        {onUpload && (
+          <button
+            type="button"
+            className="link-button link-button--muted"
+            onClick={onUpload}
+          >
+            Corregir documento
+          </button>
+        )}
       </div>
     );
   }

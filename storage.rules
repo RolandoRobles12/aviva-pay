@@ -1,10 +1,15 @@
 rules_version = '2';
 
-// Files are staged here by Cloud Functions before being pushed to the
-// HubSpot Files API (see functions/src/hubspot/files.ts). Clients never
+// The canonical copy of every cotización/comprobante file — what
+// "Ver archivo" in Paydesk links to (see functions/src/storage/dealFiles.ts).
+// A second copy also goes to HubSpot Files (functions/src/hubspot/files.ts)
+// for the Aviva team's own CRM view, but that copy is access-gated to
+// HubSpot logins, so Paydesk's own UI never links there. Clients never
 // write to Storage directly — uploads go through the uploadCotizacion /
-// uploadComprobante callable functions so the deal_id and file can be
-// validated server-side first. No client read/write path exists.
+// uploadComprobante (and admin/*) callable functions so the deal_id and
+// file can be validated server-side first. No client read/write path
+// exists; the long-expiry signed URL returned at upload time is what
+// makes a file reachable, independent of these rules.
 service firebase.storage {
   match /b/{bucket}/o {
     match /paydesk_deals/{dealId}/{allPaths=**} {
