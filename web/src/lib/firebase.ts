@@ -20,6 +20,7 @@ import type {
   AdminUser,
   FieldDictionary,
   FieldLabels,
+  StageDateProperties,
 } from "../types/admin";
 
 const firebaseConfig = {
@@ -229,6 +230,16 @@ export const adminSyncConstruramaCallable = httpsCallable<
     failed: number;
   }
 >(functions, "adminSyncConstrurama", { timeout: 540_000 });
+
+export const adminGetStageDatePropertiesCallable = httpsCallable<
+  void,
+  { propiedades: StageDateProperties; defaults: StageDateProperties }
+>(functions, "adminGetStageDateProperties");
+
+export const adminSetStageDatePropertiesCallable = httpsCallable<
+  { propiedades: Partial<StageDateProperties> },
+  { ok: true }
+>(functions, "adminSetStageDateProperties");
 
 export const adminGetRolloutCallable = httpsCallable<
   void,

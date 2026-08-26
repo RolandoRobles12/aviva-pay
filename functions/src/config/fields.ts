@@ -138,22 +138,39 @@ export const HUBSPOT_EXCLUDED_STAGES = [
   "33823869",
 ] as const;
 
+/** The five milestone dates that can be reached through more than one HubSpot property — see STAGE_DATE_EXTRA_PROPERTIES_DEFAULT below. */
+export const STAGE_DATE_KEYS = [
+  "fechaSolicitud",
+  "estatusKyc",
+  "creditoLiberadoFecha",
+  "disposicionCreditoFecha",
+  "desembolsoFecha",
+] as const;
+
+export type StageDateKey = (typeof STAGE_DATE_KEYS)[number];
+
 /**
- * For a deal sitting in the obsolete `legacy` pipeline, these five
- * milestones' dates live under a different property than the `current`
- * pipeline's — each pipeline stage gets its own
- * `hs_v2_date_entered_<stageId>` system property, and the two pipelines
- * don't share stage ids. Only the backfill needs this fallback: the
- * ongoing webhook only ever sees deals already in the current pipeline,
- * where the regular field dictionary mapping is enough.
+ * Extra HubSpot properties to check for each of the five milestone dates,
+ * beyond the field dictionary's own property for that field — in priority
+ * order, first non-empty wins (see hubspot/deals.ts's `stageDate()`). A
+ * stage can be reachable through more than one path in HubSpot — the
+ * original case was a deal sitting in the obsolete `legacy` pipeline,
+ * where each of these five milestones' dates lives under a different
+ * `hs_v2_date_entered_<stageId>` system property than the `current`
+ * pipeline's (the two pipelines don't share stage ids) — but nothing
+ * limits it to exactly one extra property or to pipeline differences
+ * specifically.
+ *
+ * These are the *defaults*; the list in effect lives in Firestore and is
+ * editable from /admin/etapas-fecha (see
+ * firestore/stageDatePropertiesRepository.ts), same pattern as the field
+ * dictionary.
  */
-export const LEGACY_PIPELINE_STAGE_PROPERTIES: Partial<
-  Record<HubspotDealPropertyKey, string>
-> = {
-  fechaSolicitud: "hs_v2_date_entered_36073275",
-  estatusKyc: "hs_v2_date_entered_183822132",
-  creditoLiberadoFecha: "hs_v2_date_entered_33642516",
-  disposicionCreditoFecha: "hs_v2_date_entered_171655337",
-  desembolsoFecha: "hs_v2_date_entered_33823866",
+export const STAGE_DATE_EXTRA_PROPERTIES_DEFAULT: Record<StageDateKey, string[]> = {
+  fechaSolicitud: ["hs_v2_date_entered_36073275"],
+  estatusKyc: ["hs_v2_date_entered_183822132"],
+  creditoLiberadoFecha: ["hs_v2_date_entered_33642516"],
+  disposicionCreditoFecha: ["hs_v2_date_entered_171655337"],
+  desembolsoFecha: ["hs_v2_date_entered_33823866"],
 };
 

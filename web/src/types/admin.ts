@@ -17,6 +17,9 @@ export type FieldDictionary = Record<string, string>;
 /** Logical field name → display label shown to a concesionario. Cosmetic only. */
 export type FieldLabels = Record<string, string>;
 
+/** Stage-date field → ordered list of extra HubSpot properties to check, beyond the field dictionary's own — first non-empty wins. */
+export type StageDateProperties = Record<string, string[]>;
+
 export interface AdminUser {
   uid: string;
   email: string;
