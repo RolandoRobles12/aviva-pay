@@ -86,24 +86,50 @@ function DateCell({ iso }: { iso: string | null }) {
 function UploadCell({
   estatus,
   dateIso,
+  url,
   onUpload,
   ctaLabel,
   historica,
 }: {
   estatus: "pendiente" | "completado";
   dateIso: string | null;
+  /** cotizacionUrl/comprobanteUrl — the uploaded file's public URL, once completado. */
+  url: string | null;
   onUpload?: () => void;
   ctaLabel: string;
   historica: boolean;
 }) {
   if (estatus === "completado") {
     return (
-      <span className="cell-done">
-        <span className="cell-done__check" aria-hidden>
-          ✓
+      <div className="cell-upload-done">
+        <span className="cell-done">
+          <span className="cell-done__check" aria-hidden>
+            ✓
+          </span>
+          {formatDate(dateIso)}
         </span>
-        {formatDate(dateIso)}
-      </span>
+        <span className="cell-done__actions">
+          {url && (
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="link-button link-button--muted"
+            >
+              Ver archivo
+            </a>
+          )}
+          {onUpload && (
+            <button
+              type="button"
+              className="link-button link-button--muted"
+              onClick={onUpload}
+            >
+              Reemplazar
+            </button>
+          )}
+        </span>
+      </div>
     );
   }
   if (!onUpload) return <span className="cell-pending">Pendiente</span>;
@@ -292,6 +318,7 @@ export function DealsTable({
                 <UploadCell
                   estatus={deal.cotizacionEstatus}
                   dateIso={deal.cotizacionFechaEntregaAcordada}
+                  url={deal.cotizacionUrl}
                   ctaLabel="Subir cotización"
                   historica={historica}
                   onUpload={
@@ -311,6 +338,7 @@ export function DealsTable({
                 <UploadCell
                   estatus={deal.comprobanteEntregaEstatus}
                   dateIso={deal.comprobanteFechaEntrega}
+                  url={deal.comprobanteUrl}
                   ctaLabel="Subir comprobante"
                   historica={historica}
                   onUpload={

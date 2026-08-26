@@ -144,6 +144,7 @@ export function SolicitudesPage() {
           <CotizacionUploadForm
             dealId={activeModal.dealId}
             labels={labels}
+            existingUrl={deals.find((d) => d.dealId === activeModal.dealId)?.cotizacionUrl}
             onUploaded={() => setActiveModal(null)}
             onCancel={() => setActiveModal(null)}
           />
@@ -155,6 +156,7 @@ export function SolicitudesPage() {
           <ComprobanteUploadForm
             dealId={activeModal.dealId}
             labels={labels}
+            existingUrl={deals.find((d) => d.dealId === activeModal.dealId)?.comprobanteUrl}
             onUploaded={() => setActiveModal(null)}
             onCancel={() => setActiveModal(null)}
           />

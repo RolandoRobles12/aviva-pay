@@ -2,17 +2,23 @@ import { useState } from "react";
 import { uploadComprobante } from "../lib/uploads";
 import type { FieldLabels } from "../types/admin";
 
-/** "Comprobante de entrega" module (section 5.3). */
+/** "Comprobante de entrega" module (section 5.3) — also used to replace an already-uploaded comprobante. */
 export function ComprobanteUploadForm({
   dealId,
   labels,
+  existingUrl,
   onUploaded,
   onCancel,
+  onUpload = uploadComprobante,
 }: {
   dealId: string;
   labels?: FieldLabels;
+  /** Pass the current comprobanteUrl when this is a replace, not a first upload — shows a warning and a link to what's there today. */
+  existingUrl?: string | null;
   onUploaded: () => void;
   onCancel: () => void;
+  /** Defaults to the concesionario endpoint; the admin preview passes adminUploadComprobante instead. */
+  onUpload?: typeof uploadComprobante;
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [fechaEntrega, setFechaEntrega] = useState("");
@@ -33,7 +39,7 @@ export function ComprobanteUploadForm({
     setSubmitting(true);
     setError(null);
     try {
-      await uploadComprobante({ dealId, file, fechaEntrega, firmaClienteConfirmada });
+      await onUpload({ dealId, file, fechaEntrega, firmaClienteConfirmada });
       onUploaded();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al subir el comprobante");
@@ -44,7 +50,17 @@ export function ComprobanteUploadForm({
 
   return (
     <form className="upload-form" onSubmit={handleSubmit}>
-      <h3>Comprobante de entrega</h3>
+      <h3>{existingUrl ? "Reemplazar comprobante de entrega" : "Comprobante de entrega"}</h3>
+
+      {existingUrl && (
+        <p className="callout callout--warn">
+          Ya hay un comprobante subido para este cliente.{" "}
+          <a href={existingUrl} target="_blank" rel="noopener noreferrer">
+            Ver archivo actual
+          </a>
+          . Subir un archivo nuevo lo reemplazará.
+        </p>
+      )}
 
       <label className="upload-form__dropzone">
         <input
@@ -84,7 +100,11 @@ export function ComprobanteUploadForm({
           Cancelar
         </button>
         <button type="submit" disabled={submitting}>
-          {submitting ? "Subiendo..." : "Guardar comprobante"}
+          {submitting
+            ? "Subiendo..."
+            : existingUrl
+              ? "Reemplazar comprobante"
+              : "Guardar comprobante"}
         </button>
       </div>
     </form>

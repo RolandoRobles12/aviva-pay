@@ -3,17 +3,23 @@ import { uploadCotizacion } from "../lib/uploads";
 import { CurrencyInput } from "./CurrencyInput";
 import type { FieldLabels } from "../types/admin";
 
-/** "Nueva cotización" module (section 5.2). */
+/** "Nueva cotización" module (section 5.2) — also used to replace an already-uploaded cotización. */
 export function CotizacionUploadForm({
   dealId,
   labels,
+  existingUrl,
   onUploaded,
   onCancel,
+  onUpload = uploadCotizacion,
 }: {
   dealId: string;
   labels?: FieldLabels;
+  /** Pass the current cotizacionUrl when this is a replace, not a first upload — shows a warning and a link to what's there today. */
+  existingUrl?: string | null;
   onUploaded: () => void;
   onCancel: () => void;
+  /** Defaults to the concesionario endpoint; the admin preview passes adminUploadCotizacion instead. */
+  onUpload?: typeof uploadCotizacion;
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [fechaEntregaAcordada, setFechaEntregaAcordada] = useState("");
@@ -30,7 +36,7 @@ export function CotizacionUploadForm({
     setSubmitting(true);
     setError(null);
     try {
-      await uploadCotizacion({ dealId, file, fechaEntregaAcordada, montoTotalCompra });
+      await onUpload({ dealId, file, fechaEntregaAcordada, montoTotalCompra });
       onUploaded();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al subir la cotización");
@@ -41,7 +47,17 @@ export function CotizacionUploadForm({
 
   return (
     <form className="upload-form" onSubmit={handleSubmit}>
-      <h3>Nueva cotización</h3>
+      <h3>{existingUrl ? "Reemplazar cotización" : "Nueva cotización"}</h3>
+
+      {existingUrl && (
+        <p className="callout callout--warn">
+          Ya hay una cotización subida para este cliente.{" "}
+          <a href={existingUrl} target="_blank" rel="noopener noreferrer">
+            Ver archivo actual
+          </a>
+          . Subir un archivo nuevo la reemplazará.
+        </p>
+      )}
 
       <label className="upload-form__dropzone">
         <input
@@ -83,7 +99,11 @@ export function CotizacionUploadForm({
           Cancelar
         </button>
         <button type="submit" disabled={submitting}>
-          {submitting ? "Subiendo..." : "Guardar cotización"}
+          {submitting
+            ? "Subiendo..."
+            : existingUrl
+              ? "Reemplazar cotización"
+              : "Guardar cotización"}
         </button>
       </div>
     </form>
