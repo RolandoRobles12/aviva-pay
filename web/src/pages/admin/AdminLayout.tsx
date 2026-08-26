@@ -17,6 +17,7 @@ export function AdminLayout() {
         <nav className="admin-nav">
           <NavLink to="/admin/tiendas">Tiendas</NavLink>
           <NavLink to="/admin/diccionario">Diccionario de campos</NavLink>
+          <NavLink to="/admin/etapas-fecha">Fechas de etapa</NavLink>
           <NavLink to="/admin/etiquetas">Etiquetas</NavLink>
           <NavLink to="/admin/administradores">Administradores</NavLink>
         </nav>

@@ -19,10 +19,16 @@ export {
 } from "./http/admin/fieldDictionary";
 export { adminGetFieldLabels, adminSetFieldLabels } from "./http/admin/fieldLabels";
 export {
+  adminGetStageDateProperties,
+  adminSetStageDateProperties,
+} from "./http/admin/stageDateProperties";
+export {
   adminListAdmins,
   adminCreateAdmin,
   adminRevokeAdmin,
 } from "./http/admin/admins";
 export { adminGetConcesionarioDeals } from "./http/admin/viewConcesionarioDeals";
+export { adminUploadCotizacion } from "./http/admin/uploadCotizacion";
+export { adminUploadComprobante } from "./http/admin/uploadComprobante";
 export { adminSyncConstrurama } from "./http/admin/syncConstrurama";
 export { adminGetRollout, adminSetRollout } from "./http/admin/rollout";

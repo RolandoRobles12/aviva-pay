@@ -60,8 +60,9 @@ A partir de ahí, cualquier admin puede dar de alta a los siguientes desde `/adm
 
 | Pantalla | Para qué |
 |---|---|
-| **Tiendas** (`/admin/tiendas`) | Catálogo de las ~481 tiendas, que aparecen solas conforme llegan deals. Renombrar (de `#0046 - TEQ CR` al nombre real), invitar o quitar correos con acceso, y fijar su fecha de arranque individual. |
+| **Tiendas** (`/admin/tiendas`) | Catálogo de las ~481 tiendas, que aparecen solas conforme llegan deals. Renombrar (de `#0046 - TEQ CR` al nombre real), invitar o quitar correos con acceso, y fijar su fecha de arranque individual. Desde la vista de una tienda (`/admin/tiendas/:concesionarioId`) un admin también puede ver los archivos de cotización/comprobante de cada solicitud y reemplazarlos si la tienda subió el incorrecto (`adminUploadCotizacion`/`adminUploadComprobante` — mismo write-back que usa la tienda, gateado por el claim `admin` en vez de por `concesionarioIds`). |
 | **Diccionario de campos** (`/admin/diccionario`) | Mapeo de cada dato de Paydesk a su propiedad interna de HubSpot, editable sin desplegar. |
+| **Fechas de etapa** (`/admin/etapas-fecha`) | Para cada una de las cinco fechas de hito (`fechaSolicitud`, `estatusKyc`, `creditoLiberadoFecha`, `disposicionCreditoFecha`, `desembolsoFecha`), lista editable de propiedades adicionales de HubSpot donde esa fecha pudiera vivir, más allá de la propiedad del diccionario de campos — un deal puede alcanzar la misma etapa por más de un camino en HubSpot. Se revisan en orden, la primera con valor gana (ver `hubspot/deals.ts`, `stageDate()`). Vive en Firestore (`paydesk_config/stage_date_properties`), mismo patrón de caché-por-instancia que el diccionario de campos. |
 | **Administradores** (`/admin/administradores`) | Otorgar o revocar el acceso al panel, y ver el historial de quién se lo dio a quién y cuándo. |
 
 ### Gestión de administradores (`/admin/administradores`)

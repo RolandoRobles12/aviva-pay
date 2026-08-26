@@ -1,14 +1,17 @@
 import { logger } from "firebase-functions/v2";
 import { FilterOperatorEnum } from "@hubspot/api-client/lib/codegen/crm/deals/models/Filter";
 import { getHubspotClient } from "./client";
-import type { HubspotDealPropertyKey } from "../config/fields";
+import type { HubspotDealPropertyKey, StageDateKey } from "../config/fields";
 import {
   HUBSPOT_EXCLUDED_STAGES,
   HUBSPOT_PIPELINES,
   HUBSPOT_PRODUCT_FILTER,
-  LEGACY_PIPELINE_STAGE_PROPERTIES,
 } from "../config/fields";
 import { getFieldDictionary } from "../firestore/fieldDictionaryRepository";
+import {
+  getStageDateProperties,
+  type StageDateProperties,
+} from "../firestore/stageDatePropertiesRepository";
 import {
   deriveConcesionarioId,
   parseKioscoValue,
@@ -74,17 +77,22 @@ function toUploadStatus(raw: string | null | undefined): UploadStatus {
   return raw === "true" ? "completado" : "pendiente";
 }
 
-/** Every property this app might need from a deal: the field dictionary's values, the legacy-pipeline fallbacks, and "pipeline" itself. Shared so a single HubSpot request (getById or search) can fetch everything at once. */
+/** Every property this app might need from a deal: the field dictionary's values, the extra stage-date properties, and "pipeline" itself. Shared so a single HubSpot request (getById or search) can fetch everything at once. */
 async function allDealProperties(): Promise<{
   dictionary: Awaited<ReturnType<typeof getFieldDictionary>>;
+  stageDateExtras: StageDateProperties;
   properties: string[];
 }> {
-  const dictionary = await getFieldDictionary();
+  const [dictionary, stageDateExtras] = await Promise.all([
+    getFieldDictionary(),
+    getStageDateProperties(),
+  ]);
   return {
     dictionary,
+    stageDateExtras,
     properties: [
       ...Object.values(dictionary),
-      ...Object.values(LEGACY_PIPELINE_STAGE_PROPERTIES),
+      ...Object.values(stageDateExtras).flat(),
       "pipeline",
     ],
   };
@@ -107,15 +115,19 @@ async function allDealProperties(): Promise<{
  *
  * The five pipeline-stage dates (fechaSolicitud, estatusKyc,
  * creditoLiberadoFecha, disposicionCreditoFecha, desembolsoFecha) prefer
- * the current pipeline's property and fall back to the legacy pipeline's —
- * see LEGACY_PIPELINE_STAGE_PROPERTIES. A deal only ever has one of the
- * two populated, since it only entered stages in whichever pipeline it
- * actually lived in.
+ * the current pipeline's property and fall back, in order, to whichever
+ * extra properties are configured for that field — see
+ * STAGE_DATE_EXTRA_PROPERTIES_DEFAULT / stageDateExtras. The original case
+ * was a deal only ever having the current pipeline's *or* the legacy
+ * pipeline's property populated, never both, but nothing here assumes
+ * that's still the only case — the first non-empty property wins,
+ * whatever the reason two ended up set.
  */
 function mapDealProperties(
   dealId: string,
   props: RawProperties,
   p: Awaited<ReturnType<typeof getFieldDictionary>>,
+  stageDateExtras: StageDateProperties,
 ): {
   deal: Omit<PayDeskDeal, "actualizadoEn" | "creadoEn">;
   pipelineId: string | null;
@@ -128,13 +140,10 @@ function mapDealProperties(
     );
   }
 
-  const stageDate = (key: keyof typeof LEGACY_PIPELINE_STAGE_PROPERTIES) => {
-    const legacyProperty = LEGACY_PIPELINE_STAGE_PROPERTIES[key];
+  const stageDate = (key: StageDateKey) => {
+    const extras = stageDateExtras[key] ?? [];
     return toIsoDate(
-      firstNonEmpty(
-        props[p[key]],
-        legacyProperty ? props[legacyProperty] : undefined,
-      ),
+      firstNonEmpty(props[p[key]], ...extras.map((prop) => props[prop])),
     );
   };
 
@@ -185,7 +194,7 @@ export async function fetchDealById(dealId: string): Promise<{
   pipelineId: string | null;
 } | null> {
   const hubspot = getHubspotClient();
-  const { dictionary: p, properties } = await allDealProperties();
+  const { dictionary: p, stageDateExtras, properties } = await allDealProperties();
 
   let response;
   try {
@@ -196,7 +205,12 @@ export async function fetchDealById(dealId: string): Promise<{
     throw err;
   }
 
-  return mapDealProperties(dealId, response.properties as RawProperties, p);
+  return mapDealProperties(
+    dealId,
+    response.properties as RawProperties,
+    p,
+    stageDateExtras,
+  );
 }
 
 const SEARCH_PAGE_SIZE = 100;
@@ -214,12 +228,13 @@ const SEARCH_PAGE_SIZE = 100;
  * (not literally "when the deal was created") specifically so its
  * presence marks a deal as approved — a deal that was only ever rejected
  * never gets that property set. So this requires it via HAS_PROPERTY,
- * checked against whichever of the two pipelines' equivalent property the
- * deal would actually carry (current pipeline's `p.fechaSolicitud`, or the
- * legacy pipeline's LEGACY_PIPELINE_STAGE_PROPERTIES.fechaSolicitud) — one
- * filter group per property, since HubSpot filter groups are OR'd
- * together while filters within a group are AND'd. A rejected deal has
- * neither, so it matches neither group and is excluded.
+ * checked against whichever equivalent property the deal would actually
+ * carry (current pipeline's `p.fechaSolicitud`, or any of the configured
+ * extras in stageDateExtras.fechaSolicitud — see
+ * STAGE_DATE_EXTRA_PROPERTIES_DEFAULT) — one filter group per property,
+ * since HubSpot filter groups are OR'd together while filters within a
+ * group are AND'd. A rejected deal has none of them, so it matches no
+ * group and is excluded.
  *
  * Properties come back directly in the search results, so this doesn't do
  * a getById per deal.
@@ -231,7 +246,7 @@ export async function searchConstruramaDeals(): Promise<
   }>
 > {
   const hubspot = getHubspotClient();
-  const { dictionary: p, properties } = await allDealProperties();
+  const { dictionary: p, stageDateExtras, properties } = await allDealProperties();
 
   const baseFilters = [
     {
@@ -253,7 +268,7 @@ export async function searchConstruramaDeals(): Promise<
 
   const approvedDateProperties = [
     p.fechaSolicitud,
-    LEGACY_PIPELINE_STAGE_PROPERTIES.fechaSolicitud,
+    ...(stageDateExtras.fechaSolicitud ?? []),
   ].filter((prop): prop is string => Boolean(prop));
 
   const filterGroups = approvedDateProperties.map((propertyName) => ({
@@ -282,7 +297,12 @@ export async function searchConstruramaDeals(): Promise<
 
     for (const result of response.results) {
       results.push(
-        mapDealProperties(result.id, result.properties as RawProperties, p),
+        mapDealProperties(
+          result.id,
+          result.properties as RawProperties,
+          p,
+          stageDateExtras,
+        ),
       );
     }
 

@@ -1,16 +1,15 @@
 import { onRequest } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions/v2";
 import { parseMultipart } from "./multipart";
-import { getDeal, patchDealFields } from "../firestore/dealsRepository";
-import { uploadDealFile } from "../hubspot/files";
-import { updateDealProperties, toHubspotDateProperty } from "../hubspot/deals";
+import { getDeal } from "../firestore/dealsRepository";
+import { writeComprobante } from "../hubspot/uploads";
 import { verifyBearerToken } from "../auth/requestAuth";
 
 /**
- * Handles the "Comprobante de entrega" module (section 5.3): file
- * (PDF/imagen) + fecha de entrega + confirmación de firma del cliente.
- * Mirrors uploadCotizacion.ts: writes back to HubSpot, then patches the
- * Firestore mirror so the page updates in realtime.
+ * Handles the "Comprobante de entrega" module (section 5.3). Also doubles
+ * as "reemplazar comprobante" — there's no separate replace endpoint, this
+ * just overwrites whatever was there before; the admin counterpart is
+ * admin/uploadComprobante.ts.
  */
 export const uploadComprobante = onRequest(
   { region: "us-central1", secrets: ["HUBSPOT_PRIVATE_APP_TOKEN"], cors: true },
@@ -50,38 +49,13 @@ export const uploadComprobante = onRequest(
         return;
       }
 
-      const uploaded = await uploadDealFile(dealId, file.fileName, file.buffer, {
-        folderPath: `aviva-pay-desk/${dealId}/comprobante`,
+      const { url } = await writeComprobante(dealId, {
+        file,
+        fechaEntrega,
+        firmaClienteConfirmada,
       });
 
-      await updateDealProperties(dealId, {
-        // comprobanteEntregaEstatus is a HubSpot single-checkbox property:
-        // its real values are "true"/"false", not "completado"/"pendiente"
-        // — see hubspot/deals.ts (toUploadStatus) for the read-side of this.
-        comprobanteEntregaEstatus: "true",
-        // comprobanteUrl validates as a URL property (confirmed against the
-        // real portal: it 400s on anything without an http(s):// scheme),
-        // not a HubSpot *file*-type property — send the file's actual URL,
-        // not its id.
-        comprobanteUrl: uploaded.url,
-        // HubSpot date property: needs midnight-UTC epoch millis, not the
-        // "YYYY-MM-DD" the <input type="date"> gives us — see
-        // hubspot/deals.ts (toHubspotDateProperty).
-        comprobanteFechaEntrega: toHubspotDateProperty(fechaEntrega),
-        comprobanteFirmaClienteConfirmada: firmaClienteConfirmada,
-      });
-
-      await patchDealFields(dealId, {
-        comprobanteEntregaEstatus: "completado",
-        comprobanteUrl: uploaded.url,
-        comprobanteFechaEntrega: fechaEntrega
-          ? new Date(fechaEntrega).toISOString()
-          : null,
-        comprobanteFirmaClienteConfirmada: true,
-      });
-
-      logger.info(`uploadComprobante: completed for deal ${dealId}`);
-      res.status(200).json({ ok: true, url: uploaded.url });
+      res.status(200).json({ ok: true, url });
     } catch (err) {
       // Full detail (HubSpot's raw API error, stack, etc.) goes to the
       // Cloud Functions log for debugging — a concesionario gets a plain

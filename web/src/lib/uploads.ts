@@ -72,7 +72,7 @@ async function postMultipart(path: string, formData: FormData) {
   return datos as { ok: true; url: string };
 }
 
-export function uploadCotizacion(params: {
+function cotizacionFormData(params: {
   dealId: string;
   file: File;
   fechaEntregaAcordada: string;
@@ -83,10 +83,10 @@ export function uploadCotizacion(params: {
   formData.append("file", params.file);
   formData.append("fechaEntregaAcordada", params.fechaEntregaAcordada);
   formData.append("montoTotalCompra", params.montoTotalCompra);
-  return postMultipart("uploadCotizacion", formData);
+  return formData;
 }
 
-export function uploadComprobante(params: {
+function comprobanteFormData(params: {
   dealId: string;
   file: File;
   fechaEntrega: string;
@@ -100,5 +100,46 @@ export function uploadComprobante(params: {
     "firmaClienteConfirmada",
     params.firmaClienteConfirmada ? "true" : "false",
   );
-  return postMultipart("uploadComprobante", formData);
+  return formData;
+}
+
+export function uploadCotizacion(params: {
+  dealId: string;
+  file: File;
+  fechaEntregaAcordada: string;
+  montoTotalCompra: string;
+}) {
+  return postMultipart("uploadCotizacion", cotizacionFormData(params));
+}
+
+export function uploadComprobante(params: {
+  dealId: string;
+  file: File;
+  fechaEntrega: string;
+  firmaClienteConfirmada: boolean;
+}) {
+  return postMultipart("uploadComprobante", comprobanteFormData(params));
+}
+
+/**
+ * Admin counterparts — same request shape, different endpoint (checked
+ * against the `admin` claim instead of the store's own concesionarioIds
+ * on the backend). Lets an admin replace a store's file on its behalf.
+ */
+export function adminUploadCotizacion(params: {
+  dealId: string;
+  file: File;
+  fechaEntregaAcordada: string;
+  montoTotalCompra: string;
+}) {
+  return postMultipart("adminUploadCotizacion", cotizacionFormData(params));
+}
+
+export function adminUploadComprobante(params: {
+  dealId: string;
+  file: File;
+  fechaEntrega: string;
+  firmaClienteConfirmada: boolean;
+}) {
+  return postMultipart("adminUploadComprobante", comprobanteFormData(params));
 }
