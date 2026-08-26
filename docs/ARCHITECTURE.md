@@ -99,7 +99,7 @@ La propiedad Kiosco es de tipo **multiple checkboxes**, con ~481 opciones cuyo t
 | Cloud Functions (`functions/`) | Sincroniza HubSpot → Firestore, autentica tiendas y admins, expone el API de lectura, y escribe de vuelta hacia HubSpot (propiedades y archivos del deal). |
 | Firestore (`paydesk_deals`, `paydesk_concesionarios`, `paydesk_concesionario_users`, `paydesk_config`) | Mirror operativo, catálogo de tiendas con sus correos invitados, índice inverso uid → tiendas, y diccionario de campos. |
 | Firebase Auth | Correo/contraseña con claim `concesionarioIds: string[]` para concesionarios; correo/contraseña o Google con claim `admin` para el equipo de Aviva. |
-| Firebase Storage | No se usa como almacenamiento final — los archivos van directo a HubSpot Files API; ver nota en `storage.rules`. |
+| Firebase Storage | Copia canónica de cada archivo subido (cotización/comprobante) — es a donde apunta "Ver archivo" en Paydesk. Ver `storage/dealFiles.ts` y la nota en `storage.rules`. |
 | Aviva Paydesk (`web/`) | React + Firebase Hosting. `/` login de tienda, `/solicitudes` tabla de clientes, `/admin/*` panel interno. |
 
 ## Flujo de sincronización (HubSpot → Firestore)
@@ -114,7 +114,7 @@ La propiedad Kiosco es de tipo **multiple checkboxes**, con ~481 opciones cuyo t
 
 1. El concesionario llena el módulo de "Nueva cotización" o "Comprobante de entrega" para una fila (deal) específica de su tabla.
 2. El frontend hace `POST multipart/form-data` a `uploadCotizacion` / `uploadComprobante` con ese `dealId`.
-3. La función valida la sesión, que el deal exista **y que pertenezca a la tienda que llama**, sube el archivo a HubSpot Files API, actualiza las propiedades del deal (estatus, URL, fecha, monto/firma), y hace un `patch` del mismo cambio en Firestore para que el listener en tiempo real refleje el cambio sin esperar al próximo sync desde HubSpot.
+3. La función valida la sesión, que el deal exista **y que pertenezca a la tienda que llama**, y sube el archivo a **dos lugares en paralelo**: HubSpot Files (para que el equipo de Aviva lo vea sin salir del CRM) y Cloud Storage (la copia que sirve Paydesk). Cada copia tiene su propia liga y cada una va a un destino distinto: la de HubSpot Files se escribe en la propiedad del deal (`updateDealProperties`); la de Storage se guarda en Firestore vía `patch` (`patchDealFields`), que es lo que el listener en tiempo real refleja de inmediato y lo que "Ver archivo" abre en Paydesk. Un admin puede reemplazar el archivo de una tienda desde `/admin/tiendas/:concesionarioId` con el mismo flujo (`adminUploadCotizacion`/`adminUploadComprobante`, gateado por el claim `admin` en vez de por dueño de la tienda).
 
 ## Pendientes conocidos
 
