@@ -55,18 +55,34 @@ export async function getDealsByConcesionarioIds(
  * Returns `isNewConcesionario: true` only on that first sight — the signal
  * used to trigger the "notify the store" workflow (section 9), since a
  * store should only be notified once, not on every new deal.
+ *
+ * cotizacionUrl/comprobanteUrl are deliberately excluded from the regular
+ * merge: `data` carries whatever the HubSpot deal property holds right
+ * now, which — once a concesionario or admin has uploaded through Paydesk
+ * — is the HubSpot Files copy's URL (see hubspot/uploads.ts), not the
+ * Cloud Storage one Firestore is supposed to serve. Letting an ordinary
+ * sync overwrite it would silently undo every upload's "Ver archivo" link
+ * the next time this deal's HubSpot workflow fires for any reason. Once
+ * Firestore already has a value for either field, it wins; HubSpot's is
+ * only used as a first-time fallback, e.g. a historical deal whose file
+ * was never uploaded through Paydesk at all.
  */
 export async function upsertDealFromHubspot(
   data: Omit<PayDeskDeal, "actualizadoEn" | "creadoEn">,
 ): Promise<{ isNewConcesionario: boolean }> {
   const dealRef = dealsCollection().doc(data.dealId);
   const existingDeal = await dealRef.get();
+  const existing = existingDeal.exists ? (existingDeal.data() as PayDeskDeal) : null;
+
+  const { cotizacionUrl, comprobanteUrl, ...syncedFromHubspot } = data;
 
   await dealRef.set(
     {
-      ...data,
+      ...syncedFromHubspot,
+      cotizacionUrl: existing?.cotizacionUrl ?? cotizacionUrl,
+      comprobanteUrl: existing?.comprobanteUrl ?? comprobanteUrl,
       actualizadoEn: FieldValue.serverTimestamp(),
-      ...(existingDeal.exists ? {} : { creadoEn: FieldValue.serverTimestamp() }),
+      ...(existing ? {} : { creadoEn: FieldValue.serverTimestamp() }),
     },
     { merge: true },
   );
