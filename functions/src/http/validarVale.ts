@@ -55,9 +55,11 @@ export const validarVale = onCall<ValidarRequest>(
 
     const email = request.auth?.token?.email ?? null;
     const vale = await getVale(codigo);
-    const resultado = evaluarVale(vale, concesionarioIds);
 
-    if (resultado.estado === "no-existe") {
+    // El código que no existe se resuelve aquí, antes de evaluar: no hay
+    // vale al que colgarle la bitácora, así que el intento va a su propia
+    // colección.
+    if (!vale) {
       await registrarIntentoFallido({
         codigo,
         medio,
@@ -68,10 +70,12 @@ export const validarVale = onCall<ValidarRequest>(
       logger.warn(
         `validarVale: código ${codigo} no existe (tienda ${concesionarioIds[0]})`,
       );
-      return resultado;
+      return { estado: "no-existe" as const };
     }
 
-    await registrarLectura(codigo, {
+    const resultado = evaluarVale(vale, concesionarioIds);
+
+    await registrarLectura(vale, {
       resultado: resultadoParaBitacora(resultado),
       medio,
       concesionarioId: concesionarioIds[0] ?? null,

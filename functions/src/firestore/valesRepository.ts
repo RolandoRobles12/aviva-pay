@@ -81,6 +81,8 @@ export async function crearVale(datos: {
       venceEn: datos.venceEn,
       lecturasTotal: 0,
       ultimaLecturaEn: null,
+      ultimoAccesoEn: null,
+      ultimoAccesoUid: null,
       consumidoEn: null,
       consumidoPor: null,
       montoDispuesto: null,
@@ -124,6 +126,22 @@ export async function cancelarValesDeDeal(
 }
 
 /**
+ * Cuánto tiempo cuenta como "la misma lectura".
+ *
+ * Un lector de presentación —los de base, que se quedan encendidos y el
+ * cliente le acerca el teléfono— vuelve a decodificar el mismo código
+ * cada fracción de segundo mientras la pantalla siga enfrente. Eso es UN
+ * acto físico, no diez, y contarlo diez veces convertiría el contador
+ * antifraude en ruido: la próxima caja vería "ya se leyó 10 veces" por un
+ * cliente que solo dejó el celular apoyado.
+ *
+ * Un minuto es holgado para que la ráfaga completa de un lector caiga
+ * dentro, y corto para que una segunda visita al mostrador — que sí es
+ * otra ocasión — cuente aparte.
+ */
+const MS_MISMA_LECTURA = 60_000;
+
+/**
  * Registra una lectura. Se llama SIEMPRE, incluso cuando el resultado es
  * un error: la bitácora de intentos es justamente lo que permite ver un
  * vale que anda circulando o una tienda probando códigos ajenos.
@@ -132,9 +150,12 @@ export async function cancelarValesDeDeal(
  * encontraron un vale legítimo para esa tienda; un intento desde otra
  * tienda queda en la bitácora pero no infla el "ya se leyó N veces" que
  * ve la tienda dueña.
+ *
+ * Devuelve `false` cuando la lectura se descartó por repetida — la misma
+ * cuenta pasando el mismo código dentro de la ventana de arriba.
  */
 export async function registrarLectura(
-  codigo: string,
+  vale: PayDeskVale,
   lectura: {
     resultado: ValeResultadoLectura;
     medio: ValeMedioLectura;
@@ -142,19 +163,38 @@ export async function registrarLectura(
     uid: string;
     email: string | null;
   },
-): Promise<void> {
-  const valeRef = valesCollection().doc(codigo);
+): Promise<boolean> {
+  const repetida =
+    vale.ultimoAccesoUid === lectura.uid &&
+    vale.ultimoAccesoEn !== null &&
+    Date.now() - vale.ultimoAccesoEn.toMillis() < MS_MISMA_LECTURA;
+
+  const valeRef = valesCollection().doc(vale.codigo);
+
+  if (repetida) {
+    // Se refresca la marca para que una ráfaga larga siga contando como
+    // una sola lectura, pero no se escribe bitácora ni se sube el contador.
+    await valeRef.update({ ultimoAccesoEn: FieldValue.serverTimestamp() });
+    return false;
+  }
+
   await valeRef.collection("lecturas").add({
     ...lectura,
     en: FieldValue.serverTimestamp(),
   });
 
-  if (lectura.resultado !== "otra-tienda") {
-    await valeRef.update({
-      lecturasTotal: FieldValue.increment(1),
-      ultimaLecturaEn: FieldValue.serverTimestamp(),
-    });
-  }
+  await valeRef.update({
+    ultimoAccesoEn: FieldValue.serverTimestamp(),
+    ultimoAccesoUid: lectura.uid,
+    ...(lectura.resultado === "otra-tienda"
+      ? {}
+      : {
+          lecturasTotal: FieldValue.increment(1),
+          ultimaLecturaEn: FieldValue.serverTimestamp(),
+        }),
+  });
+
+  return true;
 }
 
 /** Un intento contra un código que no existe: no hay vale al que colgarlo. */

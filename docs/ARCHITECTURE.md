@@ -67,13 +67,15 @@ El consumo va en transacción de Firestore porque dos cajas de la misma tienda p
 
 | Entrada | Cómo | Cuándo sirve |
 |---|---|---|
-| **Pistola de la caja** | Se comporta como teclado (HID): teclea los dígitos en el campo y manda Enter. Cero integración con su hardware. El campo se reenfoca solo después de cada validación, para escanear uno tras otro sin tocar el mouse. | Siempre sobre papel. **Sobre la pantalla del cliente, solo si la pistola es de imagen (imager/CCD).** |
+| **Lector de la caja** | Se comporta como teclado (HID): teclea los dígitos en el campo. Cero integración con su hardware. El campo se reenfoca solo después de cada validación, y se valida solo al completar los diez dígitos en ráfaga — no todos los lectores mandan Enter al final, algunos mandan Tab y otros nada, según cómo estén configurados. | Siempre sobre papel. **Sobre la pantalla del cliente, solo si el lector es de imagen** (imager 2D o CCD, incluidos los de presentación con base); **una pistola láser no.** |
 | **Cámara del celular o la tablet** de la tienda | `BarcodeDetector` nativo (Chrome/Edge) y ZXing como respaldo para Safari en iOS, cargado con `import()` dinámico para que su peso solo baje cuando alguien abre la cámara. | Es la salida para las tiendas con **pistola láser**, que no puede leer pantallas. |
 | **Tecleado a mano** | 10 dígitos en dos grupos de cinco. | Siempre, con cualquier equipo y sin ninguno. Es la ruta que nunca falla. |
 
 Una **pistola láser no lee la pantalla de un celular**: el láser mide luz reflejada de una superficie mate, y una pantalla emite luz propia y refleja el ambiente. No es un defecto del código — el Code 128 es correcto — sino del lector. Por eso la cámara no es un adorno: es lo que permite que una tienda con equipo viejo no tenga que cambiarlo.
 
 El escaneo por cámara solo acepta resultados de 10 dígitos, así que una etiqueta cualquiera del mostrador no dispara nada, y valida solo al leer, sin pedir otro toque.
+
+**Los lectores de presentación repiten.** Los de base, siempre encendidos, vuelven a decodificar el mismo código cada fracción de segundo mientras el celular siga enfrente. Eso es un acto físico, no diez, así que `registrarLectura` colapsa en una sola lectura todo lo que la misma cuenta pase con el mismo código dentro de un minuto (`MS_MISMA_LECTURA`). Sin eso, dejar el teléfono apoyado cinco segundos inflaría el contador y la próxima caja vería una alarma de fraude que nadie disparó — el contador antifraude solo sirve si cuenta ocasiones, no fotogramas. La marca que sostiene esa ventana (`ultimoAccesoEn`/`ultimoAccesoUid`) es aparte de `ultimaLecturaEn`, que es lo que ve la tienda dueña y no debe moverse porque otra tienda intentara leer un vale ajeno.
 
 ### Qué NO se le dice a la tienda
 

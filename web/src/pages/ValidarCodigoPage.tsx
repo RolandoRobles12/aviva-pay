@@ -68,11 +68,27 @@ export function ValidarCodigoPage() {
   const [camaraAbierta, setCamaraAbierta] = useState(false);
   const inicioCaptura = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  /** Evita que el Enter del lector vuelva a mandar lo que el auto-envío ya mandó. */
+  const autoEnviado = useRef(false);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    autoEnviado.current = false;
     if (inicioCaptura.current === null) inicioCaptura.current = Date.now();
-    setCodigo(e.target.value);
+
+    const valor = e.target.value;
+    setCodigo(valor);
     if (resultado.tipo !== "nada") setResultado({ tipo: "nada" });
+
+    // No todos los lectores mandan Enter al final: algunos mandan Tab y
+    // otros no mandan nada, según cómo estén configurados. Si el código
+    // llegó completo y llegó rápido, es un lector — se valida solo, en vez
+    // de dejar los diez dígitos ahí esperando a que alguien le dé clic.
+    const digitos = valor.replace(/\D/g, "");
+    const rafaga = Date.now() - (inicioCaptura.current ?? Date.now()) <= MS_MAX_ESCANEO;
+    if (digitos.length === 10 && rafaga) {
+      autoEnviado.current = true;
+      void validar(digitos, "escaneo");
+    }
   }
 
   const validar = useCallback(
@@ -104,6 +120,9 @@ export function ValidarCodigoPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // El lector ya disparó la validación al completar los diez dígitos;
+    // su Enter llega después y no debe mandar lo mismo otra vez.
+    if (autoEnviado.current) return;
     const transcurrido = Date.now() - (inicioCaptura.current ?? Date.now());
     await validar(codigo, transcurrido <= MS_MAX_ESCANEO ? "escaneo" : "manual");
   }
@@ -156,6 +175,7 @@ export function ValidarCodigoPage() {
     setMonto("");
     setResultado({ tipo: "nada" });
     inicioCaptura.current = null;
+    autoEnviado.current = false;
     inputRef.current?.focus();
   }
 
