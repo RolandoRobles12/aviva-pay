@@ -91,8 +91,9 @@ export function DiccionarioPage() {
 
       <div className="callout callout--warn">
         Un nombre mal capturado rompe la sincronización de todas las tiendas.
-        Verifica cada propiedad en HubSpot antes de guardar. Los cambios
-        aplican en pocos minutos, conforme se reinician las funciones.
+        Verifica cada propiedad en HubSpot antes de guardar. Lo que guardes se
+        ve aquí de inmediato; la sincronización lo toma dentro del siguiente
+        minuto.
       </div>
 
       <form className="dictionary-form" onSubmit={handleSubmit}>

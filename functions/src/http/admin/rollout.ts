@@ -1,11 +1,11 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions/v2";
 import { assertAdmin } from "../../auth/adminGuard";
-import { getRollout, setRollout } from "../../firestore/rolloutRepository";
+import { getRolloutFresh, setRollout } from "../../firestore/rolloutRepository";
 
 export const adminGetRollout = onCall({ region: "us-central1" }, async (request) => {
   assertAdmin(request);
-  return await getRollout();
+  return await getRolloutFresh();
 });
 
 interface SetRequest {

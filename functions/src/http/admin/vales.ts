@@ -4,7 +4,7 @@ import { assertAdmin } from "../../auth/adminGuard";
 import { getDeal } from "../../firestore/dealsRepository";
 import { getConcesionario } from "../../firestore/concesionariosRepository";
 import { getValeVigenteDeDeal } from "../../firestore/valesRepository";
-import { getValeConfig, setValeConfig } from "../../firestore/valeConfigRepository";
+import { getValeConfigFresh, setValeConfig } from "../../firestore/valeConfigRepository";
 import { emitirValeParaDeal, urlDelVale } from "../../vale/emitir";
 import { formatearCodigo } from "../../vale/codigo";
 import { valeVencido } from "../../vale/validar";
@@ -112,7 +112,7 @@ export const adminReemitirVale = onCall<{ dealId?: string }>(
 
 export const adminGetValeConfig = onCall({ region: "us-central1" }, async (request) => {
   assertAdmin(request);
-  return await getValeConfig();
+  return await getValeConfigFresh();
 });
 
 export const adminSetValeConfig = onCall<{ vigenciaHoras?: number }>(

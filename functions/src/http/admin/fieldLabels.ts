@@ -2,7 +2,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions/v2";
 import { assertAdmin } from "../../auth/adminGuard";
 import {
-  getFieldLabels,
+  getFieldLabelsFresh,
   getFieldLabelsDefaults,
   setFieldLabels,
   type FieldLabels,
@@ -12,7 +12,7 @@ import {
 export const adminGetFieldLabels = onCall({ region: "us-central1" }, async (request) => {
   assertAdmin(request);
   return {
-    etiquetas: await getFieldLabels(),
+    etiquetas: await getFieldLabelsFresh(),
     defaults: getFieldLabelsDefaults(),
   };
 });

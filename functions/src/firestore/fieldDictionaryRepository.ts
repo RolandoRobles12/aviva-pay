@@ -18,7 +18,10 @@ export type FieldDictionary = Record<HubspotDealPropertyKey, string>;
  * new function instances rather than instantly — acceptable, and noted in
  * the admin UI.
  */
+import { TTL_CONFIG_MS } from "./configCache";
+
 let cached: FieldDictionary | null = null;
+let cacheExpira = 0;
 
 function dictionaryDoc() {
   return getFirestore().collection(COLLECTION).doc(DOC_ID);
@@ -31,7 +34,16 @@ function dictionaryDoc() {
  * whose Firestore document predates it.
  */
 export async function getFieldDictionary(): Promise<FieldDictionary> {
-  if (cached) return cached;
+  if (cached && Date.now() < cacheExpira) return cached;
+  return getFieldDictionaryFresh();
+}
+
+/**
+ * Lee siempre de Firestore, sin pasar por el caché, y lo refresca de
+ * paso. Es lo que usan las pantallas de admin: quien acaba de guardar
+ * tiene que ver lo que guardó, no lo que esta instancia recuerda.
+ */
+export async function getFieldDictionaryFresh(): Promise<FieldDictionary> {
 
   const snap = await dictionaryDoc().get();
   const stored = (snap.exists ? snap.data()?.campos : null) ?? {};
@@ -45,6 +57,7 @@ export async function getFieldDictionary(): Promise<FieldDictionary> {
   }
 
   cached = resolved;
+  cacheExpira = Date.now() + TTL_CONFIG_MS;
   return resolved;
 }
 
