@@ -3,6 +3,8 @@ export type ValidacionVale =
   | {
       estado: "ok";
       codigo: string;
+      /** A qué solicitud pertenece — para avisar si la caja escaneó el vale de otro cliente. */
+      dealId: string;
       cliente: string | null;
       montoAutorizado: number | null;
       emitidoEn: string | null;

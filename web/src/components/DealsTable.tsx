@@ -61,6 +61,36 @@ function ProgressMeter({ deal }: { deal: PayDeskDeal }) {
 }
 
 /** Milestone date columns: a dated "listo" pill once HubSpot reports it, muted "Pendiente" until then. */
+/**
+ * Crédito liberado es el momento en que nace el vale del cliente, así que
+ * es también donde la caja lo valida: el cajero está viendo la fila de su
+ * cliente y no tiene por qué irse a otra pestaña a teclear un código.
+ */
+function CreditoLiberadoCell({
+  iso,
+  onValidar,
+}: {
+  iso: string | null;
+  onValidar?: () => void;
+}) {
+  if (!iso) return <span className="cell-pending">Pendiente</span>;
+  return (
+    <div className="cell-upload-done">
+      <span className="cell-done">
+        <span className="cell-done__check" aria-hidden>
+          ✓
+        </span>
+        {formatDate(iso)}
+      </span>
+      {onValidar && (
+        <button type="button" className="link-button link-button--muted" onClick={onValidar}>
+          Validar código
+        </button>
+      )}
+    </div>
+  );
+}
+
 function DateCell({ iso }: { iso: string | null }) {
   if (!iso) return <span className="cell-pending">Pendiente</span>;
   return (
@@ -206,6 +236,7 @@ export function DealsTable({
   onSort,
   onUploadCotizacion,
   onUploadComprobante,
+  onValidarCodigo,
 }: {
   deals: PayDeskDeal[];
   /** From the admin's Etiquetas config. Falls back to DEFAULT_LABELS for any missing key. */
@@ -227,6 +258,8 @@ export function DealsTable({
   /** Omit both to render a read-only table (no upload buttons) — used by the admin preview. */
   onUploadCotizacion?: (dealId: string) => void;
   onUploadComprobante?: (dealId: string) => void;
+  /** Abre la ventana de validación del vale desde la fila. Omitir para una tabla de solo lectura. */
+  onValidarCodigo?: (dealId: string) => void;
 }) {
   const l = { ...DEFAULT_LABELS, ...labels };
   const mostrarTienda = Object.keys(concesionarioNombres ?? {}).length > 1;
@@ -332,7 +365,12 @@ export function DealsTable({
                 />
               </td>
               <td>
-                <DateCell iso={deal.creditoLiberadoFecha} />
+                <CreditoLiberadoCell
+                  iso={deal.creditoLiberadoFecha}
+                  onValidar={
+                    onValidarCodigo ? () => onValidarCodigo(deal.dealId) : undefined
+                  }
+                />
               </td>
               <td>
                 <DateCell iso={deal.disposicionCreditoFecha} />

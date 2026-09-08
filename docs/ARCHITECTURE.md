@@ -119,7 +119,7 @@ Dos cosas que Paydesk **no** escribe, y por qué:
 | Ruta | Quién |
 |---|---|
 | `/vale/:token` | El cliente final, sin sesión. La única pantalla de Paydesk sin login. |
-| `/solicitudes/validar` | La caja de la tienda. |
+| `/solicitudes/validar` | La caja de la tienda, para validar suelto. El mismo panel se abre en una ventana desde la columna "Crédito liberado" de la tabla, que es donde el cajero ya está viendo a su cliente. Cuando se abre desde una fila y el código escaneado resulta ser de otro cliente de la misma tienda, avisa — sin bloquear, porque el vale sí sirve: lo que evita es entregar el material equivocado. |
 | `/admin/vales` | Aviva: consultar, reemitir y fijar la vigencia. |
 
 `paydesk_vales/{codigo}` (el código es el id del documento, así que la búsqueda de la caja es un `get` directo), su subcolección `lecturas`, y `paydesk_vale_intentos`. Ninguna se lee desde el cliente: todo pasa por Cloud Functions — si la colección fuera legible, una tienda podría enumerar los vales de otras.
@@ -216,4 +216,4 @@ La propiedad Kiosco es de tipo **multiple checkboxes**, con ~481 opciones cuyo t
 - Confirmar pipeline/stage IDs de HubSpot (`HUBSPOT_PIPELINE` en `fields.ts`).
 - Confirmar con el dueño del workflow de HubSpot: cómo se dispara la notificación (sección 9) y a qué contacto de la tienda le llega.
 - Provisionar el private app de HubSpot dedicado (scopes: lectura/escritura de deals y files).
-- Dominio propio (`pay.avivacredito.com`) y proyecto Firebase separado del resto de Aviva.
+- Dominio propio (`pay.avivacredito.com`) y proyecto Firebase separado del resto de Aviva. Mientras no exista, las ligas usan `https://<projectId>.web.app`, que sí resuelve; `PAYDESK_BASE_URL` lo sobrescribe el día que el dominio apunte a Hosting. **Ojo:** la liga del vale se congela en HubSpot al emitirse, así que los vales emitidos con una base vieja siguen apuntando ahí — hay que reemitirlos desde `/admin/vales`.
