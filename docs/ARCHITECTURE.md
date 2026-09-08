@@ -63,6 +63,18 @@ Toda lectura queda en la bitácora (`paydesk_vales/{codigo}/lecturas`), incluida
 
 El consumo va en transacción de Firestore porque dos cajas de la misma tienda pueden confirmar el mismo vale a la vez, y solo una debe ganar.
 
+### Tres maneras de meter el código, porque no todas las tiendas tienen el mismo equipo
+
+| Entrada | Cómo | Cuándo sirve |
+|---|---|---|
+| **Pistola de la caja** | Se comporta como teclado (HID): teclea los dígitos en el campo y manda Enter. Cero integración con su hardware. El campo se reenfoca solo después de cada validación, para escanear uno tras otro sin tocar el mouse. | Siempre sobre papel. **Sobre la pantalla del cliente, solo si la pistola es de imagen (imager/CCD).** |
+| **Cámara del celular o la tablet** de la tienda | `BarcodeDetector` nativo (Chrome/Edge) y ZXing como respaldo para Safari en iOS, cargado con `import()` dinámico para que su peso solo baje cuando alguien abre la cámara. | Es la salida para las tiendas con **pistola láser**, que no puede leer pantallas. |
+| **Tecleado a mano** | 10 dígitos en dos grupos de cinco. | Siempre, con cualquier equipo y sin ninguno. Es la ruta que nunca falla. |
+
+Una **pistola láser no lee la pantalla de un celular**: el láser mide luz reflejada de una superficie mate, y una pantalla emite luz propia y refleja el ambiente. No es un defecto del código — el Code 128 es correcto — sino del lector. Por eso la cámara no es un adorno: es lo que permite que una tienda con equipo viejo no tenga que cambiarlo.
+
+El escaneo por cámara solo acepta resultados de 10 dígitos, así que una etiqueta cualquiera del mostrador no dispara nada, y valida solo al leer, sin pedir otro toque.
+
 ### Qué NO se le dice a la tienda
 
 Cuando el código es de otra tienda, la respuesta no trae nada del vale — ni cliente, ni monto, ni de qué tienda es. Si lo dijera, cualquier tienda podría teclear códigos y mapear clientes y montos de la competencia. Es la misma regla que ya siguen los endpoints de subida, donde un deal inexistente y un deal ajeno responden idéntico.
