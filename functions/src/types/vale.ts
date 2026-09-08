@@ -117,6 +117,13 @@ export interface ValeLectura {
  */
 export interface ValeIntentoFallido {
   codigo: string;
+  /**
+   * Por qué falló. Los dos casos son sospechosos por razones distintas:
+   * `no-existe` puede ser un dedazo o alguien probando números; en
+   * `otra-tienda` el código sí existe, lo que significa que esa tienda
+   * tuvo enfrente un vale que no le tocaba.
+   */
+  motivo: "no-existe" | "otra-tienda";
   medio: ValeMedioLectura;
   concesionarioId: string | null;
   uid: string;

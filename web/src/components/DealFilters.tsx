@@ -6,7 +6,8 @@ export type FiltroEstado =
   | "requieren-accion"
   | "en-proceso"
   | "completadas"
-  | "historicas";
+  | "historicas"
+  | "canceladas";
 
 export type FiltroPeriodo =
   | "hoy"
@@ -62,6 +63,11 @@ const ESTADOS: Array<{ id: FiltroEstado; label: string; hint: string }> = [
     id: "historicas",
     label: "Anteriores",
     hint: "Cerraron antes de que tu tienda empezara a usar Paydesk",
+  },
+  {
+    id: "canceladas",
+    label: "Canceladas",
+    hint: "El crédito se canceló o expiró — su vale ya no sirve",
   },
 ];
 
@@ -142,6 +148,15 @@ export function aplicarFiltros(
       if (hasta && dia > hasta) return false;
     }
 
+    // Un crédito cancelado o expirado sale de todas las demás listas: no
+    // hay nada que la tienda pueda hacer con él, y dejarlo mezclado entre
+    // los vivos hace que se le siga ofreciendo trabajo por una solicitud
+    // muerta. Pero tampoco desaparece sin más — vive en su propia lista,
+    // porque una fila que se esfuma sin explicación se lee como un error
+    // del sistema y termina en una llamada a soporte.
+    if (filtros.estado === "canceladas") return deal.cancelado === true;
+    if (deal.cancelado) return false;
+
     switch (filtros.estado) {
       case "requieren-accion":
         return requiereAccion(deal, rolloutPorTienda);
@@ -163,17 +178,23 @@ export function aplicarFiltros(
 
 /** Count per state chip, so each chip can show how many it would leave. */
 function conteos(deals: PayDeskDeal[], rolloutPorTienda: RolloutMap) {
+  // Los cancelados se cuentan aparte y se descuentan de todo lo demás,
+  // igual que hace el filtro: un contador que dice 508 sobre una lista que
+  // enseña 500 hace dudar del número, y del resto de la pantalla con él.
+  const vivos = deals.filter((d) => !d.cancelado);
+
   return {
-    todas: deals.length,
-    "requieren-accion": deals.filter((d) => requiereAccion(d, rolloutPorTienda)).length,
-    completadas: deals.filter(estaCompleta).length,
-    historicas: deals.filter((d) => scopeOf(d, rolloutPorTienda) === "historica").length,
-    "en-proceso": deals.filter(
+    todas: vivos.length,
+    "requieren-accion": vivos.filter((d) => requiereAccion(d, rolloutPorTienda)).length,
+    completadas: vivos.filter(estaCompleta).length,
+    historicas: vivos.filter((d) => scopeOf(d, rolloutPorTienda) === "historica").length,
+    "en-proceso": vivos.filter(
       (d) =>
         scopeOf(d, rolloutPorTienda) === "activa" &&
         !estaCompleta(d) &&
         !requiereAccion(d, rolloutPorTienda),
     ).length,
+    canceladas: deals.filter((d) => d.cancelado === true).length,
   } satisfies Record<FiltroEstado, number>;
 }
 

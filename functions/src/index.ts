@@ -38,6 +38,12 @@ export { adminUploadComprobante } from "./http/admin/uploadComprobante";
 export { adminSyncConstrurama } from "./http/admin/syncConstrurama";
 export { adminGetRollout, adminSetRollout } from "./http/admin/rollout";
 export {
+  adminValeReporte,
+  adminValeIntentos,
+  adminGetCancelStages,
+  adminSetCancelStages,
+} from "./http/admin/valeReporte";
+export {
   adminGetVale,
   adminReemitirVale,
   adminGetValeConfig,

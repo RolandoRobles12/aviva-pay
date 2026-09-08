@@ -17,6 +17,23 @@ export type UploadStatus = "pendiente" | "completado";
 export interface PayDeskDeal {
   dealId: string;
   concesionarioId: string | null;
+  /**
+   * `dealstage` de HubSpot. Se guarda para poder saber que un crédito se
+   * canceló: HubSpot es la fuente de verdad de eso, y la única señal es el
+   * cambio de etapa (confirmado con el negocio — no hay cancelación sin
+   * movimiento de etapa).
+   */
+  dealstage: string | null;
+  /**
+   * Si el crédito ya no existe, calculado al sincronizar contra la lista
+   * de etapas de cancelación.
+   *
+   * Se guarda ya resuelto en vez de dejar que el frontend compare ids
+   * porque la tabla de la tienda se alimenta de un listener directo a
+   * Firestore: mandarle los ids de etapa al cliente sería filtrar
+   * configuración interna y, peor, dejar la regla viviendo en dos lados.
+   */
+  cancelado: boolean;
   kiosco: string | null;
   cliente: string | null;
   fechaSolicitud: string | null; // ISO date
@@ -87,3 +104,15 @@ export interface PayDeskConcesionarioPublico {
   nombre: string;
   numero: string | null;
 }
+
+/**
+ * Un deal tal como sale del mapeo de HubSpot: sin los campos que pone
+ * Firestore (`creadoEn`, `actualizadoEn`) y sin `cancelado`, que se
+ * resuelve al guardar contra la lista de etapas de cancelación —
+ * dealsRepository es el único que sabe esa lista, y así el mapeo no tiene
+ * que volverse asíncrono para consultarla.
+ */
+export type DealSincronizado = Omit<
+  PayDeskDeal,
+  "actualizadoEn" | "creadoEn" | "cancelado"
+>;

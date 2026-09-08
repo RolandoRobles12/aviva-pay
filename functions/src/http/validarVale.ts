@@ -7,6 +7,8 @@ import {
   registrarLectura,
 } from "../firestore/valesRepository";
 import { evaluarVale, resultadoParaBitacora } from "../vale/validar";
+import { cancelarValeSiElDealSeCancelo, dealEstaCancelado } from "../vale/cancelacion";
+import { getDeal } from "../firestore/dealsRepository";
 import type { ValeMedioLectura } from "../types/vale";
 
 interface ValidarRequest {
@@ -62,6 +64,7 @@ export const validarVale = onCall<ValidarRequest>(
     if (!vale) {
       await registrarIntentoFallido({
         codigo,
+        motivo: "no-existe",
         medio,
         concesionarioId: concesionarioIds[0] ?? null,
         uid,
@@ -71,6 +74,16 @@ export const validarVale = onCall<ValidarRequest>(
         `validarVale: código ${codigo} no existe (tienda ${concesionarioIds[0]})`,
       );
       return { estado: "no-existe" as const };
+    }
+
+    // Red de seguridad: si el crédito se canceló y el sync no alcanzó a
+    // apagar el vale, se apaga aquí mismo antes de contestar. Así la caja
+    // nunca ve "válido" por un crédito que ya no existe, aunque el
+    // workflow de HubSpot haya fallado.
+    if (vale.estado === "emitido" && (await dealEstaCancelado(vale.dealId))) {
+      const deal = await getDeal(vale.dealId);
+      if (deal) await cancelarValeSiElDealSeCancelo(deal);
+      vale.estado = "cancelado";
     }
 
     const resultado = evaluarVale(vale, concesionarioIds);
@@ -84,6 +97,17 @@ export const validarVale = onCall<ValidarRequest>(
     });
 
     if (resultado.estado === "otra-tienda") {
+      // También va a la bitácora plana: es la señal que de verdad importa
+      // vigilar, y no debe quedar escondida dentro del vale ajeno, que es
+      // justo el documento que esa tienda no puede ver.
+      await registrarIntentoFallido({
+        codigo,
+        motivo: "otra-tienda",
+        medio,
+        concesionarioId: concesionarioIds[0] ?? null,
+        uid,
+        email,
+      });
       logger.warn(
         `validarVale: la tienda ${concesionarioIds[0]} intentó leer el vale ${codigo}, que no es suyo`,
       );

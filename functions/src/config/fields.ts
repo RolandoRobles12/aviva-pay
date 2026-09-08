@@ -150,14 +150,22 @@ export const HUBSPOT_PRODUCT_FILTER = {
 } as const;
 
 /**
- * Canceled-deal stages, excluded from the backfill entirely — these
- * aren't shown to a store at all. Applies across both pipelines in one
- * list; a deal's `dealstage` only ever matches an id from its own
- * pipeline's stage set, so mixing both pipelines' ids here is harmless.
+ * Las etapas que significan "este crédito ya no existe": Precancelación y
+ * Cancelado en el pipeline actual (`1341580191`, `1341580192`), más la
+ * etapa equivalente del pipeline viejo (`33823869`), donde todavía viven
+ * deals históricos. Un `dealstage` solo puede coincidir con un id de su
+ * propio pipeline, así que mezclar ambos en una lista es inofensivo.
  *
- * TODO: this only keeps canceled deals out of the *initial* sync. Once a
- * deal that's already in Firestore gets canceled afterward, nothing yet
- * removes it from the store's page — a separate feature, not built yet.
+ * Precancelación entra a propósito, aunque sea un paso previo a la
+ * cancelación definitiva: los costos no son simétricos. Matar un vale de
+ * más se arregla reemitiéndolo desde `/admin/vales`; dejarlo vivo de más
+ * significa que la tienda entrega material contra un crédito que Aviva ya
+ * está retirando, y eso no se deshace. Si en la práctica resulta muy
+ * agresivo, se quita desde `/admin/etapas-cancelacion` sin desplegar.
+ *
+ * Estos son los **valores por defecto**: la lista en uso vive en Firestore
+ * y se edita desde el panel — ver firestore/cancelStagesRepository.ts.
+ * También son las etapas que el backfill inicial se salta por completo.
  */
 export const HUBSPOT_EXCLUDED_STAGES = [
   "1341580191",

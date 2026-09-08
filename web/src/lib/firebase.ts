@@ -14,7 +14,13 @@ import {
 import { getFirestore } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import type { PayDeskConcesionario, PayDeskDeal } from "../types/deal";
-import type { ValeAdmin, ValePublico, ValidacionVale } from "../types/vale";
+import type {
+  ValeAdmin,
+  ValeIntento,
+  ValePublico,
+  ValeReporte,
+  ValidacionVale,
+} from "../types/vale";
 import type {
   AdminAuditEntry,
   AdminConcesionario,
@@ -308,6 +314,26 @@ export const adminSetValeConfigCallable = httpsCallable<
   { vigenciaHoras: number },
   { ok: true }
 >(functions, "adminSetValeConfig");
+
+export const adminValeReporteCallable = httpsCallable<void, ValeReporte>(
+  functions,
+  "adminValeReporte",
+);
+
+export const adminValeIntentosCallable = httpsCallable<
+  { limite?: number },
+  { intentos: ValeIntento[] }
+>(functions, "adminValeIntentos");
+
+export const adminGetCancelStagesCallable = httpsCallable<
+  void,
+  { etapas: string[]; defaults: string[] }
+>(functions, "adminGetCancelStages");
+
+export const adminSetCancelStagesCallable = httpsCallable<
+  { etapas: string[] },
+  { ok: true }
+>(functions, "adminSetCancelStages");
 
 export async function logout() {
   await signOut(auth);

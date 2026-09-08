@@ -17,6 +17,8 @@ export interface PayDeskConcesionario {
 export interface PayDeskDeal {
   dealId: string;
   concesionarioId: string | null;
+  /** El crédito ya no existe: el deal entró a una etapa de cancelación en HubSpot. Lo resuelve el sync. */
+  cancelado?: boolean;
   kiosco: string | null;
   cliente: string | null;
   fechaSolicitud: string | null;
