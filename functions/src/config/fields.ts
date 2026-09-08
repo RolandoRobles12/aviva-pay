@@ -67,7 +67,7 @@ export const HUBSPOT_DEAL_PROPERTIES = {
   // updateDealProperties las salta con un warn en vez de tumbar el resto de
   // la escritura — ver hubspot/deals.ts — así que la liga sí llega a
   // HubSpot aunque las demás todavía no existan.
-  valeCodigo: "TODO_vale_codigo",
+  valeCodigo: "codigo_paydesk",
   valeUrl: "link_codigo_paydesk",
   valeEstado: "TODO_vale_estado",
   valeMontoDispuesto: "TODO_vale_monto_dispuesto",
