@@ -6,12 +6,14 @@ import { Paginacion, POR_PAGINA } from "../components/Paginacion";
 import { Modal } from "../components/Modal";
 import { CotizacionUploadForm } from "../components/CotizacionUploadForm";
 import { ComprobanteUploadForm } from "../components/ComprobanteUploadForm";
+import { ValidarCodigoPanel } from "../components/ValidarCodigoPanel";
 import { requiereAccion } from "../lib/dealScope";
 import { ordenarDeals, type SortKey, type SortState } from "../lib/dealSort";
 
 type ActiveModal =
   | { type: "cotizacion"; dealId: string }
   | { type: "comprobante"; dealId: string }
+  | { type: "vale"; dealId: string }
   | null;
 
 /**
@@ -130,6 +132,7 @@ export function SolicitudesPage() {
             onSort={handleSort}
             onUploadCotizacion={(dealId) => setActiveModal({ type: "cotizacion", dealId })}
             onUploadComprobante={(dealId) => setActiveModal({ type: "comprobante", dealId })}
+            onValidarCodigo={(dealId) => setActiveModal({ type: "vale", dealId })}
           />
           <Paginacion
             total={dealsFiltrados.length}
@@ -147,6 +150,24 @@ export function SolicitudesPage() {
             existingUrl={deals.find((d) => d.dealId === activeModal.dealId)?.cotizacionUrl}
             onUploaded={() => setActiveModal(null)}
             onCancel={() => setActiveModal(null)}
+          />
+        </Modal>
+      )}
+
+      {activeModal?.type === "vale" && (
+        <Modal onClose={() => setActiveModal(null)}>
+          <div className="modal-titulo">
+            <h2>Validar código del cliente</h2>
+            <p>
+              {deals.find((d) => d.dealId === activeModal.dealId)?.cliente ??
+                "Cliente"}
+            </p>
+          </div>
+          <ValidarCodigoPanel
+            dealIdEsperado={activeModal.dealId}
+            clienteEsperado={
+              deals.find((d) => d.dealId === activeModal.dealId)?.cliente
+            }
           />
         </Modal>
       )}

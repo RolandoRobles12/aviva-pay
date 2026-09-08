@@ -14,6 +14,14 @@ export type ResultadoValidacion =
   | {
       estado: "ok";
       codigo: string;
+      /**
+       * A qué solicitud pertenece el vale. Solo viaja en el caso `ok`, o
+       * sea cuando el vale ya se comprobó que es de una tienda de quien
+       * pregunta — no revela nada que esa tienda no pueda ver en su propia
+       * tabla. Sirve para avisarle a la caja cuando abrió la ventana desde
+       * la fila de un cliente y escaneó el vale de otro.
+       */
+      dealId: string;
       cliente: string | null;
       montoAutorizado: number | null;
       emitidoEn: string | null;
@@ -72,6 +80,7 @@ export function evaluarVale(
   return {
     estado: "ok",
     codigo: vale.codigo,
+    dealId: vale.dealId,
     cliente: vale.cliente,
     montoAutorizado: vale.montoAutorizado,
     emitidoEn: vale.emitidoEn?.toDate().toISOString() ?? null,
