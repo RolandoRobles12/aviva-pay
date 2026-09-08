@@ -70,6 +70,22 @@ export interface PayDeskVale {
   lecturasTotal: number;
   ultimaLecturaEn: FirebaseFirestore.Timestamp | null;
 
+  /**
+   * Última vez que ALGUIEN pasó este código por la caja, sin importar el
+   * resultado, y quién. Solo sirve para no contar dos veces la misma
+   * lectura física: un lector de presentación (los de base, siempre
+   * encendidos) vuelve a leer el mismo código cada segundo mientras el
+   * celular sigue enfrente. Sin esto, dejar el teléfono cinco segundos
+   * frente al lector inflaría el contador a cinco lecturas y la próxima
+   * caja vería una alarma de fraude que nadie disparó.
+   *
+   * Es aparte de `ultimaLecturaEn` a propósito: aquel es lo que la tienda
+   * dueña ve, y no debe moverse porque otra tienda haya intentado leer un
+   * vale ajeno.
+   */
+  ultimoAccesoEn: FirebaseFirestore.Timestamp | null;
+  ultimoAccesoUid: string | null;
+
   consumidoEn: FirebaseFirestore.Timestamp | null;
   /** uid de la cuenta de tienda que confirmó la disposición. */
   consumidoPor: string | null;

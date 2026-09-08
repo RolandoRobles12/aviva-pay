@@ -60,14 +60,26 @@ export const HUBSPOT_DEAL_PROPERTIES = {
   // CRM y (b) el workflow de HubSpot mande la liga por WhatsApp. La
   // disposición confirmada por la tienda regresa por los otros tres.
   //
-  // TODO: confirmar los nombres internos con el admin de HubSpot. Mientras
-  // sigan como TODO_, updateDealProperties los salta con un warn en vez de
-  // tumbar el resto de la escritura — ver hubspot/deals.ts.
-  valeCodigo: "TODO_vale_codigo",
-  valeUrl: "TODO_vale_url",
-  valeEstado: "TODO_vale_estado",
-  valeMontoDispuesto: "TODO_vale_monto_dispuesto",
-  valeFechaDisposicion: "TODO_vale_fecha_disposicion",
+  // Son solo tres, y es a propósito. El monto dispuesto y la fecha de
+  // disposición NO se escriben desde Paydesk:
+  //
+  // - La **fecha** ya la estampa HubSpot solo, al entrar el deal a la
+  //   etapa de disposición (`disposicionCreditoFecha` →
+  //   `hs_v2_date_entered_*`). Esas propiedades son calculadas y rechazan
+  //   escrituras; como todas las de una confirmación viajan en una sola
+  //   llamada, intentarlo tumbaría también al estado.
+  // - El **monto de la compra** ya vive en `cotizacionMontoTotalCompra`,
+  //   que captura la tienda con la cotización. Escribir encima el monto
+  //   dispuesto lo corrompería: no son el mismo número — la cotización
+  //   puede ser mayor que el crédito.
+  //
+  // El monto realmente dispuesto se guarda en el vale (Firestore) y se ve
+  // en `/admin/vales`. Si algún día hace falta en el CRM, va en una
+  // propiedad nueva y dedicada, nunca encima de una que ya significa otra
+  // cosa.
+  valeCodigo: "codigo_paydesk",
+  valeUrl: "link_codigo_paydesk",
+  valeEstado: "codigo_paydesk_estatus",
 
   // --- Notificación (section 9) ---
   // Written onto the triggering deal the first time a given store is seen,
@@ -189,6 +201,24 @@ export const STAGE_DATE_EXTRA_PROPERTIES_DEFAULT: Record<StageDateKey, string[]>
   desembolsoFecha: ["hs_v2_date_entered_33823866"],
 };
 
+
+/**
+ * Los valores que acepta `codigo_paydesk_estatus`, el desplegable de
+ * HubSpot. Tienen que coincidir **exactamente** con los valores internos de
+ * sus opciones: HubSpot rechaza cualquier otra cosa, y como las propiedades
+ * de una confirmación viajan en una sola llamada, un valor inválido tumba
+ * la escritura completa.
+ *
+ * Van aquí y no sueltos en el código para que el día que alguien renombre
+ * una opción en HubSpot haya un solo lugar que tocar.
+ *
+ * El desplegable tiene además una opción "Error" que Paydesk nunca escribe:
+ * queda reservada para marcar a mano un caso que se atore.
+ */
+export const VALE_ESTADO_HUBSPOT = {
+  emitido: "Emitido",
+  utilizado: "Utilizado",
+} as const;
 
 /**
  * Vigencia por defecto de un vale, en horas. El valor en uso vive en

@@ -63,6 +63,20 @@ Toda lectura queda en la bitácora (`paydesk_vales/{codigo}/lecturas`), incluida
 
 El consumo va en transacción de Firestore porque dos cajas de la misma tienda pueden confirmar el mismo vale a la vez, y solo una debe ganar.
 
+### Tres maneras de meter el código, porque no todas las tiendas tienen el mismo equipo
+
+| Entrada | Cómo | Cuándo sirve |
+|---|---|---|
+| **Lector de la caja** | Se comporta como teclado (HID): teclea los dígitos en el campo. Cero integración con su hardware. El campo se reenfoca solo después de cada validación, y se valida solo al completar los diez dígitos en ráfaga — no todos los lectores mandan Enter al final, algunos mandan Tab y otros nada, según cómo estén configurados. | Siempre sobre papel. **Sobre la pantalla del cliente, solo si el lector es de imagen** (imager 2D o CCD, incluidos los de presentación con base); **una pistola láser no.** |
+| **Cámara del celular o la tablet** de la tienda | `BarcodeDetector` nativo (Chrome/Edge) y ZXing como respaldo para Safari en iOS, cargado con `import()` dinámico para que su peso solo baje cuando alguien abre la cámara. | Es la salida para las tiendas con **pistola láser**, que no puede leer pantallas. |
+| **Tecleado a mano** | 10 dígitos en dos grupos de cinco. | Siempre, con cualquier equipo y sin ninguno. Es la ruta que nunca falla. |
+
+Una **pistola láser no lee la pantalla de un celular**: el láser mide luz reflejada de una superficie mate, y una pantalla emite luz propia y refleja el ambiente. No es un defecto del código — el Code 128 es correcto — sino del lector. Por eso la cámara no es un adorno: es lo que permite que una tienda con equipo viejo no tenga que cambiarlo.
+
+El escaneo por cámara solo acepta resultados de 10 dígitos, así que una etiqueta cualquiera del mostrador no dispara nada, y valida solo al leer, sin pedir otro toque.
+
+**Los lectores de presentación repiten.** Los de base, siempre encendidos, vuelven a decodificar el mismo código cada fracción de segundo mientras el celular siga enfrente. Eso es un acto físico, no diez, así que `registrarLectura` colapsa en una sola lectura todo lo que la misma cuenta pase con el mismo código dentro de un minuto (`MS_MISMA_LECTURA`). Sin eso, dejar el teléfono apoyado cinco segundos inflaría el contador y la próxima caja vería una alarma de fraude que nadie disparó — el contador antifraude solo sirve si cuenta ocasiones, no fotogramas. La marca que sostiene esa ventana (`ultimoAccesoEn`/`ultimoAccesoUid`) es aparte de `ultimaLecturaEn`, que es lo que ve la tienda dueña y no debe moverse porque otra tienda intentara leer un vale ajeno.
+
 ### Qué NO se le dice a la tienda
 
 Cuando el código es de otra tienda, la respuesta no trae nada del vale — ni cliente, ni monto, ni de qué tienda es. Si lo dijera, cualquier tienda podría teclear códigos y mapear clientes y montos de la competencia. Es la misma regla que ya siguen los endpoints de subida, donde un deal inexistente y un deal ajeno responden idéntico.
@@ -81,7 +95,24 @@ La **vigencia** (72 horas por defecto) se edita desde `/admin/vales`, mismo patr
 
 ### Cómo le llega al cliente
 
-`syncDealWebhook` escribe el código y la URL del vale de vuelta en el deal (`valeCodigo`, `valeUrl`), y un workflow de HubSpot manda esa liga **por WhatsApp**. Paydesk no manda el mensaje: HubSpot ya tiene ese canal.
+`syncDealWebhook` escribe el código y la URL del vale de vuelta en el deal (`codigo_paydesk`, `link_codigo_paydesk`), y un workflow de HubSpot manda esa liga **por WhatsApp**. Paydesk no manda el mensaje: HubSpot ya tiene ese canal.
+
+### Qué escribe Paydesk en HubSpot, y qué NO
+
+Son tres propiedades, y la lista corta es deliberada.
+
+| Propiedad | Cuándo |
+|---|---|
+| `codigo_paydesk` | Al emitir. Los 10 dígitos con su espacio, para que soporte los vea sin abrir Paydesk. |
+| `link_codigo_paydesk` | Al emitir. Es la que el workflow lee para mandar el WhatsApp. |
+| `codigo_paydesk_estatus` | `Emitido` al emitir, `Utilizado` al confirmar. |
+
+Los valores del desplegable viven en `VALE_ESTADO_HUBSPOT` y tienen que coincidir **exactamente** con los valores internos de las opciones en HubSpot. La opción `Error` existe en el desplegable pero Paydesk nunca la escribe: está reservada para marcar a mano un caso atorado.
+
+Dos cosas que Paydesk **no** escribe, y por qué:
+
+- **La fecha de disposición.** Ya la estampa HubSpot solo cuando el deal entra a la etapa de disposición (`disposicionCreditoFecha` → `hs_v2_date_entered_1341580183`). Esas propiedades son calculadas y rechazan escrituras; intentarlo no solo fallaría, tumbaría la llamada entera — `updateDealProperties` manda todas las propiedades de una confirmación en un solo `update`. El camino es al revés: Paydesk escribe `Utilizado`, un workflow reacciona y mueve la etapa, y HubSpot pone la fecha.
+- **El monto dispuesto.** El monto de la compra ya vive en `monto_de_compra_construrama`, que la tienda captura con la cotización, y **no es el mismo número**: la cotización puede ser mayor que el crédito. Escribir encima lo corrompería. El monto realmente dispuesto se guarda en el vale y se ve en `/admin/vales`; si algún día hace falta en el CRM, va en una propiedad nueva y dedicada.
 
 ### Rutas y colecciones nuevas
 
@@ -171,8 +202,9 @@ La propiedad Kiosco es de tipo **multiple checkboxes**, con ~481 opciones cuyo t
 
 ## Pendientes conocidos
 
-- Diccionario de campos real — se puede capturar desde `/admin/diccionario` o en `config/fields.ts`. Incluye el nombre interno de la propiedad "Kiosco" y las cinco propiedades del vale (`valeCodigo`, `valeUrl`, `valeEstado`, `valeMontoDispuesto`, `valeFechaDisposicion`). Mientras sigan como `TODO_`, `updateDealProperties` las salta con un warn: el vale se emite y funciona dentro de Paydesk, pero su código y su liga **no llegan a HubSpot**, así que el workflow de WhatsApp no tiene qué mandar.
-- Crear el workflow de HubSpot que manda la liga del vale por WhatsApp cuando `valeUrl` se llena, y confirmar a qué teléfono del cliente le llega.
+- Diccionario de campos real — se puede capturar desde `/admin/diccionario` o en `config/fields.ts`. Incluye el nombre interno de la propiedad "Kiosco". Las tres del vale ya están mapeadas.
+- Crear el workflow de HubSpot que manda la liga del vale por WhatsApp cuando `link_codigo_paydesk` se llena, y confirmar a qué teléfono del cliente le llega.
+- Crear el workflow que mueve el deal a la etapa de disposición cuando `codigo_paydesk_estatus` pasa a `Utilizado`. Sin él, la fecha de disposición nunca se estampa y se pierde el dato de cuándo se gastó el crédito.
 - Catálogo de nombres reales de tienda: se puede capturar tienda por tienda en `/admin/tiendas`. Si Aviva tiene el catálogo de códigos (`TEQ`, `TEO`, `FER`…) → nombres, vale la pena un import masivo en vez de 481 ediciones a mano.
 - Confirmar con el admin de HubSpot si un deal puede tener más de un Kiosco marcado (hoy se toma el primero y se loguea el caso).
 - Crear las cuentas de admin y otorgarles el claim `admin` (ver "Alta de administradores").

@@ -1,9 +1,10 @@
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   confirmarDisposicionCallable,
   validarValeCallable,
 } from "../lib/firebase";
 import { CurrencyInput } from "../components/CurrencyInput";
+import { EscanerCamara } from "../components/EscanerCamara";
 import type { ValidacionVale } from "../types/vale";
 
 const moneda = new Intl.NumberFormat("es-MX", {
@@ -45,43 +46,96 @@ type Resultado =
  * Validar no consume el vale — la tienda puede consultarlo sin gastarlo.
  * Confirmar sí, y pide el monto realmente vendido: es el dato que hoy no
  * existe, y es lo que permite comparar autorizado contra gastado.
+ *
+ * Hay tres maneras de meter el código, porque no todas las tiendas tienen
+ * el mismo equipo:
+ *
+ * 1. **Pistola de la caja.** Se comporta como teclado: teclea los dígitos
+ *    en el campo y manda Enter. El campo se mantiene enfocado justo para
+ *    eso — el cajero escanea uno tras otro sin tocar el mouse. Ojo: una
+ *    pistola láser no lee pantallas de celular, solo papel.
+ * 2. **Cámara del celular o la tablet** de la tienda. Es la salida para
+ *    las tiendas con pistola láser, que sí necesitan leer la pantalla del
+ *    cliente.
+ * 3. **Tecleado a mano.** La ruta que siempre funciona, con cualquier
+ *    equipo y sin ninguno.
  */
 export function ValidarCodigoPage() {
   const [codigo, setCodigo] = useState("");
   const [resultado, setResultado] = useState<Resultado>({ tipo: "nada" });
   const [monto, setMonto] = useState("");
   const [confirmando, setConfirmando] = useState(false);
+  const [camaraAbierta, setCamaraAbierta] = useState(false);
   const inicioCaptura = useRef<number | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  /** Evita que el Enter del lector vuelva a mandar lo que el auto-envío ya mandó. */
+  const autoEnviado = useRef(false);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    autoEnviado.current = false;
     if (inicioCaptura.current === null) inicioCaptura.current = Date.now();
-    setCodigo(e.target.value);
+
+    const valor = e.target.value;
+    setCodigo(valor);
     if (resultado.tipo !== "nada") setResultado({ tipo: "nada" });
+
+    // No todos los lectores mandan Enter al final: algunos mandan Tab y
+    // otros no mandan nada, según cómo estén configurados. Si el código
+    // llegó completo y llegó rápido, es un lector — se valida solo, en vez
+    // de dejar los diez dígitos ahí esperando a que alguien le dé clic.
+    const digitos = valor.replace(/\D/g, "");
+    const rafaga = Date.now() - (inicioCaptura.current ?? Date.now()) <= MS_MAX_ESCANEO;
+    if (digitos.length === 10 && rafaga) {
+      autoEnviado.current = true;
+      void validar(digitos, "escaneo");
+    }
   }
+
+  const validar = useCallback(
+    async (aValidar: string, medio: "escaneo" | "manual") => {
+      inicioCaptura.current = null;
+      setResultado({ tipo: "validando" });
+      try {
+        const { data } = await validarValeCallable({ codigo: aValidar, medio });
+        setResultado({ tipo: "validado", validacion: data });
+        if (data.estado === "ok") {
+          setMonto(data.montoAutorizado !== null ? String(data.montoAutorizado) : "");
+        }
+      } catch (err) {
+        setResultado({
+          tipo: "error",
+          mensaje:
+            err instanceof Error
+              ? err.message
+              : "No se pudo validar el código. Intenta de nuevo.",
+        });
+      } finally {
+        // Devolver el foco al campo es lo que deja la caja lista para el
+        // siguiente escaneo con pistola sin tocar nada.
+        inputRef.current?.focus();
+      }
+    },
+    [],
+  );
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // El lector ya disparó la validación al completar los diez dígitos;
+    // su Enter llega después y no debe mandar lo mismo otra vez.
+    if (autoEnviado.current) return;
     const transcurrido = Date.now() - (inicioCaptura.current ?? Date.now());
-    const medio = transcurrido <= MS_MAX_ESCANEO ? "escaneo" : "manual";
-    inicioCaptura.current = null;
-
-    setResultado({ tipo: "validando" });
-    try {
-      const { data } = await validarValeCallable({ codigo, medio });
-      setResultado({ tipo: "validado", validacion: data });
-      if (data.estado === "ok") {
-        setMonto(data.montoAutorizado !== null ? String(data.montoAutorizado) : "");
-      }
-    } catch (err) {
-      setResultado({
-        tipo: "error",
-        mensaje:
-          err instanceof Error
-            ? err.message
-            : "No se pudo validar el código. Intenta de nuevo.",
-      });
-    }
+    await validar(codigo, transcurrido <= MS_MAX_ESCANEO ? "escaneo" : "manual");
   }
+
+  /** La cámara ya entrega los 10 dígitos limpios: se valida sola, sin pedir otro toque. */
+  const handleCodigoEscaneado = useCallback(
+    (leido: string) => {
+      setCamaraAbierta(false);
+      setCodigo(leido);
+      void validar(leido, "escaneo");
+    },
+    [validar],
+  );
 
   async function handleConfirmar(e: React.FormEvent) {
     e.preventDefault();
@@ -121,6 +175,8 @@ export function ValidarCodigoPage() {
     setMonto("");
     setResultado({ tipo: "nada" });
     inicioCaptura.current = null;
+    autoEnviado.current = false;
+    inputRef.current?.focus();
   }
 
   return (
@@ -130,6 +186,7 @@ export function ValidarCodigoPage() {
         <div className="validar-captura__fila">
           <input
             id="codigo-vale"
+            ref={inputRef}
             className="validar-captura__input"
             value={codigo}
             onChange={handleChange}
@@ -142,10 +199,27 @@ export function ValidarCodigoPage() {
             {resultado.tipo === "validando" ? "Validando..." : "Validar"}
           </button>
         </div>
-        <p className="form-note">
-          La pistola de la caja lo teclea sola. Sin pistola, escribe los 10 dígitos.
-        </p>
+        <div className="validar-captura__medios">
+          <button
+            type="button"
+            className="link-button"
+            onClick={() => setCamaraAbierta((v) => !v)}
+          >
+            {camaraAbierta ? "Cerrar cámara" : "Escanear con la cámara"}
+          </button>
+          <p className="form-note">
+            La pistola de la caja lo teclea sola. Si es de láser no va a leer la
+            pantalla del cliente: usa la cámara, o escribe los 10 dígitos.
+          </p>
+        </div>
       </form>
+
+      {camaraAbierta && (
+        <EscanerCamara
+          onCodigo={handleCodigoEscaneado}
+          onCerrar={() => setCamaraAbierta(false)}
+        />
+      )}
 
       {resultado.tipo === "error" && (
         <p className="page-message page-message--error">{resultado.mensaje}</p>

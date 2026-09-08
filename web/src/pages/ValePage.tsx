@@ -113,7 +113,11 @@ export function ValePage() {
           {activo ? (
             <>
               <div className="vale-card__codigo">
-                <CodigoBarras codigo={vale.codigo} />
+                {/* Más alto que el default: lo que se escanea suele ser esta
+                    pantalla, y un código bajo obliga al cajero a apuntar con
+                    precisión. La altura no cambia lo que codifica — el lector
+                    solo mide anchos — pero sí cuánto margen de puntería tiene. */}
+                <CodigoBarras codigo={vale.codigo} alto={132} />
                 <p className="vale-card__digitos">{vale.codigoFormateado}</p>
               </div>
 
@@ -125,8 +129,11 @@ export function ValePage() {
               </div>
 
               <p className="vale-card__nota">
-                Enseña este código en la caja. Cada lectura queda registrada.
+                Enseña este código en la caja. Si el lector de la tienda no lo
+                toma, <strong>sube el brillo de tu pantalla al máximo</strong> o
+                dicta los 10 dígitos.
               </p>
+              <p className="vale-card__nota">Cada lectura queda registrada.</p>
             </>
           ) : (
             <p className="vale-card__inactivo">

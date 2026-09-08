@@ -3,17 +3,13 @@ import { logger } from "firebase-functions/v2";
 import { normalizarCodigo } from "../vale/codigo";
 import { consumirVale, getVale } from "../firestore/valesRepository";
 import { evaluarVale } from "../vale/validar";
-import { updateDealProperties, toHubspotDateProperty } from "../hubspot/deals";
+import { updateDealProperties } from "../hubspot/deals";
+import { VALE_ESTADO_HUBSPOT } from "../config/fields";
 
 interface ConfirmarRequest {
   codigo?: string;
   /** Lo que se gastó de verdad, que puede ser menos que el autorizado. */
   montoDispuesto?: number;
-}
-
-/** `2026-09-08`, en la zona del servidor, para la propiedad de fecha de HubSpot. */
-function hoyISO(): string {
-  return new Date().toISOString().slice(0, 10);
 }
 
 /**
@@ -84,10 +80,13 @@ export const confirmarDisposicion = onCall<ConfirmarRequest>(
       return { ok: false as const, ...evaluarVale(actual, concesionarioIds) };
     }
 
+    // Solo el estado. La fecha de disposición la estampa HubSpot solo
+    // cuando un workflow —disparado por este mismo estado— mueve el deal a
+    // la etapa de disposición; y el monto de la compra ya vive en la
+    // propiedad de la cotización, que significa otra cosa y no se pisa.
+    // El monto realmente dispuesto queda en el vale y en /admin/vales.
     await updateDealProperties(consumido.dealId, {
-      valeEstado: "utilizado",
-      valeMontoDispuesto: String(monto),
-      valeFechaDisposicion: toHubspotDateProperty(hoyISO()),
+      valeEstado: VALE_ESTADO_HUBSPOT.utilizado,
     });
 
     logger.info(
