@@ -13,7 +13,7 @@ El frontend sigue los lineamientos de marca de Aviva (`web/src/styles/global.css
 
 El usuario de Aviva Paydesk es el **concesionario**: la tienda/sucursal de Construrama. Cada tienda tiene una página donde ve a **sus clientes** (una fila por solicitud de crédito) y ejecuta las acciones que le tocan: subir la cotización y subir el comprobante de entrega firmado.
 
-El cliente final no usa esta página. En los diagramas de proceso aparece una vista para él ("Aviva Pay", el vale de crédito en la app móvil), pero **todavía no existe**: este repo construye únicamente Paydesk. Aviva Pay queda como proyecto separado y fuera de alcance (sección 3.2 del requerimiento).
+El cliente final no usa la tabla de solicitudes, pero **sí tiene una pantalla propia**: `/vale/:token`, el vale que presenta en el mostrador y que le llega por WhatsApp. Es la única superficie de Paydesk sin sesión, y lo único que ve ahí es su propio vale — ver "Vale de un solo uso" más abajo.
 
 ## Página por concesionario, no por deal
 
@@ -39,6 +39,59 @@ El requerimiento (sección 2) dice "una página web... por cada solicitud de cr�
 Esto también resuelve el pendiente que traía la sección 8: el control de acceso ya no depende de que una URL no se adivine.
 
 Los endpoints de subida (`uploadCotizacion`, `uploadComprobante`) también verifican el token y que el deal pertenezca a una de las tiendas de `concesionarioIds` que llama — antes dependían de que la URL fuera secreta.
+
+## Vale de un solo uso
+
+La tienda tenía que creerle a un WhatsApp que el cliente estaba aprobado y por cuánto. Un mensaje así se fabrica con un screenshot, así que la validación del saldo autorizado pasa a ser un **vale**: un código de 10 dígitos, impreso como código de barras, que el cliente presenta en el mostrador y que la caja valida contra Paydesk.
+
+### Por qué un código corto
+
+El código **no es un secreto criptográfico, y no necesita serlo**: validarlo exige una sesión de tienda ya autenticada, así que nadie puede ir probando números sin ser antes una tienda dada de alta, y cada intento fallido queda registrado con su tienda. Eso permite que sea corto y tecleable, que es el requisito real del mostrador: cuando la pistola falla o el cliente solo trae el número apuntado, alguien lo escribe a mano.
+
+Son 10 dígitos y no otra cantidad porque tienen que ser **pares**: el vale se imprime como Code 128 en subset C, que codifica los dígitos de dos en dos. Y es Code 128 1D, no QR, porque es lo que leen las pistolas láser que las tiendas ya tienen en la caja — una pistola se comporta como teclado, así que escanear es teclear el número en el campo, sin integración con su hardware.
+
+El **token de la URL** (`/vale/:token`) es harina de otro costal: ese sí es lo único que protege la página del cliente, que se abre sin sesión desde un link de WhatsApp, y por eso son 128 bits no enumerables. Código y token son cosas distintas a propósito.
+
+### Leer no es usar
+
+Son dos operaciones separadas, y de ahí sale la señal antifraude:
+
+- **`validarVale`** dice si el código sirve y por cuánto, sin consumirlo. La tienda puede consultarlo las veces que necesite.
+- **`confirmarDisposicion`** es el paso que lo quema, y pide el **monto realmente vendido** — que puede ser menor al autorizado, nunca mayor. Ese dato es el que hoy no existe: cuándo se gastó el crédito y cuánto.
+
+Toda lectura queda en la bitácora (`paydesk_vales/{codigo}/lecturas`), incluidas las fallidas. Por eso la caja ve "ya se leyó 2 veces": si alguien fabricó una captura del vale y la pasea por varias tiendas, la segunda caja lo nota antes de entregar material. Un intento contra un código que no existe no tiene vale al que colgarse, así que va a `paydesk_vale_intentos`.
+
+El consumo va en transacción de Firestore porque dos cajas de la misma tienda pueden confirmar el mismo vale a la vez, y solo una debe ganar.
+
+### Qué NO se le dice a la tienda
+
+Cuando el código es de otra tienda, la respuesta no trae nada del vale — ni cliente, ni monto, ni de qué tienda es. Si lo dijera, cualquier tienda podría teclear códigos y mapear clientes y montos de la competencia. Es la misma regla que ya siguen los endpoints de subida, donde un deal inexistente y un deal ajeno responden idéntico.
+
+El costo es que el cajero se queda sin saber a dónde mandar al cliente; se compensa con la salida "el cliente pide a Aviva que lo reasignen". Es un intercambio deliberado entre privacidad entre tiendas y comodidad en el mostrador.
+
+### Cuándo nace y cuándo se reemite
+
+El vale se emite en `syncDealWebhook`, en cuanto el deal trae **fecha de crédito liberado**. Se dispara por esa fecha y no por un id de etapa cableado porque `creditoLiberadoFecha` ya sabe leerse desde varias propiedades de HubSpot a la vez (ver `STAGE_DATE_EXTRA_PROPERTIES_DEFAULT` y `stageDate()`), así que un deal que llega a la etapa por otro camino — o que vive en el pipeline viejo — también dispara el vale, sin mantener una lista de ids en dos lugares.
+
+`emitirValeParaDeal` es idempotente: el workflow puede volver a disparar todas las veces que quiera sin generar un segundo vale. Solo un admin puede **reemitir** (`/admin/vales`), y emitir el nuevo cancela el anterior en el mismo paso, así que un vale viejo que ande circulando deja de servir de inmediato. Deliberadamente la tienda no puede reemitir: si pudiera, podría generarse un vale sin el cliente presente, que es justo el fraude que esto cierra.
+
+Un vale ya utilizado no se reemite — el crédito de ese deal ya se dispuso, y emitir otro sería emitir un vale por dinero ya entregado.
+
+La **vigencia** (72 horas por defecto) se edita desde `/admin/vales`, mismo patrón de caché-por-instancia que el diccionario de campos.
+
+### Cómo le llega al cliente
+
+`syncDealWebhook` escribe el código y la URL del vale de vuelta en el deal (`valeCodigo`, `valeUrl`), y un workflow de HubSpot manda esa liga **por WhatsApp**. Paydesk no manda el mensaje: HubSpot ya tiene ese canal.
+
+### Rutas y colecciones nuevas
+
+| Ruta | Quién |
+|---|---|
+| `/vale/:token` | El cliente final, sin sesión. La única pantalla de Paydesk sin login. |
+| `/solicitudes/validar` | La caja de la tienda. |
+| `/admin/vales` | Aviva: consultar, reemitir y fijar la vigencia. |
+
+`paydesk_vales/{codigo}` (el código es el id del documento, así que la búsqueda de la caja es un `get` directo), su subcolección `lecturas`, y `paydesk_vale_intentos`. Ninguna se lee desde el cliente: todo pasa por Cloud Functions — si la colección fuera legible, una tienda podría enumerar los vales de otras.
 
 ## Panel de administración
 
@@ -118,7 +171,8 @@ La propiedad Kiosco es de tipo **multiple checkboxes**, con ~481 opciones cuyo t
 
 ## Pendientes conocidos
 
-- Diccionario de campos real — se puede capturar desde `/admin/diccionario` o en `config/fields.ts`. Incluye el nombre interno de la propiedad "Kiosco".
+- Diccionario de campos real — se puede capturar desde `/admin/diccionario` o en `config/fields.ts`. Incluye el nombre interno de la propiedad "Kiosco" y las cinco propiedades del vale (`valeCodigo`, `valeUrl`, `valeEstado`, `valeMontoDispuesto`, `valeFechaDisposicion`). Mientras sigan como `TODO_`, `updateDealProperties` las salta con un warn: el vale se emite y funciona dentro de Paydesk, pero su código y su liga **no llegan a HubSpot**, así que el workflow de WhatsApp no tiene qué mandar.
+- Crear el workflow de HubSpot que manda la liga del vale por WhatsApp cuando `valeUrl` se llena, y confirmar a qué teléfono del cliente le llega.
 - Catálogo de nombres reales de tienda: se puede capturar tienda por tienda en `/admin/tiendas`. Si Aviva tiene el catálogo de códigos (`TEQ`, `TEO`, `FER`…) → nombres, vale la pena un import masivo en vez de 481 ediciones a mano.
 - Confirmar con el admin de HubSpot si un deal puede tener más de un Kiosco marcado (hoy se toma el primero y se loguea el caso).
 - Crear las cuentas de admin y otorgarles el claim `admin` (ver "Alta de administradores").

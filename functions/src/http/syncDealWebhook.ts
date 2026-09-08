@@ -3,6 +3,7 @@ import { logger } from "firebase-functions/v2";
 import { env } from "../config/env";
 import { fetchDealById, updateDealProperties } from "../hubspot/deals";
 import { upsertDealFromHubspot } from "../firestore/dealsRepository";
+import { emitirValeParaDeal } from "../vale/emitir";
 
 interface SyncWebhookBody {
   // HubSpot's Record ID property is numeric, and the workflow webhook
@@ -29,6 +30,11 @@ interface SyncWebhookBody {
  * it up and notify that store's contact (section 9, "Notificación").
  * Later deals for the same concesionario just add a row to the existing
  * page — no repeat notification.
+ *
+ * Once the deal carries a crédito-liberado date it also issues the
+ * client's one-use vale and writes its código and URL back onto the deal,
+ * so the WhatsApp workflow can send the client the link they'll present
+ * at the counter (see vale/emitir.ts).
  */
 export const syncDealWebhook = onRequest(
   {
@@ -82,6 +88,13 @@ export const syncDealWebhook = onRequest(
 
     const { isNewConcesionario } = await upsertDealFromHubspot(deal);
 
+    // El vale de un solo uso nace aquí, en cuanto el deal trae la fecha de
+    // crédito liberado: a partir de ese momento el cliente ya puede
+    // presentarse en la tienda. `emitirValeParaDeal` es idempotente, así
+    // que este workflow puede volver a disparar todas las veces que quiera
+    // sin generar un segundo vale — ver vale/emitir.ts.
+    const vale = await emitirValeParaDeal(deal, { emitidoPor: "hubspot-workflow" });
+
     if (isNewConcesionario) {
       // First time we see this store: hand HubSpot the login URL so the
       // notification workflow can pass it on. There's no store-wide
@@ -94,6 +107,10 @@ export const syncDealWebhook = onRequest(
       );
     }
 
-    res.status(200).json({ ok: true, isNewConcesionario });
+    res.status(200).json({
+      ok: true,
+      isNewConcesionario,
+      valeEmitido: vale.vale !== null,
+    });
   },
 );

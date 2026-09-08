@@ -14,6 +14,7 @@ import {
 import { getFirestore } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import type { PayDeskConcesionario, PayDeskDeal } from "../types/deal";
+import type { ValeAdmin, ValePublico, ValidacionVale } from "../types/vale";
 import type {
   AdminAuditEntry,
   AdminConcesionario,
@@ -115,6 +116,35 @@ export const getConcesionarioDealsCallable = httpsCallable<
     rolloutPorTienda: Record<string, string | null>;
   }
 >(functions, "getConcesionarioDeals");
+
+// --- Vale de un solo uso ---
+
+/**
+ * Valida el código que el cliente presenta en la caja. NO lo consume:
+ * la tienda puede consultarlo las veces que necesite. Cada llamada queda
+ * registrada en la bitácora del vale, incluidas las que fallan.
+ */
+export const validarValeCallable = httpsCallable<
+  { codigo: string; medio: "escaneo" | "manual" },
+  ValidacionVale
+>(functions, "validarVale");
+
+/** El paso que sí quema el vale, con el monto realmente vendido. */
+export const confirmarDisposicionCallable = httpsCallable<
+  { codigo: string; montoDispuesto: number },
+  | { ok: true; codigo: string; montoDispuesto: number; cliente: string | null }
+  | ({ ok: false } & ValidacionVale)
+>(functions, "confirmarDisposicion");
+
+/**
+ * La página pública del vale. Es la única llamada de Paydesk sin sesión:
+ * el destinatario es el cliente final, y lo que autoriza es el token de
+ * la URL que le llegó por WhatsApp.
+ */
+export const getValeCallable = httpsCallable<{ token: string }, ValePublico>(
+  functions,
+  "getVale",
+);
 
 // --- Admin ---
 
@@ -250,6 +280,34 @@ export const adminSetRolloutCallable = httpsCallable<
   { fechaRollout: string | null },
   { ok: true }
 >(functions, "adminSetRollout");
+
+export const adminGetValeCallable = httpsCallable<
+  { dealId: string },
+  {
+    deal: {
+      dealId: string;
+      cliente: string | null;
+      montoAprobado: number | null;
+      creditoLiberadoFecha: string | null;
+    };
+    vale: ValeAdmin | null;
+  }
+>(functions, "adminGetVale");
+
+export const adminReemitirValeCallable = httpsCallable<
+  { dealId: string },
+  { ok: true; vale: ValeAdmin }
+>(functions, "adminReemitirVale");
+
+export const adminGetValeConfigCallable = httpsCallable<
+  void,
+  { vigenciaHoras: number }
+>(functions, "adminGetValeConfig");
+
+export const adminSetValeConfigCallable = httpsCallable<
+  { vigenciaHoras: number },
+  { ok: true }
+>(functions, "adminSetValeConfig");
 
 export async function logout() {
   await signOut(auth);

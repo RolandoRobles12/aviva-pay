@@ -180,11 +180,6 @@ export function ConcesionarioLayout() {
           {state.concesionarios.length === 1 ? (
             <div className="store-badge">
               <span className="store-badge__nombre">{state.concesionarios[0].nombre}</span>
-              {state.concesionarios[0].numero && (
-                <span className="store-badge__numero">
-                  Tienda {state.concesionarios[0].numero}
-                </span>
-              )}
             </div>
           ) : (
             <SelectorTiendas
@@ -204,6 +199,7 @@ export function ConcesionarioLayout() {
         <NavLink to="/solicitudes" end>
           Mis clientes
         </NavLink>
+        <NavLink to="/solicitudes/validar">Validar código</NavLink>
         <NavLink to="/solicitudes/reporte">Reporte</NavLink>
       </nav>
 

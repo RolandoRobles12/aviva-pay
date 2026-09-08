@@ -19,6 +19,7 @@ export function AdminLayout() {
           <NavLink to="/admin/diccionario">Diccionario de campos</NavLink>
           <NavLink to="/admin/etapas-fecha">Fechas de etapa</NavLink>
           <NavLink to="/admin/etiquetas">Etiquetas</NavLink>
+          <NavLink to="/admin/vales">Vales</NavLink>
           <NavLink to="/admin/administradores">Administradores</NavLink>
         </nav>
         <button type="button" className="link-button" onClick={handleLogout}>

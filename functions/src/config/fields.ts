@@ -54,6 +54,21 @@ export const HUBSPOT_DEAL_PROPERTIES = {
   // --- Desembolso ---
   desembolsoFecha: "TODO_desembolso_fecha",
 
+  // --- Vale de un solo uso ---
+  // El código que el cliente presenta en la caja y su liga, escritos de
+  // vuelta al deal para que (a) el equipo de Aviva los vea sin salir del
+  // CRM y (b) el workflow de HubSpot mande la liga por WhatsApp. La
+  // disposición confirmada por la tienda regresa por los otros tres.
+  //
+  // TODO: confirmar los nombres internos con el admin de HubSpot. Mientras
+  // sigan como TODO_, updateDealProperties los salta con un warn en vez de
+  // tumbar el resto de la escritura — ver hubspot/deals.ts.
+  valeCodigo: "TODO_vale_codigo",
+  valeUrl: "TODO_vale_url",
+  valeEstado: "TODO_vale_estado",
+  valeMontoDispuesto: "TODO_vale_monto_dispuesto",
+  valeFechaDisposicion: "TODO_vale_fecha_disposicion",
+
   // --- Notificación (section 9) ---
   // Written onto the triggering deal the first time a given store is seen,
   // so a second HubSpot workflow can enroll on "property is known" and
@@ -174,3 +189,10 @@ export const STAGE_DATE_EXTRA_PROPERTIES_DEFAULT: Record<StageDateKey, string[]>
   desembolsoFecha: ["hs_v2_date_entered_33823866"],
 };
 
+
+/**
+ * Vigencia por defecto de un vale, en horas. El valor en uso vive en
+ * Firestore y se edita desde `/admin/vales` — ver
+ * firestore/valeConfigRepository.ts.
+ */
+export const VALE_VIGENCIA_HORAS_DEFAULT = 72;
