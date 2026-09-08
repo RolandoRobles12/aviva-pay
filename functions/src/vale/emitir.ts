@@ -8,6 +8,7 @@ import {
 } from "../firestore/valesRepository";
 import { getValeConfig } from "../firestore/valeConfigRepository";
 import { formatearCodigo } from "./codigo";
+import { VALE_ESTADO_HUBSPOT } from "../config/fields";
 import type { PayDeskDeal } from "../types/deal";
 import type { PayDeskVale } from "../types/vale";
 
@@ -81,7 +82,7 @@ export async function emitirValeParaDeal(
   await updateDealProperties(deal.dealId, {
     valeCodigo: formatearCodigo(vale.codigo),
     valeUrl: urlDelVale(vale.token),
-    valeEstado: "emitido",
+    valeEstado: VALE_ESTADO_HUBSPOT.emitido,
   });
 
   logger.info(

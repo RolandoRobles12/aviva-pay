@@ -95,7 +95,24 @@ La **vigencia** (72 horas por defecto) se edita desde `/admin/vales`, mismo patr
 
 ### Cómo le llega al cliente
 
-`syncDealWebhook` escribe el código y la URL del vale de vuelta en el deal (`valeCodigo`, `valeUrl`), y un workflow de HubSpot manda esa liga **por WhatsApp**. Paydesk no manda el mensaje: HubSpot ya tiene ese canal.
+`syncDealWebhook` escribe el código y la URL del vale de vuelta en el deal (`codigo_paydesk`, `link_codigo_paydesk`), y un workflow de HubSpot manda esa liga **por WhatsApp**. Paydesk no manda el mensaje: HubSpot ya tiene ese canal.
+
+### Qué escribe Paydesk en HubSpot, y qué NO
+
+Son tres propiedades, y la lista corta es deliberada.
+
+| Propiedad | Cuándo |
+|---|---|
+| `codigo_paydesk` | Al emitir. Los 10 dígitos con su espacio, para que soporte los vea sin abrir Paydesk. |
+| `link_codigo_paydesk` | Al emitir. Es la que el workflow lee para mandar el WhatsApp. |
+| `codigo_paydesk_estatus` | `Emitido` al emitir, `Utilizado` al confirmar. |
+
+Los valores del desplegable viven en `VALE_ESTADO_HUBSPOT` y tienen que coincidir **exactamente** con los valores internos de las opciones en HubSpot. La opción `Error` existe en el desplegable pero Paydesk nunca la escribe: está reservada para marcar a mano un caso atorado.
+
+Dos cosas que Paydesk **no** escribe, y por qué:
+
+- **La fecha de disposición.** Ya la estampa HubSpot solo cuando el deal entra a la etapa de disposición (`disposicionCreditoFecha` → `hs_v2_date_entered_1341580183`). Esas propiedades son calculadas y rechazan escrituras; intentarlo no solo fallaría, tumbaría la llamada entera — `updateDealProperties` manda todas las propiedades de una confirmación en un solo `update`. El camino es al revés: Paydesk escribe `Utilizado`, un workflow reacciona y mueve la etapa, y HubSpot pone la fecha.
+- **El monto dispuesto.** El monto de la compra ya vive en `monto_de_compra_construrama`, que la tienda captura con la cotización, y **no es el mismo número**: la cotización puede ser mayor que el crédito. Escribir encima lo corrompería. El monto realmente dispuesto se guarda en el vale y se ve en `/admin/vales`; si algún día hace falta en el CRM, va en una propiedad nueva y dedicada.
 
 ### Rutas y colecciones nuevas
 
@@ -185,8 +202,9 @@ La propiedad Kiosco es de tipo **multiple checkboxes**, con ~481 opciones cuyo t
 
 ## Pendientes conocidos
 
-- Diccionario de campos real — se puede capturar desde `/admin/diccionario` o en `config/fields.ts`. Incluye el nombre interno de la propiedad "Kiosco" y las cinco propiedades del vale (`valeCodigo`, `valeUrl`, `valeEstado`, `valeMontoDispuesto`, `valeFechaDisposicion`). Mientras sigan como `TODO_`, `updateDealProperties` las salta con un warn: el vale se emite y funciona dentro de Paydesk, pero su código y su liga **no llegan a HubSpot**, así que el workflow de WhatsApp no tiene qué mandar.
-- Crear el workflow de HubSpot que manda la liga del vale por WhatsApp cuando `valeUrl` se llena, y confirmar a qué teléfono del cliente le llega.
+- Diccionario de campos real — se puede capturar desde `/admin/diccionario` o en `config/fields.ts`. Incluye el nombre interno de la propiedad "Kiosco". Las tres del vale ya están mapeadas.
+- Crear el workflow de HubSpot que manda la liga del vale por WhatsApp cuando `link_codigo_paydesk` se llena, y confirmar a qué teléfono del cliente le llega.
+- Crear el workflow que mueve el deal a la etapa de disposición cuando `codigo_paydesk_estatus` pasa a `Utilizado`. Sin él, la fecha de disposición nunca se estampa y se pierde el dato de cuándo se gastó el crédito.
 - Catálogo de nombres reales de tienda: se puede capturar tienda por tienda en `/admin/tiendas`. Si Aviva tiene el catálogo de códigos (`TEQ`, `TEO`, `FER`…) → nombres, vale la pena un import masivo en vez de 481 ediciones a mano.
 - Confirmar con el admin de HubSpot si un deal puede tener más de un Kiosco marcado (hoy se toma el primero y se loguea el caso).
 - Crear las cuentas de admin y otorgarles el claim `admin` (ver "Alta de administradores").
