@@ -3,7 +3,7 @@ import { logger } from "firebase-functions/v2";
 import { assertAdmin } from "../../auth/adminGuard";
 import { STAGE_DATE_KEYS } from "../../config/fields";
 import {
-  getStageDateProperties,
+  getStageDatePropertiesFresh,
   getStageDatePropertiesDefaults,
   setStageDateProperties,
   type StageDateProperties,
@@ -15,7 +15,7 @@ export const adminGetStageDateProperties = onCall(
   async (request) => {
     assertAdmin(request);
     return {
-      propiedades: await getStageDateProperties(),
+      propiedades: await getStageDatePropertiesFresh(),
       defaults: getStageDatePropertiesDefaults(),
     };
   },

@@ -18,14 +18,26 @@ export interface ValeConfig {
   vigenciaHoras: number;
 }
 
+import { TTL_CONFIG_MS } from "./configCache";
+
 let cached: ValeConfig | null = null;
+let cacheExpira = 0;
 
 function configDoc() {
   return getFirestore().collection(COLLECTION).doc(DOC_ID);
 }
 
 export async function getValeConfig(): Promise<ValeConfig> {
-  if (cached) return cached;
+  if (cached && Date.now() < cacheExpira) return cached;
+  return getValeConfigFresh();
+}
+
+/**
+ * Lee siempre de Firestore, sin pasar por el caché, y lo refresca de
+ * paso. Es lo que usan las pantallas de admin: quien acaba de guardar
+ * tiene que ver lo que guardó, no lo que esta instancia recuerda.
+ */
+export async function getValeConfigFresh(): Promise<ValeConfig> {
 
   const snap = await configDoc().get();
   const stored = snap.exists ? snap.data()?.vigenciaHoras : null;
@@ -36,6 +48,7 @@ export async function getValeConfig(): Promise<ValeConfig> {
         ? stored
         : VALE_VIGENCIA_HORAS_DEFAULT,
   };
+  cacheExpira = Date.now() + TTL_CONFIG_MS;
   return cached;
 }
 

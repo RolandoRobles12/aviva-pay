@@ -2,7 +2,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions/v2";
 import { assertAdmin } from "../../auth/adminGuard";
 import {
-  getFieldDictionary,
+  getFieldDictionaryFresh,
   getFieldDictionaryDefaults,
   setFieldDictionary,
   type FieldDictionary,
@@ -14,7 +14,7 @@ export const adminGetFieldDictionary = onCall(
   async (request) => {
     assertAdmin(request);
     return {
-      campos: await getFieldDictionary(),
+      campos: await getFieldDictionaryFresh(),
       defaults: getFieldDictionaryDefaults(),
     };
   },

@@ -16,7 +16,10 @@ export type StageDateProperties = Record<StageDateKey, string[]>;
  * as fieldDictionaryRepository.ts: an edit in the admin panel takes effect
  * on new function instances rather than instantly.
  */
+import { TTL_CONFIG_MS } from "./configCache";
+
 let cached: StageDateProperties | null = null;
+let cacheExpira = 0;
 
 function doc() {
   return getFirestore().collection(COLLECTION).doc(DOC_ID);
@@ -28,7 +31,16 @@ function doc() {
  * define.
  */
 export async function getStageDateProperties(): Promise<StageDateProperties> {
-  if (cached) return cached;
+  if (cached && Date.now() < cacheExpira) return cached;
+  return getStageDatePropertiesFresh();
+}
+
+/**
+ * Lee siempre de Firestore, sin pasar por el caché, y lo refresca de
+ * paso. Es lo que usan las pantallas de admin: quien acaba de guardar
+ * tiene que ver lo que guardó, no lo que esta instancia recuerda.
+ */
+export async function getStageDatePropertiesFresh(): Promise<StageDateProperties> {
 
   const snap = await doc().get();
   const stored = (snap.exists ? snap.data()?.propiedades : null) ?? {};
@@ -46,6 +58,7 @@ export async function getStageDateProperties(): Promise<StageDateProperties> {
   }
 
   cached = resolved;
+  cacheExpira = Date.now() + TTL_CONFIG_MS;
   return resolved;
 }
 

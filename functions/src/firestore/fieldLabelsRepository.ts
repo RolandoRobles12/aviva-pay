@@ -7,7 +7,10 @@ const DOC_ID = "field_labels";
 export type FieldLabels = Record<FieldLabelKey, string>;
 
 /** Cached for the function instance's lifetime — same trade-off as fieldDictionaryRepository.ts. */
+import { TTL_CONFIG_MS } from "./configCache";
+
 let cached: FieldLabels | null = null;
+let cacheExpira = 0;
 
 function labelsDoc() {
   return getFirestore().collection(COLLECTION).doc(DOC_ID);
@@ -18,7 +21,16 @@ function labelsDoc() {
  * key the stored document doesn't override.
  */
 export async function getFieldLabels(): Promise<FieldLabels> {
-  if (cached) return cached;
+  if (cached && Date.now() < cacheExpira) return cached;
+  return getFieldLabelsFresh();
+}
+
+/**
+ * Lee siempre de Firestore, sin pasar por el caché, y lo refresca de
+ * paso. Es lo que usan las pantallas de admin: quien acaba de guardar
+ * tiene que ver lo que guardó, no lo que esta instancia recuerda.
+ */
+export async function getFieldLabelsFresh(): Promise<FieldLabels> {
 
   const snap = await labelsDoc().get();
   const stored = (snap.exists ? snap.data()?.etiquetas : null) ?? {};
@@ -32,6 +44,7 @@ export async function getFieldLabels(): Promise<FieldLabels> {
   }
 
   cached = resolved;
+  cacheExpira = Date.now() + TTL_CONFIG_MS;
   return resolved;
 }
 

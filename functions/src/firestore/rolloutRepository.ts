@@ -24,14 +24,26 @@ export interface RolloutConfig {
   fechaRollout: string | null;
 }
 
+import { TTL_CONFIG_MS } from "./configCache";
+
 let cached: RolloutConfig | null = null;
+let cacheExpira = 0;
 
 function rolloutDoc() {
   return getFirestore().collection(COLLECTION).doc(DOC_ID);
 }
 
 export async function getRollout(): Promise<RolloutConfig> {
-  if (cached) return cached;
+  if (cached && Date.now() < cacheExpira) return cached;
+  return getRolloutFresh();
+}
+
+/**
+ * Lee siempre de Firestore, sin pasar por el caché, y lo refresca de
+ * paso. Es lo que usan las pantallas de admin: quien acaba de guardar
+ * tiene que ver lo que guardó, no lo que esta instancia recuerda.
+ */
+export async function getRolloutFresh(): Promise<RolloutConfig> {
 
   const snap = await rolloutDoc().get();
   const stored = snap.exists ? snap.data()?.fechaRollout : null;
@@ -39,6 +51,7 @@ export async function getRollout(): Promise<RolloutConfig> {
   cached = {
     fechaRollout: typeof stored === "string" && stored.trim() ? stored : null,
   };
+  cacheExpira = Date.now() + TTL_CONFIG_MS;
   return cached;
 }
 
