@@ -41,6 +41,25 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Vales de un solo uso y su bitácora de lecturas. Nada de esto se lee
+    // desde el cliente: la caja valida por Cloud Function (validarVale),
+    // que además exige sesión de tienda y registra el intento. Si la
+    // colección fuera legible, una tienda podría enumerar los vales de
+    // otras — justo lo que el mecanismo intenta impedir.
+    match /paydesk_vales/{codigo} {
+      allow read, write: if false;
+
+      match /lecturas/{lecturaId} {
+        allow read, write: if false;
+      }
+    }
+
+    // Intentos contra códigos que no existen. Solo Aviva los mira, y a
+    // través de las funciones.
+    match /paydesk_vale_intentos/{intentoId} {
+      allow read, write: if false;
+    }
+
     // Field dictionary: read and written only through the admin Cloud
     // Functions, which check the `admin` claim.
     match /paydesk_config/{document} {

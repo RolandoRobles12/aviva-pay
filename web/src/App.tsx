@@ -4,6 +4,8 @@ import { RestablecerContrasenaPage } from "./pages/RestablecerContrasenaPage";
 import { ConcesionarioLayout } from "./pages/ConcesionarioLayout";
 import { SolicitudesPage } from "./pages/SolicitudesPage";
 import { ReportePage } from "./pages/ReportePage";
+import { ValidarCodigoPage } from "./pages/ValidarCodigoPage";
+import { ValePage } from "./pages/ValePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { RequireAuth } from "./components/RequireAuth";
 import { AdminLoginPage } from "./pages/admin/AdminLoginPage";
@@ -14,6 +16,7 @@ import { EtapaFechasPage } from "./pages/admin/EtapaFechasPage";
 import { AdminsPage } from "./pages/admin/AdminsPage";
 import { ConcesionarioPreviewPage } from "./pages/admin/ConcesionarioPreviewPage";
 import { EtiquetasPage } from "./pages/admin/EtiquetasPage";
+import { ValesPage } from "./pages/admin/ValesPage";
 
 export function App() {
   return (
@@ -21,6 +24,10 @@ export function App() {
       {/* Concesionario */}
       <Route path="/" element={<LoginPage />} />
       <Route path="/restablecer" element={<RestablecerContrasenaPage />} />
+
+      {/* Cliente final: sin sesión — el token de la URL es lo que autoriza.
+          Es el link que HubSpot le manda por WhatsApp. */}
+      <Route path="/vale/:token" element={<ValePage />} />
       <Route
         path="/solicitudes"
         element={
@@ -30,6 +37,7 @@ export function App() {
         }
       >
         <Route index element={<SolicitudesPage />} />
+        <Route path="validar" element={<ValidarCodigoPage />} />
         <Route path="reporte" element={<ReportePage />} />
       </Route>
 
@@ -48,6 +56,7 @@ export function App() {
         <Route path="diccionario" element={<DiccionarioPage />} />
         <Route path="etapas-fecha" element={<EtapaFechasPage />} />
         <Route path="etiquetas" element={<EtiquetasPage />} />
+        <Route path="vales" element={<ValesPage />} />
         <Route path="administradores" element={<AdminsPage />} />
       </Route>
 

@@ -1841,3 +1841,333 @@ h3 {
 .sort-header--desc .sort-header__arrow--down {
   color: var(--verde-accion);
 }
+
+/* --- Vale de un solo uso -------------------------------------------------
+   Tres superficies nuevas: el vale del cliente (pública, sin sesión), la
+   caja de la tienda y la pantalla de vales del panel. Las tres comparten
+   la misma paleta de estado: Esmeralda para lo que procede, Ámbar para lo
+   recuperable, Rojo para lo que frena la entrega. */
+
+.vale-page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 2rem 1rem 3rem;
+}
+
+.vale-card {
+  width: 100%;
+  max-width: 26rem;
+  background: var(--blanco);
+  border-radius: 1.5rem;
+  overflow: hidden;
+  box-shadow: 0 6px 28px rgb(11 27 43 / 12%);
+}
+
+/* Un vale usado, vencido o reemplazado sigue mostrando sus datos, pero sin
+   código: lo que no debe pasar es que alguien lo enseñe en la caja creyendo
+   que sirve. */
+.vale-card--inactivo {
+  opacity: 0.92;
+}
+
+/* El lockup nunca va sobre superficie clara (manual de marca), así que la
+   cabecera del vale carga el Verde Marca igual que la barra de la app. */
+.vale-card__header {
+  background: var(--verde-marca);
+  padding: 1.25rem 1.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.vale-card__tipo {
+  color: var(--blanco);
+  opacity: 0.85;
+  font-size: 0.85rem;
+  align-self: flex-end;
+}
+
+.vale-card__cuerpo {
+  padding: 1.5rem;
+}
+
+.vale-card__etiqueta {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--negro-off) 60%, transparent);
+}
+
+.vale-card__monto {
+  margin: 0.25rem 0 0;
+  font-size: 2.5rem;
+  font-weight: 800;
+  line-height: 1.1;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.vale-card__divisa {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--negro-off) 60%, transparent);
+}
+
+.vale-card__datos,
+.vale-resultado__datos,
+.vales-datos {
+  margin: 1.25rem 0 0;
+  display: grid;
+  gap: 0.5rem;
+  border-top: 1px solid var(--gris-frio);
+  padding-top: 1rem;
+}
+
+.vale-card__datos > div,
+.vale-resultado__datos > div,
+.vales-datos > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.vale-card__datos dt,
+.vale-resultado__datos dt,
+.vales-datos dt {
+  margin: 0;
+  font-size: 0.82rem;
+  color: color-mix(in srgb, var(--negro-off) 60%, transparent);
+}
+
+.vale-card__datos dd,
+.vale-resultado__datos dd,
+.vales-datos dd {
+  margin: 0;
+  font-weight: 700;
+  text-align: right;
+}
+
+.vales-datos__url {
+  font-size: 0.78rem;
+  font-weight: 500;
+  word-break: break-all;
+}
+
+/* El recuadro del código: fondo blanco y buen contraste porque lo que se
+   escanea es esta zona, a veces desde la pantalla del celular. */
+.vale-card__codigo {
+  margin-top: 1.25rem;
+  padding: 1rem 0.75rem 0.75rem;
+  border: 1.5px solid var(--gris-frio);
+  border-radius: 1rem;
+  background: var(--blanco);
+  color: var(--negro-off);
+  text-align: center;
+}
+
+.codigo-barras {
+  display: block;
+}
+
+.vale-card__digitos {
+  margin: 0.5rem 0 0;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: 0.35em;
+  /* El letter-spacing deja un hueco a la derecha del último dígito que
+     descentra el número respecto al código de barras. */
+  text-indent: 0.35em;
+}
+
+.vale-card__chips,
+.vale-resultado__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.vale-chip {
+  display: inline-block;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.vale-chip--verde {
+  background: var(--verde-esmeralda);
+  color: var(--verde-musgo);
+}
+
+.vale-chip--ambar {
+  background: var(--ambar-suave);
+  color: var(--ambar);
+}
+
+.vale-card__nota,
+.vale-card__inactivo {
+  margin: 1rem 0 0;
+  font-size: 0.85rem;
+  color: color-mix(in srgb, var(--negro-off) 65%, transparent);
+}
+
+.vale-card__inactivo {
+  font-weight: 700;
+  color: var(--ambar);
+}
+
+/* --- Caja de la tienda --- */
+
+.validar {
+  display: grid;
+  gap: 1.25rem;
+  max-width: 44rem;
+}
+
+.validar-captura {
+  background: var(--blanco);
+  border: 1.5px solid var(--gris-frio);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.validar-captura label {
+  font-weight: 700;
+}
+
+.validar-captura__fila,
+.vales-fila {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.vales-fila--entre {
+  justify-content: space-between;
+}
+
+.validar-captura__fila button,
+.vales-fila button {
+  flex: 0 0 auto;
+}
+
+/* El campo del código: monoespaciado y espaciado, para que un dígito mal
+   tecleado se vea a simple vista antes de darle Validar. */
+.validar-captura__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--verde-accion);
+  border-radius: 0.75rem;
+  background: var(--blanco);
+  color: var(--negro-off);
+}
+
+.vale-resultado {
+  background: var(--blanco);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  border-top: 8px solid var(--verde-accion);
+  box-shadow: 0 6px 24px rgb(11 27 43 / 8%);
+}
+
+.vale-resultado--ambar {
+  border-top-color: var(--ambar);
+}
+
+.vale-resultado--rojo {
+  border-top-color: #b3261e;
+}
+
+.vale-resultado__titulo {
+  margin: 0 0 0.5rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.vale-resultado__detalle {
+  margin: 0 0 1rem;
+  color: color-mix(in srgb, var(--negro-off) 70%, transparent);
+}
+
+.vale-resultado__etiqueta {
+  margin: 1rem 0 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--negro-off) 60%, transparent);
+}
+
+.vale-resultado__monto {
+  margin: 0;
+  font-size: 2.75rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+/* Qué hacer va en negritas y en lista: es lo único que el cajero tiene que
+   leer completo, y tiene que poder hacerlo de un vistazo. */
+.vale-resultado__accion {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-weight: 700;
+}
+
+.vale-resultado__confirmar {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--gris-frio);
+  display: grid;
+  gap: 0.5rem;
+}
+
+.vale-resultado__confirmar label {
+  font-weight: 700;
+}
+
+/* --- Panel: vales --- */
+
+.vales-card {
+  background: var(--blanco);
+  border: 1.5px solid var(--gris-frio);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  margin-bottom: 1.25rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.vales-card h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.vales-card input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--gris-frio);
+  border-radius: 0.6rem;
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+.vales-card input:focus {
+  outline: 2px solid var(--verde-accion);
+  outline-offset: 1px;
+}

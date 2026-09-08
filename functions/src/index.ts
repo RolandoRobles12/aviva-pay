@@ -9,6 +9,11 @@ export { syncDealWebhook } from "./http/syncDealWebhook";
 export { getConcesionarioDeals } from "./http/getConcesionarioDeals";
 export { uploadCotizacion } from "./http/uploadCotizacion";
 export { uploadComprobante } from "./http/uploadComprobante";
+export { validarVale } from "./http/validarVale";
+export { confirmarDisposicion } from "./http/confirmarDisposicion";
+
+// --- Cliente final (sin sesión: el token de la URL es lo que autoriza) ---
+export { getVale } from "./http/getVale";
 
 // --- Admin (Firebase Auth email/password + `admin` claim) ---
 export { adminListConcesionarios } from "./http/admin/listConcesionarios";
@@ -32,3 +37,9 @@ export { adminUploadCotizacion } from "./http/admin/uploadCotizacion";
 export { adminUploadComprobante } from "./http/admin/uploadComprobante";
 export { adminSyncConstrurama } from "./http/admin/syncConstrurama";
 export { adminGetRollout, adminSetRollout } from "./http/admin/rollout";
+export {
+  adminGetVale,
+  adminReemitirVale,
+  adminGetValeConfig,
+  adminSetValeConfig,
+} from "./http/admin/vales";

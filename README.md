@@ -41,9 +41,10 @@ npm run dev:web
 
 Rutas:
 
-- `/` — login de la tienda (código + NIP)
-- `/solicitudes` — tabla de clientes de la tienda
-- `/admin` — login del equipo de Aviva; `/admin/tiendas`, `/admin/diccionario` y `/admin/administradores`
+- `/` — login de la tienda (correo + contraseña)
+- `/solicitudes` — tabla de clientes de la tienda; `/solicitudes/validar` valida el vale del cliente en la caja
+- `/vale/:token` — el vale del cliente final, sin sesión (le llega por WhatsApp)
+- `/admin` — login del equipo de Aviva; `/admin/tiendas`, `/admin/diccionario`, `/admin/vales` y `/admin/administradores`
 
 Para probar en local hace falta al menos una tienda en el emulador (`paydesk_concesionarios`) con NIP generado, y una cuenta de admin con el claim `admin` — ver `docs/ARCHITECTURE.md`.
 

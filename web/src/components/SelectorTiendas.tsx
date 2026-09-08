@@ -113,7 +113,6 @@ export function SelectorTiendas({
               </span>
               <span className="store-menu__texto">
                 <strong>{c.nombre}</strong>
-                {c.numero && <small>Tienda {c.numero}</small>}
               </span>
               <span className="store-menu__conteo">
                 {deals.filter((d) => d.concesionarioId === c.concesionarioId).length}
