@@ -60,11 +60,15 @@ export const HUBSPOT_DEAL_PROPERTIES = {
   // CRM y (b) el workflow de HubSpot mande la liga por WhatsApp. La
   // disposición confirmada por la tienda regresa por los otros tres.
   //
-  // TODO: confirmar los nombres internos con el admin de HubSpot. Mientras
-  // sigan como TODO_, updateDealProperties los salta con un warn en vez de
-  // tumbar el resto de la escritura — ver hubspot/deals.ts.
+  // `valeUrl` ya está mapeada a la propiedad real: es la que el workflow
+  // de HubSpot lee para mandarle al cliente la liga por WhatsApp.
+  //
+  // TODO: faltan las otras cuatro. Mientras sigan como TODO_,
+  // updateDealProperties las salta con un warn en vez de tumbar el resto de
+  // la escritura — ver hubspot/deals.ts — así que la liga sí llega a
+  // HubSpot aunque las demás todavía no existan.
   valeCodigo: "TODO_vale_codigo",
-  valeUrl: "TODO_vale_url",
+  valeUrl: "link_codigo_paydesk",
   valeEstado: "TODO_vale_estado",
   valeMontoDispuesto: "TODO_vale_monto_dispuesto",
   valeFechaDisposicion: "TODO_vale_fecha_disposicion",
