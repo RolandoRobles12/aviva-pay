@@ -5,6 +5,7 @@ import { ConcesionarioLayout } from "./pages/ConcesionarioLayout";
 import { SolicitudesPage } from "./pages/SolicitudesPage";
 import { ReportePage } from "./pages/ReportePage";
 import { ValidarCodigoPage } from "./pages/ValidarCodigoPage";
+import { CanceladasPage } from "./pages/CanceladasPage";
 import { ValePage } from "./pages/ValePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { RequireAuth } from "./components/RequireAuth";
@@ -39,6 +40,7 @@ export function App() {
       >
         <Route index element={<SolicitudesPage />} />
         <Route path="validar" element={<ValidarCodigoPage />} />
+        <Route path="canceladas" element={<CanceladasPage />} />
         <Route path="reporte" element={<ReportePage />} />
       </Route>
 

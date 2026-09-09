@@ -133,6 +133,23 @@ export function ReporteValesPage() {
             ]}
           />
 
+          {/* De los que murieron sin usarse: quién ni llegó, y quién llegó
+              y no se completó. Son problemas distintos y se atacan
+              distinto — uno antes de la tienda, otro en la caja. */}
+          <StatTiles
+            stats={[
+              {
+                label: "Murieron sin que el cliente llegara",
+                value: String(reporte.sinUsar.nuncaLeidos),
+              },
+              {
+                label: "Llegó y no se completó",
+                value: String(reporte.sinUsar.leidosSinUsar),
+                tone: reporte.sinUsar.leidosSinUsar > 0 ? "accion" : "neutral",
+              },
+            ]}
+          />
+
           <h2 className="admin-title admin-title--secondary">Por tienda</h2>
           <div className="deals-table-wrapper">
             <table className="deals-table">

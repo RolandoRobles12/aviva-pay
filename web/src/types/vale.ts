@@ -52,6 +52,8 @@ export interface ValeAdmin {
 /** Los totales del reporte de vales (ver functions/src/http/admin/valeReporte.ts). */
 export interface ValeReporte {
   totales: { vigente: number; utilizado: number; vencido: number; cancelado: number };
+  /** De los que murieron sin usarse: ¿el cliente llegó al mostrador o no? */
+  sinUsar: { nuncaLeidos: number; leidosSinUsar: number };
   montos: {
     autorizadoDeUtilizados: number;
     dispuesto: number;

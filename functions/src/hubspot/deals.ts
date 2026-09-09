@@ -182,6 +182,7 @@ function mapDealProperties(
     ),
 
     desembolsoFecha: stageDate("desembolsoFecha"),
+    canceladoFecha: stageDate("canceladoFecha"),
   };
 
   return { deal, pipelineId: props["pipeline"] ?? null };

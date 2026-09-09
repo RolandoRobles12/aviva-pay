@@ -54,7 +54,29 @@ export interface PayDeskDeal {
   comprobanteFechaEntrega: string | null; // ISO date
   comprobanteFirmaClienteConfirmada: boolean | null;
 
-  desembolsoFecha: string | null; // ISO date
+  desembolsoFecha: string | null; // ISO
+
+  /** Cuándo entró el deal a la etapa de cancelación, según HubSpot. */
+  canceladoFecha: string | null; // ISO date
+  /**
+   * Qué alcanzó a pasar con el vale antes de que el crédito muriera.
+   *
+   * Es la única distinción honesta entre "cancelado" y "expirado": la
+   * expiración no tiene etapa propia en HubSpot, así que Paydesk no puede
+   * saber el motivo. Lo que sí sabe de cierto es si el cliente llegó al
+   * mostrador — y eso responde mejor la pregunta:
+   *
+   * - `nunca-leido` — nadie escaneó el vale. El cliente no llegó.
+   * - `leido-sin-usar` — llegó, y algo falló en la caja. Este caso no lo
+   *   capturaba ninguna de las dos etiquetas y es el más revelador.
+   * - `utilizado` — alcanzó a disponer antes de la cancelación; hay
+   *   material entregado.
+   * - `sin-vale` — el crédito murió antes de que se emitiera vale.
+   *
+   * Se resuelve al cancelar y ya no cambia: un vale cancelado no se puede
+   * volver a usar.
+   */
+  valeResumen: "nunca-leido" | "leido-sin-usar" | "utilizado" | "sin-vale" | null;
 
   actualizadoEn: FirebaseFirestore.Timestamp;
   creadoEn: FirebaseFirestore.Timestamp;
@@ -114,5 +136,5 @@ export interface PayDeskConcesionarioPublico {
  */
 export type DealSincronizado = Omit<
   PayDeskDeal,
-  "actualizadoEn" | "creadoEn" | "cancelado"
+  "actualizadoEn" | "creadoEn" | "cancelado" | "valeResumen"
 >;

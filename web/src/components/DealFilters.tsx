@@ -6,8 +6,7 @@ export type FiltroEstado =
   | "requieren-accion"
   | "en-proceso"
   | "completadas"
-  | "historicas"
-  | "canceladas";
+  | "historicas";
 
 export type FiltroPeriodo =
   | "hoy"
@@ -63,11 +62,6 @@ const ESTADOS: Array<{ id: FiltroEstado; label: string; hint: string }> = [
     id: "historicas",
     label: "Anteriores",
     hint: "Cerraron antes de que tu tienda empezara a usar Paydesk",
-  },
-  {
-    id: "canceladas",
-    label: "Canceladas",
-    hint: "El crédito se canceló o expiró — su vale ya no sirve",
   },
 ];
 
@@ -148,13 +142,11 @@ export function aplicarFiltros(
       if (hasta && dia > hasta) return false;
     }
 
-    // Un crédito cancelado o expirado sale de todas las demás listas: no
+    // Un crédito cancelado o expirado sale de todas las listas de aquí: no
     // hay nada que la tienda pueda hacer con él, y dejarlo mezclado entre
-    // los vivos hace que se le siga ofreciendo trabajo por una solicitud
-    // muerta. Pero tampoco desaparece sin más — vive en su propia lista,
-    // porque una fila que se esfuma sin explicación se lee como un error
-    // del sistema y termina en una llamada a soporte.
-    if (filtros.estado === "canceladas") return deal.cancelado === true;
+    // los vivos le sigue ofreciendo trabajo por una solicitud muerta. No
+    // desaparece — vive en su propia pestaña (CanceladasPage), que tiene
+    // las columnas que ese caso sí necesita.
     if (deal.cancelado) return false;
 
     switch (filtros.estado) {
@@ -194,7 +186,6 @@ function conteos(deals: PayDeskDeal[], rolloutPorTienda: RolloutMap) {
         !estaCompleta(d) &&
         !requiereAccion(d, rolloutPorTienda),
     ).length,
-    canceladas: deals.filter((d) => d.cancelado === true).length,
   } satisfies Record<FiltroEstado, number>;
 }
 

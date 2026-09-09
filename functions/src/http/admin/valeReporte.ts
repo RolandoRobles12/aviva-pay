@@ -58,6 +58,14 @@ export const adminValeReporte = onCall({ region: "us-central1" }, async (request
   let montoAutorizadoUtilizado = 0;
   let montoDispuesto = 0;
   let montoNuncaGastado = 0;
+  // Entre los que murieron sin usarse, ¿el cliente llegó siquiera al
+  // mostrador? Es el corte que cambia qué se hace al respecto: si casi
+  // nadie llegó, el problema está antes de la tienda y se ataca con
+  // recordatorios; si llegaron y no se completó, el problema está en la
+  // caja. La expiración no tiene etapa propia en HubSpot, así que este
+  // hecho es lo más cerca que se puede estar del motivo sin inventarlo.
+  let muertosNuncaLeidos = 0;
+  let muertosLeidosSinUsar = 0;
 
   const porTienda = new Map<
     string,
@@ -101,6 +109,8 @@ export const adminValeReporte = onCall({ region: "us-central1" }, async (request
     if (estado === "vencido" || (estado === "cancelado" && !vale.reemplazaA)) {
       montoNuncaGastado += vale.montoAutorizado ?? 0;
       fila.montoNuncaGastado += vale.montoAutorizado ?? 0;
+      if (vale.lecturasTotal > 0) muertosLeidosSinUsar += 1;
+      else muertosNuncaLeidos += 1;
     }
 
     porTienda.set(vale.concesionarioId, fila);
@@ -108,6 +118,10 @@ export const adminValeReporte = onCall({ region: "us-central1" }, async (request
 
   return {
     totales,
+    sinUsar: {
+      nuncaLeidos: muertosNuncaLeidos,
+      leidosSinUsar: muertosLeidosSinUsar,
+    },
     montos: {
       autorizadoDeUtilizados: montoAutorizadoUtilizado,
       dispuesto: montoDispuesto,

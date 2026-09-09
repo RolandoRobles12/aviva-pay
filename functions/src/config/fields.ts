@@ -54,6 +54,12 @@ export const HUBSPOT_DEAL_PROPERTIES = {
   // --- Desembolso ---
   desembolsoFecha: "TODO_desembolso_fecha",
 
+  // --- Cancelación ---
+  // Cuándo murió el crédito. Es la fecha en que el deal entró a la etapa
+  // de cancelación, calculada por HubSpot: preguntarle a él evita que
+  // Paydesk tenga que inventar un "cuándo me enteré", que no es lo mismo.
+  canceladoFecha: "hs_v2_date_entered_1341580192",
+
   // --- Vale de un solo uso ---
   // El código que el cliente presenta en la caja y su liga, escritos de
   // vuelta al deal para que (a) el equipo de Aviva los vea sin salir del
@@ -120,6 +126,7 @@ export const FIELD_LABELS: Partial<Record<HubspotDealPropertyKey, string>> = {
   comprobanteFirmaClienteConfirmada:
     "Confirma que el cliente firmó el documento de entrega",
   desembolsoFecha: "Desembolso del crédito",
+  canceladoFecha: "Fecha de cancelación",
 } as const;
 
 export type FieldLabelKey = keyof typeof FIELD_LABELS;
@@ -180,6 +187,7 @@ export const STAGE_DATE_KEYS = [
   "creditoLiberadoFecha",
   "disposicionCreditoFecha",
   "desembolsoFecha",
+  "canceladoFecha",
 ] as const;
 
 export type StageDateKey = (typeof STAGE_DATE_KEYS)[number];
@@ -207,6 +215,9 @@ export const STAGE_DATE_EXTRA_PROPERTIES_DEFAULT: Record<StageDateKey, string[]>
   creditoLiberadoFecha: ["hs_v2_date_entered_33642516"],
   disposicionCreditoFecha: ["hs_v2_date_entered_171655337"],
   desembolsoFecha: ["hs_v2_date_entered_33823866"],
+  // Precancelación como respaldo: un deal puede morir ahí y no llegar
+  // nunca a Cancelado, y para la tienda igual está muerto.
+  canceladoFecha: ["hs_v2_date_entered_1341580191"],
 };
 
 

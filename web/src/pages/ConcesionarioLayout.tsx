@@ -200,6 +200,7 @@ export function ConcesionarioLayout() {
           Mis clientes
         </NavLink>
         <NavLink to="/solicitudes/validar">Validar código</NavLink>
+        <NavLink to="/solicitudes/canceladas">Canceladas</NavLink>
         <NavLink to="/solicitudes/reporte">Reporte</NavLink>
       </nav>
 

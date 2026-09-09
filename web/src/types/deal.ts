@@ -19,6 +19,10 @@ export interface PayDeskDeal {
   concesionarioId: string | null;
   /** El crédito ya no existe: el deal entró a una etapa de cancelación en HubSpot. Lo resuelve el sync. */
   cancelado?: boolean;
+  /** Cuándo entró a la etapa de cancelación, según HubSpot. */
+  canceladoFecha?: string | null;
+  /** Qué alcanzó a pasar con el vale antes de morir — ver CanceladasPage. */
+  valeResumen?: "nunca-leido" | "leido-sin-usar" | "utilizado" | "sin-vale" | null;
   kiosco: string | null;
   cliente: string | null;
   fechaSolicitud: string | null;
