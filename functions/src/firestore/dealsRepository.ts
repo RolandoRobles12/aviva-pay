@@ -1,7 +1,8 @@
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { formatKioscoDisplay } from "../concesionario/identity";
 import { ensureConcesionario } from "./concesionariosRepository";
-import type { PayDeskDeal } from "../types/deal";
+import { getCancelStages } from "./cancelStagesRepository";
+import type { DealSincronizado, PayDeskDeal } from "../types/deal";
 
 const COLLECTION = "paydesk_deals";
 
@@ -68,7 +69,7 @@ export async function getDealsByConcesionarioIds(
  * was never uploaded through Paydesk at all.
  */
 export async function upsertDealFromHubspot(
-  data: Omit<PayDeskDeal, "actualizadoEn" | "creadoEn">,
+  data: DealSincronizado,
 ): Promise<{ isNewConcesionario: boolean }> {
   const dealRef = dealsCollection().doc(data.dealId);
   const existingDeal = await dealRef.get();
@@ -76,9 +77,17 @@ export async function upsertDealFromHubspot(
 
   const { cotizacionUrl, comprobanteUrl, ...syncedFromHubspot } = data;
 
+  // Se resuelve aquí, en el único punto por donde pasan tanto el webhook
+  // como el backfill, para que las dos rutas coincidan siempre.
+  const etapasCanceladas = await getCancelStages();
+  const cancelado = Boolean(
+    data.dealstage && etapasCanceladas.includes(data.dealstage),
+  );
+
   await dealRef.set(
     {
       ...syncedFromHubspot,
+      cancelado,
       cotizacionUrl: existing?.cotizacionUrl ?? cotizacionUrl,
       comprobanteUrl: existing?.comprobanteUrl ?? comprobanteUrl,
       actualizadoEn: FieldValue.serverTimestamp(),

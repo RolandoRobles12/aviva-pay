@@ -2012,6 +2012,12 @@ h3 {
   color: var(--ambar);
 }
 
+/* Para lo que no es ni bueno ni preocupante — un dedazo al teclear. */
+.vale-chip--neutro {
+  background: var(--gris-frio);
+  color: color-mix(in srgb, var(--negro-off) 70%, transparent);
+}
+
 .vale-card__nota,
 .vale-card__inactivo {
   margin: 1rem 0 0;
@@ -2266,4 +2272,36 @@ h3 {
   border: 1px solid color-mix(in srgb, var(--ambar) 28%, transparent);
   color: var(--ambar);
   font-weight: 500;
+}
+
+
+/* Las dos filas de cifras del reporte necesitan aire entre ellas y con la
+   tabla que sigue; el StatTiles del portal siempre va solo. */
+.admin-shell__body .stat-tiles {
+  margin-bottom: 1.25rem;
+}
+
+/* --- Canceladas y expiradas ---------------------------------------------
+   Pestaña propia, no un filtro: una solicitud muerta no comparte columnas
+   con la lista viva. */
+
+.canceladas__intro {
+  margin: 0 0 1.25rem;
+  max-width: 60ch;
+  color: color-mix(in srgb, var(--negro-off) 70%, transparent);
+}
+
+/* La explicación va visible, no en un tooltip: en celular no hay hover, y
+   uno de estos casos pide que la tienda haga algo. */
+.canceladas__que-paso {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  align-items: flex-start;
+}
+
+.canceladas__ayuda {
+  font-size: 0.8rem;
+  color: color-mix(in srgb, var(--negro-off) 60%, transparent);
+  max-width: 26ch;
 }

@@ -2,6 +2,7 @@ import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
 import { generarCodigo, generarToken } from "../vale/codigo";
 import type {
   PayDeskVale,
+  ValeIntentoFallido,
   ValeEstado,
   ValeMedioLectura,
   ValeResultadoLectura,
@@ -200,6 +201,7 @@ export async function registrarLectura(
 /** Un intento contra un código que no existe: no hay vale al que colgarlo. */
 export async function registrarIntentoFallido(intento: {
   codigo: string;
+  motivo: "no-existe" | "otra-tienda";
   medio: ValeMedioLectura;
   concesionarioId: string | null;
   uid: string;
@@ -247,4 +249,32 @@ export async function consumirVale(
       consumidoEn: Timestamp.now(),
     };
   });
+}
+
+
+/** Los intentos sospechosos más recientes, para la pantalla de Aviva. */
+export async function listarIntentosFallidos(
+  limite = 100,
+): Promise<Array<Omit<ValeIntentoFallido, "en"> & { en: string | null }>> {
+  const snap = await getFirestore()
+    .collection(INTENTOS)
+    .orderBy("en", "desc")
+    .limit(limite)
+    .get();
+
+  return snap.docs.map((doc) => {
+    const datos = doc.data() as ValeIntentoFallido;
+    return { ...datos, en: datos.en?.toDate().toISOString() ?? null };
+  });
+}
+
+/**
+ * Todos los vales, para el reporte. Sin paginar a propósito: son cientos,
+ * no millones, y el reporte necesita el conjunto completo para poder
+ * contar. Si algún día crece, aquí es donde hay que meter el filtro por
+ * fecha antes de traerlos.
+ */
+export async function listarVales(): Promise<PayDeskVale[]> {
+  const snap = await valesCollection().get();
+  return snap.docs.map((doc) => doc.data() as PayDeskVale);
 }

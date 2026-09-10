@@ -16,7 +16,7 @@ import {
   deriveConcesionarioId,
   parseKioscoValue,
 } from "../concesionario/identity";
-import type { PayDeskDeal, UploadStatus } from "../types/deal";
+import type { DealSincronizado, UploadStatus } from "../types/deal";
 
 type RawProperties = Record<string, string | null | undefined>;
 
@@ -94,6 +94,7 @@ async function allDealProperties(): Promise<{
       ...Object.values(dictionary),
       ...Object.values(stageDateExtras).flat(),
       "pipeline",
+      "dealstage",
     ],
   };
 }
@@ -129,7 +130,7 @@ function mapDealProperties(
   p: Awaited<ReturnType<typeof getFieldDictionary>>,
   stageDateExtras: StageDateProperties,
 ): {
-  deal: Omit<PayDeskDeal, "actualizadoEn" | "creadoEn">;
+  deal: DealSincronizado;
   pipelineId: string | null;
 } {
   const kiosco = parseKioscoValue(props[p.kiosco]);
@@ -149,6 +150,7 @@ function mapDealProperties(
 
   const deal = {
     dealId,
+    dealstage: props["dealstage"] ?? null,
     concesionarioId: kiosco.primary
       ? deriveConcesionarioId(kiosco.primary)
       : null,
@@ -180,6 +182,7 @@ function mapDealProperties(
     ),
 
     desembolsoFecha: stageDate("desembolsoFecha"),
+    canceladoFecha: stageDate("canceladoFecha"),
   };
 
   return { deal, pipelineId: props["pipeline"] ?? null };
@@ -190,7 +193,7 @@ function mapDealProperties(
  * Returns null if the deal doesn't exist.
  */
 export async function fetchDealById(dealId: string): Promise<{
-  deal: Omit<PayDeskDeal, "actualizadoEn" | "creadoEn">;
+  deal: DealSincronizado;
   pipelineId: string | null;
 } | null> {
   const hubspot = getHubspotClient();
@@ -241,7 +244,7 @@ const SEARCH_PAGE_SIZE = 100;
  */
 export async function searchConstruramaDeals(): Promise<
   Array<{
-    deal: Omit<PayDeskDeal, "actualizadoEn" | "creadoEn">;
+    deal: DealSincronizado;
     pipelineId: string | null;
   }>
 > {
@@ -279,7 +282,7 @@ export async function searchConstruramaDeals(): Promise<
   }));
 
   const results: Array<{
-    deal: Omit<PayDeskDeal, "actualizadoEn" | "creadoEn">;
+    deal: DealSincronizado;
     pipelineId: string | null;
   }> = [];
 

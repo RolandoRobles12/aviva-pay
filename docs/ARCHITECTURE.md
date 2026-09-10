@@ -83,6 +83,50 @@ Cuando el código es de otra tienda, la respuesta no trae nada del vale — ni c
 
 El costo es que el cajero se queda sin saber a dónde mandar al cliente; se compensa con la salida "el cliente pide a Aviva que lo reasignen". Es un intercambio deliberado entre privacidad entre tiendas y comodidad en el mostrador.
 
+### Cuándo muere
+
+Un crédito cancelado tiene que llevarse su vale por delante, y ese era un hueco abierto: el vale guarda su propia copia del monto y nunca vuelve a consultar el deal, así que sin nadie que lo apague, Aviva cancelaba un crédito y la caja seguía validando el vale como bueno. La tienda entregaba material contra un crédito que ya no existía.
+
+La señal es la **etapa de HubSpot** — confirmado con el negocio: no hay cancelación sin movimiento de etapa, e incluye la expiración a 30 días de la aprobación. La lista de etapas (`Precancelación` y `Cancelado` del pipeline actual, más la equivalente del viejo) vive en Firestore y se edita desde `/admin/reporte-vales`.
+
+**Precancelación cuenta como cancelación**, aunque sea un paso previo, porque los costos no son simétricos: matar un vale de más se arregla reemitiéndolo; dejarlo vivo de más es material entregado contra un crédito que Aviva ya está retirando, y eso no se deshace.
+
+Hay dos capas, a propósito:
+
+1. **El sync** (`cancelarValeSiElDealSeCancelo`) apaga el vale en cuanto el deal entra a una de esas etapas. Va **antes** de emitir en `syncDealWebhook`: si un deal llegara con etapa cancelada y fecha de crédito liberado a la vez, emitir primero crearía un vale vivo para un crédito muerto.
+2. **La caja** vuelve a revisar la etapa del deal al validar y al confirmar (`dealEstaCancelado`), y apaga el vale ahí mismo si hace falta. Esto depende de que el workflow de HubSpot dispare en las etapas de cancelación; si algún día se desconfigura, el hueco se reabriría en silencio y la primera señal sería una tienda entregando material. Cuesta una lectura de Firestore en una operación que ocurre pocas veces al día, y es el camino por el que se entrega dinero.
+
+El deal también guarda `cancelado` ya resuelto, para que la tabla de la tienda —que se alimenta de un listener directo a Firestore— no necesite conocer los ids de etapa.
+
+### Canceladas y expiradas: por qué no se dice el motivo
+
+Las solicitudes muertas salen de todas las listas vivas y viven en su propia pestaña (`/solicitudes/canceladas`), con su propia tabla. No es un filtro más: una solicitud muerta no comparte columnas con una viva — no tiene barra de avance ni documentos por subir, y enseñárselos le sugiere a la tienda trabajo que ya no existe. Pero tampoco desaparece sin más, porque una fila que se esfuma se lee como un error del sistema y termina en una llamada a soporte.
+
+**Paydesk no distingue "cancelado" de "expirado", a propósito.** La expiración a 30 días no tiene etapa propia en HubSpot — confirmado con el negocio — así que ambas caen en la misma etapa y el motivo no es un dato que exista. Derivarlo de la fecha metería la regla de los 30 días en un segundo lugar que puede discrepar del primero.
+
+En su lugar se reporta un hecho que sí consta: **qué alcanzó a pasar con el vale antes de morir** (`valeResumen`, resuelto al cancelar y ya inmutable, porque un vale cancelado no se puede usar).
+
+| Valor | Qué significa en el mostrador |
+|---|---|
+| `nunca-leido` | Nadie escaneó el código. El cliente no llegó — que es lo que "expirado" significa en la práctica. |
+| `leido-sin-usar` | Llegó y algo falló en la caja. **Este caso no lo capturaba ninguna de las dos etiquetas** y es el más revelador. |
+| `utilizado` | Se entregó material antes de la cancelación. Va en ámbar, no en verde: es el único de la lista donde hay material fuera y el crédito que lo respaldaba se canceló después. |
+| `sin-vale` | El crédito murió antes de liberarse. |
+
+El reporte de Aviva corta por lo mismo — cuántos murieron sin que el cliente llegara contra cuántos llegaron y no se completó. Son problemas distintos: el primero se ataca antes de la tienda, con recordatorios; el segundo, en la caja.
+
+La fecha de muerte viene de HubSpot como una sexta fecha de etapa (`canceladoFecha`), con Precancelación de respaldo, editable en `/admin/etapas-fecha` igual que las otras cinco.
+
+### Reporte de vales e intentos sospechosos
+
+`/admin/reporte-vales` responde dos preguntas y muestra una bitácora:
+
+- **Cuánto crédito liberado nunca se gastó** — vales vencidos o cancelados sin usarse. Es la lista para adelantar cancelaciones en vez de esperar a que el plazo corra solo. Un vale cancelado *por reemisión* no cuenta como perdido: lo reemplazó otro, que aparece con su propio estado.
+- **Autorizado contra dispuesto**, para ver dónde se sub-ejerce el crédito. Ese número solo existe en Paydesk: el monto dispuesto no se escribe a HubSpot porque pisaría el de la cotización.
+- **Intentos sospechosos**: códigos que no existen y códigos de otra tienda. Los dos van a `paydesk_vale_intentos` —una colección plana— en vez de dejar el segundo escondido en la subcolección del vale ajeno, que es justo el documento que esa tienda no puede ver. Recolectar esto sin que nadie lo mire no servía de nada; esta es la pantalla que lo hace mirable.
+
+Son conteos actuales y una tabla, no series en el tiempo, así que la forma correcta son mosaicos de cifra y tabla — no hay nada que graficar. Reutiliza el `StatTiles` del portal para que las cifras se lean igual en los dos lados.
+
 ### Cuándo nace y cuándo se reemite
 
 El vale se emite en `syncDealWebhook`, en cuanto el deal trae **fecha de crédito liberado**. Se dispara por esa fecha y no por un id de etapa cableado porque `creditoLiberadoFecha` ya sabe leerse desde varias propiedades de HubSpot a la vez (ver `STAGE_DATE_EXTRA_PROPERTIES_DEFAULT` y `stageDate()`), así que un deal que llega a la etapa por otro camino — o que vive en el pipeline viejo — también dispara el vale, sin mantener una lista de ids en dos lugares.

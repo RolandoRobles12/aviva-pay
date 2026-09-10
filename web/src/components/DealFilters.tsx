@@ -142,6 +142,13 @@ export function aplicarFiltros(
       if (hasta && dia > hasta) return false;
     }
 
+    // Un crédito cancelado o expirado sale de todas las listas de aquí: no
+    // hay nada que la tienda pueda hacer con él, y dejarlo mezclado entre
+    // los vivos le sigue ofreciendo trabajo por una solicitud muerta. No
+    // desaparece — vive en su propia pestaña (CanceladasPage), que tiene
+    // las columnas que ese caso sí necesita.
+    if (deal.cancelado) return false;
+
     switch (filtros.estado) {
       case "requieren-accion":
         return requiereAccion(deal, rolloutPorTienda);
@@ -163,12 +170,17 @@ export function aplicarFiltros(
 
 /** Count per state chip, so each chip can show how many it would leave. */
 function conteos(deals: PayDeskDeal[], rolloutPorTienda: RolloutMap) {
+  // Los cancelados se cuentan aparte y se descuentan de todo lo demás,
+  // igual que hace el filtro: un contador que dice 508 sobre una lista que
+  // enseña 500 hace dudar del número, y del resto de la pantalla con él.
+  const vivos = deals.filter((d) => !d.cancelado);
+
   return {
-    todas: deals.length,
-    "requieren-accion": deals.filter((d) => requiereAccion(d, rolloutPorTienda)).length,
-    completadas: deals.filter(estaCompleta).length,
-    historicas: deals.filter((d) => scopeOf(d, rolloutPorTienda) === "historica").length,
-    "en-proceso": deals.filter(
+    todas: vivos.length,
+    "requieren-accion": vivos.filter((d) => requiereAccion(d, rolloutPorTienda)).length,
+    completadas: vivos.filter(estaCompleta).length,
+    historicas: vivos.filter((d) => scopeOf(d, rolloutPorTienda) === "historica").length,
+    "en-proceso": vivos.filter(
       (d) =>
         scopeOf(d, rolloutPorTienda) === "activa" &&
         !estaCompleta(d) &&

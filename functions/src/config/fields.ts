@@ -54,6 +54,12 @@ export const HUBSPOT_DEAL_PROPERTIES = {
   // --- Desembolso ---
   desembolsoFecha: "TODO_desembolso_fecha",
 
+  // --- Cancelación ---
+  // Cuándo murió el crédito. Es la fecha en que el deal entró a la etapa
+  // de cancelación, calculada por HubSpot: preguntarle a él evita que
+  // Paydesk tenga que inventar un "cuándo me enteré", que no es lo mismo.
+  canceladoFecha: "hs_v2_date_entered_1341580192",
+
   // --- Vale de un solo uso ---
   // El código que el cliente presenta en la caja y su liga, escritos de
   // vuelta al deal para que (a) el equipo de Aviva los vea sin salir del
@@ -120,6 +126,7 @@ export const FIELD_LABELS: Partial<Record<HubspotDealPropertyKey, string>> = {
   comprobanteFirmaClienteConfirmada:
     "Confirma que el cliente firmó el documento de entrega",
   desembolsoFecha: "Desembolso del crédito",
+  canceladoFecha: "Fecha de cancelación",
 } as const;
 
 export type FieldLabelKey = keyof typeof FIELD_LABELS;
@@ -150,14 +157,22 @@ export const HUBSPOT_PRODUCT_FILTER = {
 } as const;
 
 /**
- * Canceled-deal stages, excluded from the backfill entirely — these
- * aren't shown to a store at all. Applies across both pipelines in one
- * list; a deal's `dealstage` only ever matches an id from its own
- * pipeline's stage set, so mixing both pipelines' ids here is harmless.
+ * Las etapas que significan "este crédito ya no existe": Precancelación y
+ * Cancelado en el pipeline actual (`1341580191`, `1341580192`), más la
+ * etapa equivalente del pipeline viejo (`33823869`), donde todavía viven
+ * deals históricos. Un `dealstage` solo puede coincidir con un id de su
+ * propio pipeline, así que mezclar ambos en una lista es inofensivo.
  *
- * TODO: this only keeps canceled deals out of the *initial* sync. Once a
- * deal that's already in Firestore gets canceled afterward, nothing yet
- * removes it from the store's page — a separate feature, not built yet.
+ * Precancelación entra a propósito, aunque sea un paso previo a la
+ * cancelación definitiva: los costos no son simétricos. Matar un vale de
+ * más se arregla reemitiéndolo desde `/admin/vales`; dejarlo vivo de más
+ * significa que la tienda entrega material contra un crédito que Aviva ya
+ * está retirando, y eso no se deshace. Si en la práctica resulta muy
+ * agresivo, se quita desde `/admin/etapas-cancelacion` sin desplegar.
+ *
+ * Estos son los **valores por defecto**: la lista en uso vive en Firestore
+ * y se edita desde el panel — ver firestore/cancelStagesRepository.ts.
+ * También son las etapas que el backfill inicial se salta por completo.
  */
 export const HUBSPOT_EXCLUDED_STAGES = [
   "1341580191",
@@ -172,6 +187,7 @@ export const STAGE_DATE_KEYS = [
   "creditoLiberadoFecha",
   "disposicionCreditoFecha",
   "desembolsoFecha",
+  "canceladoFecha",
 ] as const;
 
 export type StageDateKey = (typeof STAGE_DATE_KEYS)[number];
@@ -199,6 +215,9 @@ export const STAGE_DATE_EXTRA_PROPERTIES_DEFAULT: Record<StageDateKey, string[]>
   creditoLiberadoFecha: ["hs_v2_date_entered_33642516"],
   disposicionCreditoFecha: ["hs_v2_date_entered_171655337"],
   desembolsoFecha: ["hs_v2_date_entered_33823866"],
+  // Precancelación como respaldo: un deal puede morir ahí y no llegar
+  // nunca a Cancelado, y para la tienda igual está muerto.
+  canceladoFecha: ["hs_v2_date_entered_1341580191"],
 };
 
 

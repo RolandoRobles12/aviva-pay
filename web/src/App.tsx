@@ -5,6 +5,7 @@ import { ConcesionarioLayout } from "./pages/ConcesionarioLayout";
 import { SolicitudesPage } from "./pages/SolicitudesPage";
 import { ReportePage } from "./pages/ReportePage";
 import { ValidarCodigoPage } from "./pages/ValidarCodigoPage";
+import { CanceladasPage } from "./pages/CanceladasPage";
 import { ValePage } from "./pages/ValePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { RequireAuth } from "./components/RequireAuth";
@@ -17,6 +18,7 @@ import { AdminsPage } from "./pages/admin/AdminsPage";
 import { ConcesionarioPreviewPage } from "./pages/admin/ConcesionarioPreviewPage";
 import { EtiquetasPage } from "./pages/admin/EtiquetasPage";
 import { ValesPage } from "./pages/admin/ValesPage";
+import { ReporteValesPage } from "./pages/admin/ReporteValesPage";
 
 export function App() {
   return (
@@ -38,6 +40,7 @@ export function App() {
       >
         <Route index element={<SolicitudesPage />} />
         <Route path="validar" element={<ValidarCodigoPage />} />
+        <Route path="canceladas" element={<CanceladasPage />} />
         <Route path="reporte" element={<ReportePage />} />
       </Route>
 
@@ -57,6 +60,7 @@ export function App() {
         <Route path="etapas-fecha" element={<EtapaFechasPage />} />
         <Route path="etiquetas" element={<EtiquetasPage />} />
         <Route path="vales" element={<ValesPage />} />
+        <Route path="reporte-vales" element={<ReporteValesPage />} />
         <Route path="administradores" element={<AdminsPage />} />
       </Route>
 

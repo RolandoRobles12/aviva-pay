@@ -17,6 +17,23 @@ export type UploadStatus = "pendiente" | "completado";
 export interface PayDeskDeal {
   dealId: string;
   concesionarioId: string | null;
+  /**
+   * `dealstage` de HubSpot. Se guarda para poder saber que un crédito se
+   * canceló: HubSpot es la fuente de verdad de eso, y la única señal es el
+   * cambio de etapa (confirmado con el negocio — no hay cancelación sin
+   * movimiento de etapa).
+   */
+  dealstage: string | null;
+  /**
+   * Si el crédito ya no existe, calculado al sincronizar contra la lista
+   * de etapas de cancelación.
+   *
+   * Se guarda ya resuelto en vez de dejar que el frontend compare ids
+   * porque la tabla de la tienda se alimenta de un listener directo a
+   * Firestore: mandarle los ids de etapa al cliente sería filtrar
+   * configuración interna y, peor, dejar la regla viviendo en dos lados.
+   */
+  cancelado: boolean;
   kiosco: string | null;
   cliente: string | null;
   fechaSolicitud: string | null; // ISO date
@@ -37,7 +54,29 @@ export interface PayDeskDeal {
   comprobanteFechaEntrega: string | null; // ISO date
   comprobanteFirmaClienteConfirmada: boolean | null;
 
-  desembolsoFecha: string | null; // ISO date
+  desembolsoFecha: string | null; // ISO
+
+  /** Cuándo entró el deal a la etapa de cancelación, según HubSpot. */
+  canceladoFecha: string | null; // ISO date
+  /**
+   * Qué alcanzó a pasar con el vale antes de que el crédito muriera.
+   *
+   * Es la única distinción honesta entre "cancelado" y "expirado": la
+   * expiración no tiene etapa propia en HubSpot, así que Paydesk no puede
+   * saber el motivo. Lo que sí sabe de cierto es si el cliente llegó al
+   * mostrador — y eso responde mejor la pregunta:
+   *
+   * - `nunca-leido` — nadie escaneó el vale. El cliente no llegó.
+   * - `leido-sin-usar` — llegó, y algo falló en la caja. Este caso no lo
+   *   capturaba ninguna de las dos etiquetas y es el más revelador.
+   * - `utilizado` — alcanzó a disponer antes de la cancelación; hay
+   *   material entregado.
+   * - `sin-vale` — el crédito murió antes de que se emitiera vale.
+   *
+   * Se resuelve al cancelar y ya no cambia: un vale cancelado no se puede
+   * volver a usar.
+   */
+  valeResumen: "nunca-leido" | "leido-sin-usar" | "utilizado" | "sin-vale" | null;
 
   actualizadoEn: FirebaseFirestore.Timestamp;
   creadoEn: FirebaseFirestore.Timestamp;
@@ -87,3 +126,15 @@ export interface PayDeskConcesionarioPublico {
   nombre: string;
   numero: string | null;
 }
+
+/**
+ * Un deal tal como sale del mapeo de HubSpot: sin los campos que pone
+ * Firestore (`creadoEn`, `actualizadoEn`) y sin `cancelado`, que se
+ * resuelve al guardar contra la lista de etapas de cancelación —
+ * dealsRepository es el único que sabe esa lista, y así el mapeo no tiene
+ * que volverse asíncrono para consultarla.
+ */
+export type DealSincronizado = Omit<
+  PayDeskDeal,
+  "actualizadoEn" | "creadoEn" | "cancelado" | "valeResumen"
+>;

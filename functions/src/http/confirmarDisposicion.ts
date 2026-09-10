@@ -3,6 +3,7 @@ import { logger } from "firebase-functions/v2";
 import { normalizarCodigo } from "../vale/codigo";
 import { consumirVale, getVale } from "../firestore/valesRepository";
 import { evaluarVale } from "../vale/validar";
+import { dealEstaCancelado } from "../vale/cancelacion";
 import { updateDealProperties } from "../hubspot/deals";
 import { VALE_ESTADO_HUBSPOT } from "../config/fields";
 
@@ -60,6 +61,13 @@ export const confirmarDisposicion = onCall<ConfirmarRequest>(
     const resultado = evaluarVale(vale, concesionarioIds);
     if (resultado.estado !== "ok") {
       return { ok: false as const, ...resultado };
+    }
+
+    // Se revisa otra vez aquí, no solo al validar: entre que la caja leyó
+    // el código y le dio confirmar pudo llegar la cancelación. Este es el
+    // paso que entrega material.
+    if (vale && (await dealEstaCancelado(vale.dealId))) {
+      return { ok: false as const, estado: "cancelado" as const };
     }
 
     if (

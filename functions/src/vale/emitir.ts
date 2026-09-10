@@ -93,3 +93,4 @@ export async function emitirValeParaDeal(
 
   return { vale, reemitido: cancelados.length > 0 };
 }
+

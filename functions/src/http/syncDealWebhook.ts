@@ -4,6 +4,7 @@ import { env } from "../config/env";
 import { fetchDealById, updateDealProperties } from "../hubspot/deals";
 import { upsertDealFromHubspot } from "../firestore/dealsRepository";
 import { emitirValeParaDeal } from "../vale/emitir";
+import { cancelarValeSiElDealSeCancelo } from "../vale/cancelacion";
 
 interface SyncWebhookBody {
   // HubSpot's Record ID property is numeric, and the workflow webhook
@@ -88,12 +89,20 @@ export const syncDealWebhook = onRequest(
 
     const { isNewConcesionario } = await upsertDealFromHubspot(deal);
 
+    // Cancelar va ANTES de emitir, y no es un detalle de orden: si el deal
+    // llegara con etapa cancelada y fecha de crédito liberado a la vez,
+    // emitir primero crearía un vale vivo para un crédito muerto.
+    const valesCancelados = await cancelarValeSiElDealSeCancelo(deal);
+
     // El vale de un solo uso nace aquí, en cuanto el deal trae la fecha de
     // crédito liberado: a partir de ese momento el cliente ya puede
     // presentarse en la tienda. `emitirValeParaDeal` es idempotente, así
     // que este workflow puede volver a disparar todas las veces que quiera
     // sin generar un segundo vale — ver vale/emitir.ts.
-    const vale = await emitirValeParaDeal(deal, { emitidoPor: "hubspot-workflow" });
+    const vale =
+      valesCancelados.length > 0
+        ? { vale: null }
+        : await emitirValeParaDeal(deal, { emitidoPor: "hubspot-workflow" });
 
     if (isNewConcesionario) {
       // First time we see this store: hand HubSpot the login URL so the
@@ -111,6 +120,7 @@ export const syncDealWebhook = onRequest(
       ok: true,
       isNewConcesionario,
       valeEmitido: vale.vale !== null,
+      valesCancelados: valesCancelados.length,
     });
   },
 );
