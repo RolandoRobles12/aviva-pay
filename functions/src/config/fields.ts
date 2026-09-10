@@ -215,9 +215,18 @@ export const STAGE_DATE_EXTRA_PROPERTIES_DEFAULT: Record<StageDateKey, string[]>
   creditoLiberadoFecha: ["hs_v2_date_entered_33642516"],
   disposicionCreditoFecha: ["hs_v2_date_entered_171655337"],
   desembolsoFecha: ["hs_v2_date_entered_33823866"],
-  // Precancelación como respaldo: un deal puede morir ahí y no llegar
-  // nunca a Cancelado, y para la tienda igual está muerto.
-  canceladoFecha: ["hs_v2_date_entered_1341580191"],
+  // Dos respaldos, en orden. Precancelación: un deal puede morir ahí y no
+  // llegar nunca a Cancelado, y para la tienda igual está muerto. Y la
+  // etapa cancelada del pipeline viejo, que es donde viven los deals
+  // históricos — sin ella, un deal de ese pipeline queda marcado como
+  // cancelado (su id sí está en la lista de etapas de cancelación) pero
+  // sin ninguna propiedad de la que leer su fecha, y la columna sale
+  // vacía. Las otras cinco fechas de etapa ya traían su respaldo legacy;
+  // esta se quedó sin él.
+  canceladoFecha: [
+    "hs_v2_date_entered_1341580191",
+    "hs_v2_date_entered_33823869",
+  ],
 };
 
 
