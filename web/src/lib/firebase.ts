@@ -351,3 +351,15 @@ export const adminSetEtapasCallable = httpsCallable<
   { etapas: EtapaConfig[] },
   { ok: true }
 >(functions, "adminSetEtapas");
+
+export type ModoOcr = "apagado" | "observar" | "bloquear";
+
+export const adminGetOcrCallable = httpsCallable<void, { modo: ModoOcr }>(
+  functions,
+  "adminGetOcr",
+);
+
+export const adminSetOcrCallable = httpsCallable<{ modo: ModoOcr }, { ok: true }>(
+  functions,
+  "adminSetOcr",
+);

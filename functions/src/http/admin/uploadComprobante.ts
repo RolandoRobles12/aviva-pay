@@ -3,6 +3,7 @@ import { logger } from "firebase-functions/v2";
 import { parseMultipart } from "../multipart";
 import { getDeal } from "../../firestore/dealsRepository";
 import { writeComprobante } from "../../hubspot/uploads";
+import { OcrRechazadoError } from "../../ocr/validarDocumento";
 import { verifyBearerToken } from "../../auth/requestAuth";
 
 /**
@@ -12,7 +13,13 @@ import { verifyBearerToken } from "../../auth/requestAuth";
  * ownership via concesionarioIds.
  */
 export const adminUploadComprobante = onRequest(
-  { region: "us-central1", secrets: ["HUBSPOT_PRIVATE_APP_TOKEN"], cors: true },
+  {
+    region: "us-central1",
+    secrets: ["HUBSPOT_PRIVATE_APP_TOKEN"],
+    cors: true,
+    // El OCR del documento se suma a las dos subidas (HubSpot y Storage).
+    timeoutSeconds: 120,
+  },
   async (req, res) => {
     if (req.method !== "POST") {
       res.status(405).send("Method Not Allowed");
@@ -48,6 +55,7 @@ export const adminUploadComprobante = onRequest(
       }
 
       const { url } = await writeComprobante(dealId, {
+        esAdmin: true,
         file,
         fechaEntrega,
         firmaClienteConfirmada,
@@ -56,6 +64,10 @@ export const adminUploadComprobante = onRequest(
       logger.info(`adminUploadComprobante: deal ${dealId} replaced by ${auth.email ?? "admin"}`);
       res.status(200).json({ ok: true, url });
     } catch (err) {
+      if (err instanceof OcrRechazadoError) {
+        res.status(422).json({ error: err.message });
+        return;
+      }
       logger.error("adminUploadComprobante: failed", err);
       res.status(500).json({
         error: "No se pudo guardar el comprobante de entrega. Intenta de nuevo en unos minutos.",

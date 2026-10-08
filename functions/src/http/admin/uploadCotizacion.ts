@@ -3,6 +3,7 @@ import { logger } from "firebase-functions/v2";
 import { parseMultipart } from "../multipart";
 import { getDeal } from "../../firestore/dealsRepository";
 import { writeCotizacion } from "../../hubspot/uploads";
+import { OcrRechazadoError } from "../../ocr/validarDocumento";
 import { verifyBearerToken } from "../../auth/requestAuth";
 
 /**
@@ -13,7 +14,13 @@ import { verifyBearerToken } from "../../auth/requestAuth";
  * act on any deal, not just ones they're invited to.
  */
 export const adminUploadCotizacion = onRequest(
-  { region: "us-central1", secrets: ["HUBSPOT_PRIVATE_APP_TOKEN"], cors: true },
+  {
+    region: "us-central1",
+    secrets: ["HUBSPOT_PRIVATE_APP_TOKEN"],
+    cors: true,
+    // El OCR del documento se suma a las dos subidas (HubSpot y Storage).
+    timeoutSeconds: 120,
+  },
   async (req, res) => {
     if (req.method !== "POST") {
       res.status(405).send("Method Not Allowed");
@@ -42,6 +49,7 @@ export const adminUploadCotizacion = onRequest(
       }
 
       const { url } = await writeCotizacion(dealId, {
+        esAdmin: true,
         file,
         fechaEntregaAcordada,
         montoTotalCompra,
@@ -50,6 +58,10 @@ export const adminUploadCotizacion = onRequest(
       logger.info(`adminUploadCotizacion: deal ${dealId} replaced by ${auth.email ?? "admin"}`);
       res.status(200).json({ ok: true, url });
     } catch (err) {
+      if (err instanceof OcrRechazadoError) {
+        res.status(422).json({ error: err.message });
+        return;
+      }
       logger.error("adminUploadCotizacion: failed", err);
       res.status(500).json({
         error: "No se pudo guardar la cotización. Intenta de nuevo en unos minutos.",
