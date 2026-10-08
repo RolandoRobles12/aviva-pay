@@ -2,6 +2,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getConcesionariosByIds } from "../firestore/concesionariosRepository";
 import { getDealsByConcesionarioIds } from "../firestore/dealsRepository";
 import { getFieldLabels } from "../firestore/fieldLabelsRepository";
+import { getEtapas } from "../firestore/etapasRepository";
 import { getRollout, resolveRolloutForStore } from "../firestore/rolloutRepository";
 
 /**
@@ -31,11 +32,12 @@ export const getConcesionarioDeals = onCall(
       );
     }
 
-    const [concesionarios, deals, labels, rollout] = await Promise.all([
+    const [concesionarios, deals, labels, rollout, etapas] = await Promise.all([
       getConcesionariosByIds(concesionarioIds),
       getDealsByConcesionarioIds(concesionarioIds),
       getFieldLabels(),
       getRollout(),
+      getEtapas(),
     ]);
 
     return {
@@ -46,6 +48,7 @@ export const getConcesionarioDeals = onCall(
       })),
       deals,
       labels,
+      etapas,
       // Each store's own cutoff: deals approved before it are historical
       // and never counted as pending. See rolloutRepository.ts. Keyed by
       // concesionarioId since stores can be on different cutoffs.

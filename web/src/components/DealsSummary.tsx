@@ -1,5 +1,5 @@
 import type { PayDeskDeal } from "../types/deal";
-import { MILESTONE_LABELS, milestones } from "../lib/dealScope";
+import { getEtapas, milestones } from "../lib/dealScope";
 
 function moneda(n: number, decimales = 0): string {
   return n.toLocaleString("es-MX", {
@@ -25,8 +25,8 @@ const DIA_MS = 86_400_000;
  * The store's own numbers, over whatever subset the filters left showing.
  *
  * Two questions it answers: where do my clients pile up, and what is that
- * worth to me. The funnel is a plain magnitude comparison across seven
- * ordered stages, so it's horizontal bars sharing one axis and one hue —
+ * worth to me. The funnel is a plain magnitude comparison across the
+ * configured ordered stages, so it's horizontal bars sharing one axis and one hue —
  * the stage names are the identity, the length is the only variable.
  */
 export function DealsSummary({ deals }: { deals: PayDeskDeal[] }) {
@@ -34,8 +34,8 @@ export function DealsSummary({ deals }: { deals: PayDeskDeal[] }) {
 
   if (total === 0) return null;
 
-  const porEtapa = MILESTONE_LABELS.map((label, i) => ({
-    label,
+  const porEtapa = getEtapas().map((etapa, i) => ({
+    label: etapa.label,
     count: deals.filter((d) => milestones(d)[i]).length,
   }));
 
@@ -74,10 +74,10 @@ export function DealsSummary({ deals }: { deals: PayDeskDeal[] }) {
         </p>
 
         <ul className="funnel">
-          {porEtapa.map((e) => {
+          {porEtapa.map((e, i) => {
             const pct = total > 0 ? (e.count / total) * 100 : 0;
             return (
-              <li className="funnel__row" key={e.label}>
+              <li className="funnel__row" key={e.label + i}>
                 <span className="funnel__label">{e.label}</span>
                 <span className="funnel__track">
                   <span

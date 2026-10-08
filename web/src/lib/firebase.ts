@@ -28,6 +28,7 @@ import type {
   FieldDictionary,
   FieldLabels,
   StageDateProperties,
+  EtapaConfig,
 } from "../types/admin";
 
 const firebaseConfig = {
@@ -118,6 +119,7 @@ export const getConcesionarioDealsCallable = httpsCallable<
     concesionarios: PayDeskConcesionario[];
     deals: PayDeskDeal[];
     labels: FieldLabels;
+    etapas: EtapaConfig[];
     /** Rollout cutoff per store (concesionarioId → ISO date | null). */
     rolloutPorTienda: Record<string, string | null>;
   }
@@ -239,6 +241,7 @@ export const adminGetConcesionarioDealsCallable = httpsCallable<
     concesionario: PayDeskConcesionario;
     deals: PayDeskDeal[];
     labels: FieldLabels;
+    etapas: EtapaConfig[];
     rolloutDesde: string | null;
   }
 >(functions, "adminGetConcesionarioDeals");
@@ -338,3 +341,13 @@ export const adminSetCancelStagesCallable = httpsCallable<
 export async function logout() {
   await signOut(auth);
 }
+
+export const adminGetEtapasCallable = httpsCallable<
+  void,
+  { etapas: EtapaConfig[]; defaults: EtapaConfig[] }
+>(functions, "adminGetEtapas");
+
+export const adminSetEtapasCallable = httpsCallable<
+  { etapas: EtapaConfig[] },
+  { ok: true }
+>(functions, "adminSetEtapas");

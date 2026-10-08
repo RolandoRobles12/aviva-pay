@@ -13,6 +13,7 @@ import { AdminLoginPage } from "./pages/admin/AdminLoginPage";
 import { AdminLayout } from "./pages/admin/AdminLayout";
 import { TiendasPage } from "./pages/admin/TiendasPage";
 import { DiccionarioPage } from "./pages/admin/DiccionarioPage";
+import { EtapasPage } from "./pages/admin/EtapasPage";
 import { EtapaFechasPage } from "./pages/admin/EtapaFechasPage";
 import { AdminsPage } from "./pages/admin/AdminsPage";
 import { ConcesionarioPreviewPage } from "./pages/admin/ConcesionarioPreviewPage";
@@ -57,6 +58,7 @@ export function App() {
         <Route path="tiendas" element={<TiendasPage />} />
         <Route path="tiendas/:concesionarioId" element={<ConcesionarioPreviewPage />} />
         <Route path="diccionario" element={<DiccionarioPage />} />
+        <Route path="etapas" element={<EtapasPage />} />
         <Route path="etapas-fecha" element={<EtapaFechasPage />} />
         <Route path="etiquetas" element={<EtiquetasPage />} />
         <Route path="vales" element={<ValesPage />} />

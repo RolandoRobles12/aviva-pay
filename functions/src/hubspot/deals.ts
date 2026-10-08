@@ -12,6 +12,7 @@ import {
   getStageDateProperties,
   type StageDateProperties,
 } from "../firestore/stageDatePropertiesRepository";
+import { getEtapas, type EtapaConfig } from "../firestore/etapasRepository";
 import {
   deriveConcesionarioId,
   parseKioscoValue,
@@ -81,18 +82,22 @@ function toUploadStatus(raw: string | null | undefined): UploadStatus {
 async function allDealProperties(): Promise<{
   dictionary: Awaited<ReturnType<typeof getFieldDictionary>>;
   stageDateExtras: StageDateProperties;
+  etapas: EtapaConfig[];
   properties: string[];
 }> {
-  const [dictionary, stageDateExtras] = await Promise.all([
+  const [dictionary, stageDateExtras, etapas] = await Promise.all([
     getFieldDictionary(),
     getStageDateProperties(),
+    getEtapas(),
   ]);
   return {
     dictionary,
     stageDateExtras,
+    etapas,
     properties: [
       ...Object.values(dictionary),
       ...Object.values(stageDateExtras).flat(),
+      ...etapas.flatMap((e) => (e.propiedad ? [e.propiedad] : [])),
       "pipeline",
       "dealstage",
     ],
@@ -129,6 +134,7 @@ function mapDealProperties(
   props: RawProperties,
   p: Awaited<ReturnType<typeof getFieldDictionary>>,
   stageDateExtras: StageDateProperties,
+  etapas: EtapaConfig[],
 ): {
   deal: DealSincronizado;
   pipelineId: string | null;
@@ -183,6 +189,13 @@ function mapDealProperties(
 
     desembolsoFecha: stageDate("desembolsoFecha"),
     canceladoFecha: stageDate("canceladoFecha"),
+
+    // Etapas personalizadas del admin: fecha de la propiedad configurada.
+    etapasExtra: Object.fromEntries(
+      etapas
+        .filter((e) => e.tipo === "personalizada" && e.propiedad)
+        .map((e) => [e.id, toIsoDate(props[e.propiedad!])]),
+    ),
   };
 
   return { deal, pipelineId: props["pipeline"] ?? null };
@@ -197,7 +210,7 @@ export async function fetchDealById(dealId: string): Promise<{
   pipelineId: string | null;
 } | null> {
   const hubspot = getHubspotClient();
-  const { dictionary: p, stageDateExtras, properties } = await allDealProperties();
+  const { dictionary: p, stageDateExtras, etapas, properties } = await allDealProperties();
 
   let response;
   try {
@@ -213,6 +226,7 @@ export async function fetchDealById(dealId: string): Promise<{
     response.properties as RawProperties,
     p,
     stageDateExtras,
+    etapas,
   );
 }
 
@@ -249,7 +263,7 @@ export async function searchConstruramaDeals(): Promise<
   }>
 > {
   const hubspot = getHubspotClient();
-  const { dictionary: p, stageDateExtras, properties } = await allDealProperties();
+  const { dictionary: p, stageDateExtras, etapas, properties } = await allDealProperties();
 
   const baseFilters = [
     {
@@ -305,6 +319,7 @@ export async function searchConstruramaDeals(): Promise<
           result.properties as RawProperties,
           p,
           stageDateExtras,
+          etapas,
         ),
       );
     }
