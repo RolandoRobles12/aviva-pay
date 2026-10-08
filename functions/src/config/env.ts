@@ -22,6 +22,10 @@ export const env = {
   get hubspotWebhookSecret(): string {
     return required("HUBSPOT_WEBHOOK_SECRET");
   },
+  /** Llave de la API de Claude, para la verificación de documentos (ocr/analizar.ts). */
+  get anthropicApiKey(): string {
+    return required("ANTHROPIC_API_KEY");
+  },
   /**
    * La base de las ligas que Paydesk escribe en HubSpot: la del portal de
    * la tienda y la del vale del cliente.

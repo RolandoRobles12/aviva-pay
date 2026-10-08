@@ -15,11 +15,13 @@
     "logs": "firebase functions:log"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.132.1",
     "@hubspot/api-client": "^11.2.0",
     "busboy": "^1.6.0",
     "cors": "^2.8.5",
     "firebase-admin": "^12.3.0",
-    "firebase-functions": "^5.0.0"
+    "firebase-functions": "^5.0.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/busboy": "^1.5.4",

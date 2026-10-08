@@ -3,6 +3,7 @@ import { uploadDealFile } from "./files";
 import { storeDealFile } from "../storage/dealFiles";
 import { updateDealProperties, toHubspotDateProperty } from "./deals";
 import { patchDealFields } from "../firestore/dealsRepository";
+import { validarDocumento } from "../ocr/validarDocumento";
 
 interface UploadedFile {
   fileName: string;
@@ -31,9 +32,20 @@ export async function writeCotizacion(
     file: UploadedFile;
     fechaEntregaAcordada: string;
     montoTotalCompra: string;
+    /** Admin: se valida y se registra, pero no se le rechaza. */
+    esAdmin?: boolean;
   },
 ): Promise<{ url: string }> {
   const { file, fechaEntregaAcordada, montoTotalCompra } = params;
+
+  // Antes de guardar nada: un documento rechazado no deja rastro.
+  const ocr = await validarDocumento({
+    tipo: "cotizacion",
+    dealId,
+    file,
+    montoDeclarado: montoTotalCompra ? Number(montoTotalCompra) : null,
+    puedeOmitirBloqueo: params.esAdmin,
+  });
 
   const [hubspotFile, storageFile] = await Promise.all([
     uploadDealFile(dealId, file.fileName, file.buffer, {
@@ -64,6 +76,7 @@ export async function writeCotizacion(
       ? new Date(fechaEntregaAcordada).toISOString()
       : null,
     cotizacionMontoTotalCompra: montoTotalCompra ? Number(montoTotalCompra) : null,
+    ...(ocr ? { cotizacionOcr: ocr } : {}),
   });
 
   logger.info(`writeCotizacion: completed for deal ${dealId}`);
@@ -80,9 +93,19 @@ export async function writeComprobante(
     file: UploadedFile;
     fechaEntrega: string;
     firmaClienteConfirmada: string;
+    /** Admin: se valida y se registra, pero no se le rechaza. */
+    esAdmin?: boolean;
   },
 ): Promise<{ url: string }> {
   const { file, fechaEntrega, firmaClienteConfirmada } = params;
+
+  const ocr = await validarDocumento({
+    tipo: "comprobante",
+    dealId,
+    file,
+    fechaDeclarada: fechaEntrega || null,
+    puedeOmitirBloqueo: params.esAdmin,
+  });
 
   const [hubspotFile, storageFile] = await Promise.all([
     uploadDealFile(dealId, file.fileName, file.buffer, {
@@ -110,6 +133,7 @@ export async function writeComprobante(
     comprobanteUrl: storageFile.url,
     comprobanteFechaEntrega: fechaEntrega ? new Date(fechaEntrega).toISOString() : null,
     comprobanteFirmaClienteConfirmada: true,
+    ...(ocr ? { comprobanteOcr: ocr } : {}),
   });
 
   logger.info(`writeComprobante: completed for deal ${dealId}`);

@@ -1,3 +1,5 @@
+import type { ResultadoOcr } from "../ocr/validarDocumento";
+
 /** Estatus shown for the "Cotización" and "Comprobante de entrega" columns (section 5.1). */
 export type UploadStatus = "pendiente" | "completado";
 
@@ -55,6 +57,10 @@ export interface PayDeskDeal {
   comprobanteFirmaClienteConfirmada: boolean | null;
 
   desembolsoFecha: string | null; // ISO
+
+  /** Resultado de la validación por OCR del último documento subido; ausente si el OCR estaba apagado. */
+  cotizacionOcr?: ResultadoOcr;
+  comprobanteOcr?: ResultadoOcr;
 
   /**
    * Fecha (ISO) de cada etapa personalizada que el admin definió, por id de

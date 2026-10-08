@@ -3,6 +3,7 @@ import { logger } from "firebase-functions/v2";
 import { parseMultipart } from "./multipart";
 import { getDeal } from "../firestore/dealsRepository";
 import { writeCotizacion } from "../hubspot/uploads";
+import { OcrRechazadoError } from "../ocr/validarDocumento";
 import { verifyBearerToken } from "../auth/requestAuth";
 
 /**
@@ -13,7 +14,13 @@ import { verifyBearerToken } from "../auth/requestAuth";
  * counterpart is admin/uploadCotizacion.ts.
  */
 export const uploadCotizacion = onRequest(
-  { region: "us-central1", secrets: ["HUBSPOT_PRIVATE_APP_TOKEN"], cors: true },
+  {
+    region: "us-central1",
+    secrets: ["HUBSPOT_PRIVATE_APP_TOKEN", "ANTHROPIC_API_KEY"],
+    cors: true,
+    // La verificación del documento con Claude se suma a las dos subidas (HubSpot y Storage).
+    timeoutSeconds: 120,
+  },
   async (req, res) => {
     if (req.method !== "POST") {
       res.status(405).send("Method Not Allowed");
@@ -51,6 +58,10 @@ export const uploadCotizacion = onRequest(
 
       res.status(200).json({ ok: true, url });
     } catch (err) {
+      if (err instanceof OcrRechazadoError) {
+        res.status(422).json({ error: err.message });
+        return;
+      }
       // Full detail (HubSpot's raw API error, stack, etc.) goes to the
       // Cloud Functions log for debugging — a concesionario gets a plain
       // Spanish message instead of a wall of JSON they can't act on.
