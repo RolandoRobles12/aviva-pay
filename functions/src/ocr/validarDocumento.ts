@@ -1,9 +1,9 @@
 import { createHash } from "crypto";
 import { logger } from "firebase-functions/v2";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
-import { extraerTexto } from "./extract";
+import { analizarDocumento, type AnalisisDocumento } from "./analizar";
 import {
-  validarTexto,
+  validarAnalisis,
   type DocumentoTipo,
   type EstadoOcr,
   type ResultadoRegla,
@@ -17,6 +17,8 @@ export interface ResultadoOcr {
   modo: "observar" | "bloquear";
   /** Detalle de las reglas que fallaron, para que el equipo revise a mano. */
   motivos: string[];
+  /** Lo que Claude leyó del documento, para auditoría. */
+  datos?: AnalisisDocumento;
   revisadoEn: string;
 }
 
@@ -43,16 +45,16 @@ async function registrarHash(hash: string, dealId: string, tipo: DocumentoTipo) 
 }
 
 /**
- * Lee el documento con OCR y lo contrasta con lo que Paydesk ya sabe de la
+ * Lee el documento con Claude y lo contrasta con lo que Paydesk ya sabe de la
  * solicitud. Se llama ANTES de guardar nada: si se rechaza, no queda ni
  * archivo ni cambio en HubSpot.
  *
- * Falla abierto: si Cloud Vision no responde, la subida sigue (queda
- * marcada `no-verificado`) — una caída del OCR no debe frenar la operación
+ * Falla abierto: si Claude no responde o no puede leer el formato, la subida sigue (queda
+ * marcada `no-verificado`) — una caída del servicio no debe frenar la operación
  * de las tiendas.
  *
  * `puedeOmitirBloqueo` es para el admin, que reemplaza documentos por la
- * tienda y es quien resuelve los casos que el OCR no entiende: se
+ * tienda y es quien resuelve los casos que la verificación no entiende: se
  * registra el resultado pero no se le rechaza.
  */
 export async function validarDocumento(params: {
@@ -72,27 +74,39 @@ export async function validarDocumento(params: {
 
   const hash = createHash("sha256").update(file.buffer).digest("hex");
 
-  let texto: string;
+  const duplicadoEn = await buscarDuplicado(hash, dealId);
+
+  let analisis: AnalisisDocumento;
   try {
-    texto = await extraerTexto(file.buffer, file.mimeType, file.fileName);
+    analisis = await analizarDocumento(tipo, file);
   } catch (err) {
-    logger.error(`validarDocumento: OCR falló para el deal ${dealId}`, err);
+    logger.error(`validarDocumento: el análisis falló para el deal ${dealId}`, err);
+    // Un duplicado no necesita al modelo para saberse: ese sí se rechaza.
+    if (duplicadoEn && bloquea) {
+      throw new OcrRechazadoError(
+        "No pudimos validar el documento: este mismo archivo ya se subió en otra solicitud.",
+      );
+    }
+    await registrarHash(hash, dealId, tipo);
     return {
       estado: "no-verificado",
       modo: modo === "bloquear" ? "bloquear" : "observar",
-      motivos: ["El servicio de OCR no respondió; el documento no se verificó."],
+      motivos: [
+        "El documento no se pudo verificar automáticamente.",
+        ...(duplicadoEn ? ["Este mismo archivo ya se subió en otra solicitud."] : []),
+      ],
       revisadoEn: ahora,
     };
   }
 
   const deal = await getDeal(dealId);
-  const { estado, reglas } = validarTexto({
+  const { estado, reglas } = validarAnalisis({
     tipo,
-    texto,
+    analisis,
     cliente: deal?.cliente ?? null,
     montoDeclarado: params.montoDeclarado,
     fechaDeclarada: params.fechaDeclarada,
-    duplicadoEn: await buscarDuplicado(hash, dealId),
+    duplicadoEn,
   });
 
   const fallidas: ResultadoRegla[] = reglas.filter((r) => !r.ok);
@@ -100,6 +114,7 @@ export async function validarDocumento(params: {
     estado,
     modo: modo === "bloquear" ? "bloquear" : "observar",
     motivos: fallidas.map((r) => r.detalle),
+    datos: analisis,
     revisadoEn: ahora,
   };
 

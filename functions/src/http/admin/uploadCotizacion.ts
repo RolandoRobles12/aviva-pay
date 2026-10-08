@@ -16,9 +16,9 @@ import { verifyBearerToken } from "../../auth/requestAuth";
 export const adminUploadCotizacion = onRequest(
   {
     region: "us-central1",
-    secrets: ["HUBSPOT_PRIVATE_APP_TOKEN"],
+    secrets: ["HUBSPOT_PRIVATE_APP_TOKEN", "ANTHROPIC_API_KEY"],
     cors: true,
-    // El OCR del documento se suma a las dos subidas (HubSpot y Storage).
+    // La verificación del documento con Claude se suma a las dos subidas (HubSpot y Storage).
     timeoutSeconds: 120,
   },
   async (req, res) => {

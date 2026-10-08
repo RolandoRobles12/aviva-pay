@@ -11,18 +11,19 @@ const MODOS: { valor: ModoOcr; titulo: string; descripcion: string }[] = [
     valor: "observar",
     titulo: "Observar",
     descripcion:
-      "Se lee cada cotización y comprobante y se guarda el resultado en la solicitud, pero nunca se rechaza una subida. Úsalo unos días para ver cuántos documentos legítimos marcaría antes de bloquear.",
+      "Claude revisa cada cotización y comprobante y el resultado se guarda en la solicitud, pero nunca se rechaza una subida. Úsalo unos días para ver cuántos documentos legítimos marcaría antes de bloquear.",
   },
   {
     valor: "bloquear",
     titulo: "Bloquear",
     descripcion:
-      "Se rechaza el documento que no se pueda leer, repita un archivo ya subido en otra solicitud o (cotización) no contenga el monto capturado. Los administradores no son rechazados al reemplazar documentos.",
+      "Se rechaza el documento que no se pueda leer, no sea del tipo correcto, repita un archivo ya subido en otra solicitud o (cotización) cuyo total no coincida con el capturado. Firma, fecha, nombre del cliente y señales de alteración solo lo marcan para revisión. Los administradores no son rechazados al reemplazar documentos.",
   },
 ];
 
 /**
- * Cómo se valida por OCR lo que suben las tiendas. Las reglas en sí viven
+ * Cómo se verifica con Claude lo que suben las tiendas. Claude lee el
+ * documento (functions/src/ocr/analizar.ts) y las reglas que deciden viven
  * en functions/src/ocr/validate.ts; aquí solo se elige qué tan estricto es.
  */
 export function OcrPage() {
@@ -62,18 +63,20 @@ export function OcrPage() {
 
   return (
     <section>
-      <h1 className="admin-title">Validación OCR</h1>
+      <h1 className="admin-title">Verificación de documentos</h1>
       <p className="admin-subtitle">
-        Al subir una cotización o un comprobante de entrega se lee el documento
-        y se contrasta con lo que Paydesk sabe de la solicitud: que sea legible,
-        que no sea el mismo archivo de otra solicitud, que el monto o la fecha
-        capturados aparezcan en él y que mencione al cliente. El resultado queda
-        guardado en la solicitud.
+        Al subir una cotización o un comprobante de entrega, Claude lee el
+        documento y reporta qué es, a quién va dirigido, sus importes, fechas,
+        si trae firma y si muestra señales de alteración. Paydesk lo contrasta
+        con la solicitud y con los archivos ya subidos. El resultado, con lo
+        que Claude leyó, queda guardado en la solicitud.
       </p>
 
       <div className="callout callout--warn">
-        Si el servicio de OCR no responde, la subida continúa y el documento
-        queda marcado como no verificado: una caída no frena a las tiendas.
+        Si Claude no responde o el formato no se puede analizar (por ejemplo,
+        una foto HEIC o mayor a 5 MB), la subida continúa y el documento queda
+        como no verificado: una caída no frena a las tiendas. Un archivo
+        repetido de otra solicitud se rechaza de todos modos.
         Los cambios aplican en pocos minutos.
       </div>
 
