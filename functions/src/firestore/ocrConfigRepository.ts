@@ -13,35 +13,55 @@ const DOC_ID = "ocr";
  */
 export type ModoOcr = "apagado" | "observar" | "bloquear";
 
-export const MODO_OCR_DEFAULT: ModoOcr = "observar";
+/**
+ * Qué modelo de Claude lee los documentos. Sonnet es el de uso normal;
+ * Haiku es la alternativa más barata y rápida, por si Sonnet da problemas
+ * en producción. Se cambia desde el panel, sin desplegar.
+ */
+export type ModeloOcr = "sonnet" | "haiku";
 
-let cached: ModoOcr | null = null;
+export interface OcrConfig {
+  modo: ModoOcr;
+  modelo: ModeloOcr;
+}
+
+export const OCR_CONFIG_DEFAULT: OcrConfig = { modo: "observar", modelo: "sonnet" };
+
+let cached: OcrConfig | null = null;
 let cacheExpira = 0;
 
 function ocrDoc() {
   return getFirestore().collection(COLLECTION).doc(DOC_ID);
 }
 
-export async function getModoOcr(): Promise<ModoOcr> {
+export function esModoOcr(v: unknown): v is ModoOcr {
+  return v === "apagado" || v === "observar" || v === "bloquear";
+}
+
+export function esModeloOcr(v: unknown): v is ModeloOcr {
+  return v === "sonnet" || v === "haiku";
+}
+
+export async function getOcrConfig(): Promise<OcrConfig> {
   if (cached && Date.now() < cacheExpira) return cached;
-  return getModoOcrFresh();
+  return getOcrConfigFresh();
 }
 
-export async function getModoOcrFresh(): Promise<ModoOcr> {
+export async function getOcrConfigFresh(): Promise<OcrConfig> {
   const snap = await ocrDoc().get();
-  const stored = snap.exists ? snap.data()?.modo : null;
-  const modo: ModoOcr =
-    stored === "apagado" || stored === "observar" || stored === "bloquear"
-      ? stored
-      : MODO_OCR_DEFAULT;
-  cached = modo;
+  const data = snap.exists ? snap.data() : undefined;
+  const config: OcrConfig = {
+    modo: esModoOcr(data?.modo) ? data.modo : OCR_CONFIG_DEFAULT.modo,
+    modelo: esModeloOcr(data?.modelo) ? data.modelo : OCR_CONFIG_DEFAULT.modelo,
+  };
+  cached = config;
   cacheExpira = Date.now() + TTL_CONFIG_MS;
-  return modo;
+  return config;
 }
 
-export async function setModoOcr(modo: ModoOcr, actualizadoPor: string): Promise<void> {
+export async function setOcrConfig(config: OcrConfig, actualizadoPor: string): Promise<void> {
   await ocrDoc().set(
-    { modo, actualizadoPor, actualizadoEn: FieldValue.serverTimestamp() },
+    { ...config, actualizadoPor, actualizadoEn: FieldValue.serverTimestamp() },
     { merge: true },
   );
   cached = null;

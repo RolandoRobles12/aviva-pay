@@ -353,13 +353,18 @@ export const adminSetEtapasCallable = httpsCallable<
 >(functions, "adminSetEtapas");
 
 export type ModoOcr = "apagado" | "observar" | "bloquear";
+export type ModeloOcr = "sonnet" | "haiku";
+export interface OcrConfig {
+  modo: ModoOcr;
+  modelo: ModeloOcr;
+}
 
-export const adminGetOcrCallable = httpsCallable<void, { modo: ModoOcr }>(
+export const adminGetOcrCallable = httpsCallable<void, OcrConfig>(
   functions,
   "adminGetOcr",
 );
 
-export const adminSetOcrCallable = httpsCallable<{ modo: ModoOcr }, { ok: true }>(
+export const adminSetOcrCallable = httpsCallable<OcrConfig, { ok: true }>(
   functions,
   "adminSetOcr",
 );

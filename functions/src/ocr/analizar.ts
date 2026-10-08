@@ -4,7 +4,12 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { env } from "../config/env";
 import type { DocumentoTipo } from "./validate";
 
-const MODELO = "claude-opus-5-5";
+import type { ModeloOcr } from "../firestore/ocrConfigRepository";
+
+const MODELOS: Record<ModeloOcr, string> = {
+  sonnet: "claude-sonnet-5-5",
+  haiku: "claude-haiku-5-5",
+};
 
 /**
  * Lo que Claude reporta de un documento. Solo hechos: las decisiones
@@ -122,16 +127,19 @@ const ESPERADO: Record<DocumentoTipo, string> = {
 export async function analizarDocumento(
   tipo: DocumentoTipo,
   file: { fileName: string; buffer: Buffer; mimeType?: string },
+  modelo: ModeloOcr,
 ): Promise<AnalisisDocumento> {
   const archivo = contenidoDelArchivo(file.buffer, file.mimeType, file.fileName);
 
   const response = await anthropic().beta.messages.parse({
-    model: MODELO,
+    model: MODELOS[modelo],
     max_tokens: 16000,
-    // Si un clasificador de seguridad declina, el servidor reintenta con
-    // otro modelo dentro de la misma llamada.
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
+    // Con Sonnet, si un clasificador de seguridad declina, el servidor
+    // reintenta con otro modelo dentro de la misma llamada. Haiku no tiene
+    // ese respaldo: un rechazo ahí queda como "no verificado".
+    ...(modelo === "sonnet"
+      ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const }
+      : {}),
     output_config: {
       effort: "medium",
       format: betaZodOutputFormat(AnalisisSchema),

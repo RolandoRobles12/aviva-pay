@@ -8,13 +8,15 @@ import {
   type EstadoOcr,
   type ResultadoRegla,
 } from "./validate";
-import { getModoOcr } from "../firestore/ocrConfigRepository";
+import { getOcrConfig, type ModeloOcr } from "../firestore/ocrConfigRepository";
 import { getDeal } from "../firestore/dealsRepository";
 
 /** Lo que se guarda en la solicitud (`cotizacionOcr` / `comprobanteOcr`). */
 export interface ResultadoOcr {
   estado: EstadoOcr | "no-verificado";
   modo: "observar" | "bloquear";
+  /** Qué modelo de Claude leyó el documento. */
+  modelo: ModeloOcr;
   /** Detalle de las reglas que fallaron, para que el equipo revise a mano. */
   motivos: string[];
   /** Lo que Claude leyó del documento, para auditoría. */
@@ -65,7 +67,7 @@ export async function validarDocumento(params: {
   fechaDeclarada?: string | null;
   puedeOmitirBloqueo?: boolean;
 }): Promise<ResultadoOcr | null> {
-  const modo = await getModoOcr();
+  const { modo, modelo } = await getOcrConfig();
   if (modo === "apagado") return null;
 
   const { tipo, dealId, file } = params;
@@ -78,7 +80,7 @@ export async function validarDocumento(params: {
 
   let analisis: AnalisisDocumento;
   try {
-    analisis = await analizarDocumento(tipo, file);
+    analisis = await analizarDocumento(tipo, file, modelo);
   } catch (err) {
     logger.error(`validarDocumento: el análisis falló para el deal ${dealId}`, err);
     // Un duplicado no necesita al modelo para saberse: ese sí se rechaza.
@@ -91,6 +93,7 @@ export async function validarDocumento(params: {
     return {
       estado: "no-verificado",
       modo: modo === "bloquear" ? "bloquear" : "observar",
+      modelo,
       motivos: [
         "El documento no se pudo verificar automáticamente.",
         ...(duplicadoEn ? ["Este mismo archivo ya se subió en otra solicitud."] : []),
@@ -113,6 +116,7 @@ export async function validarDocumento(params: {
   const resultado: ResultadoOcr = {
     estado,
     modo: modo === "bloquear" ? "bloquear" : "observar",
+    modelo,
     motivos: fallidas.map((r) => r.detalle),
     datos: analisis,
     revisadoEn: ahora,

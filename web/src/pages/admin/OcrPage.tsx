@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
-import { adminGetOcrCallable, adminSetOcrCallable, type ModoOcr } from "../../lib/firebase";
+import {
+  adminGetOcrCallable,
+  adminSetOcrCallable,
+  type ModeloOcr,
+  type ModoOcr,
+  type OcrConfig,
+} from "../../lib/firebase";
 
 const MODOS: { valor: ModoOcr; titulo: string; descripcion: string }[] = [
   {
@@ -21,13 +27,27 @@ const MODOS: { valor: ModoOcr; titulo: string; descripcion: string }[] = [
   },
 ];
 
+const MODELOS: { valor: ModeloOcr; titulo: string; descripcion: string }[] = [
+  {
+    valor: "sonnet",
+    titulo: "Claude Sonnet",
+    descripcion: "El de uso normal: lee mejor fotos difíciles y detecta mejor alteraciones.",
+  },
+  {
+    valor: "haiku",
+    titulo: "Claude Haiku",
+    descripcion:
+      "Más barato y rápido. Alternativa si Sonnet da errores; puede pasar por alto detalles finos.",
+  },
+];
+
 /**
  * Cómo se verifica con Claude lo que suben las tiendas. Claude lee el
  * documento (functions/src/ocr/analizar.ts) y las reglas que deciden viven
  * en functions/src/ocr/validate.ts; aquí solo se elige qué tan estricto es.
  */
 export function OcrPage() {
-  const [modo, setModo] = useState<ModoOcr | null>(null);
+  const [config, setConfig] = useState<OcrConfig | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [guardado, setGuardado] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -35,7 +55,7 @@ export function OcrPage() {
   useEffect(() => {
     (async () => {
       try {
-        setModo((await adminGetOcrCallable()).data.modo);
+        setConfig((await adminGetOcrCallable()).data);
       } catch (err) {
         setError(err instanceof Error ? err.message : "No se pudo cargar la configuración.");
       }
@@ -44,12 +64,12 @@ export function OcrPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!modo) return;
+    if (!config) return;
     setSubmitting(true);
     setError(null);
     setGuardado(false);
     try {
-      await adminSetOcrCallable({ modo });
+      await adminSetOcrCallable(config);
       setGuardado(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo guardar.");
@@ -58,8 +78,8 @@ export function OcrPage() {
     }
   }
 
-  if (error && !modo) return <p className="page-message page-message--error">{error}</p>;
-  if (!modo) return <p className="page-message">Cargando configuración...</p>;
+  if (error && !config) return <p className="page-message page-message--error">{error}</p>;
+  if (!config) return <p className="page-message">Cargando configuración...</p>;
 
   return (
     <section>
@@ -87,8 +107,24 @@ export function OcrPage() {
               <input
                 type="radio"
                 name="modo"
-                checked={modo === m.valor}
-                onChange={() => setModo(m.valor)}
+                checked={config.modo === m.valor}
+                onChange={() => setConfig({ ...config, modo: m.valor })}
+              />{" "}
+              <strong>{m.titulo}</strong>
+            </span>
+            <span className="dictionary-row__key">{m.descripcion}</span>
+          </label>
+        ))}
+
+        <h2 className="admin-title">Modelo</h2>
+        {MODELOS.map((m) => (
+          <label className="dictionary-row dictionary-row--stack" key={m.valor}>
+            <span>
+              <input
+                type="radio"
+                name="modelo"
+                checked={config.modelo === m.valor}
+                onChange={() => setConfig({ ...config, modelo: m.valor })}
               />{" "}
               <strong>{m.titulo}</strong>
             </span>
