@@ -56,6 +56,13 @@ export interface PayDeskDeal {
 
   desembolsoFecha: string | null; // ISO
 
+  /**
+   * Fecha (ISO) de cada etapa personalizada que el admin definió, por id de
+   * etapa. Ausente en deals sincronizados antes de existir las etapas
+   * personalizadas: el frontend lo trata como "sin fecha".
+   */
+  etapasExtra?: Record<string, string | null>;
+
   /** Cuándo entró el deal a la etapa de cancelación, según HubSpot. */
   canceladoFecha: string | null; // ISO date
   /**

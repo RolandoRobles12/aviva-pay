@@ -4,6 +4,7 @@ import { adminGetConcesionarioDealsCallable } from "../../lib/firebase";
 import { adminUploadCotizacion, adminUploadComprobante } from "../../lib/uploads";
 import type { PayDeskConcesionario, PayDeskDeal } from "../../types/deal";
 import type { FieldLabels } from "../../types/admin";
+import { setEtapas } from "../../lib/dealScope";
 import { DealsTable } from "../../components/DealsTable";
 import { Paginacion, POR_PAGINA } from "../../components/Paginacion";
 import { Modal } from "../../components/Modal";
@@ -56,6 +57,7 @@ export function ConcesionarioPreviewPage() {
     const result = await adminGetConcesionarioDealsCallable({
       concesionarioId: concesionarioId!,
     });
+    setEtapas(result.data.etapas);
     return {
       status: "ready",
       concesionario: result.data.concesionario,

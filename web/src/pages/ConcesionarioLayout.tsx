@@ -4,7 +4,7 @@ import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { auth, db, getConcesionarioDealsCallable, logout } from "../lib/firebase";
 import type { PayDeskConcesionario, PayDeskDeal } from "../types/deal";
 import type { FieldLabels } from "../types/admin";
-import type { RolloutMap } from "../lib/dealScope";
+import { setEtapas, type RolloutMap } from "../lib/dealScope";
 import { BrandMark } from "../components/BrandMark";
 import { SelectorTiendas } from "../components/SelectorTiendas";
 import {
@@ -77,8 +77,9 @@ export function ConcesionarioLayout() {
         await auth.currentUser?.getIdToken(true);
 
         const result = await getConcesionarioDealsCallable();
-        const { concesionarios, deals, labels, rolloutPorTienda } = result.data;
+        const { concesionarios, deals, labels, etapas, rolloutPorTienda } = result.data;
         if (cancelled) return;
+        setEtapas(etapas);
 
         setState({ status: "ready", concesionarios, deals, labels, rolloutPorTienda });
 

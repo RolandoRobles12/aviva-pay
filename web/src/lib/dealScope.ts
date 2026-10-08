@@ -1,4 +1,5 @@
 import type { PayDeskDeal } from "../types/deal";
+import type { EtapaConfig } from "../types/admin";
 
 /**
  * Each store's rollout cutoff, keyed by concesionarioId. A user can see
@@ -67,29 +68,60 @@ export function requiereAccion(deal: PayDeskDeal, rolloutPorTienda: RolloutMap):
   );
 }
 
-/** The seven milestones, in order, as booleans — drives both the progress meter and the funnel report. */
-export function milestones(deal: PayDeskDeal): boolean[] {
-  if (desembolsada(deal)) return [true, true, true, true, true, true, true];
-  return [
-    Boolean(deal.fechaSolicitud),
-    Boolean(deal.estatusKyc),
-    deal.cotizacionEstatus === "completado",
-    Boolean(deal.creditoLiberadoFecha),
-    Boolean(deal.disposicionCreditoFecha),
-    deal.comprobanteEntregaEstatus === "completado",
-    Boolean(deal.desembolsoFecha),
-  ];
+/** Etapas por defecto: las siete base, en orden. Se usan hasta que llega la config del admin. */
+export const ETAPAS_DEFAULT: EtapaConfig[] = [
+  { id: "solicitud", label: "Solicitud aprobada", tipo: "base" },
+  { id: "kyc", label: "KYC", tipo: "base" },
+  { id: "cotizacion", label: "Cotización", tipo: "base" },
+  { id: "credito", label: "Crédito liberado", tipo: "base" },
+  { id: "disposicion", label: "Disposición", tipo: "base" },
+  { id: "comprobante", label: "Comprobante", tipo: "base" },
+  { id: "desembolso", label: "Desembolso", tipo: "base" },
+];
+
+/**
+ * Las etapas en uso, tal como las configuró el admin. Es estado de módulo
+ * a propósito: `completados`, `estaCompleta`, el orden por avance y los
+ * filtros las leen sin que cada llamador tenga que cargarlas. Quien reciba
+ * la config del servidor la fija con `setEtapas` antes de pintar.
+ */
+let etapasActivas: EtapaConfig[] = ETAPAS_DEFAULT;
+
+export function setEtapas(etapas: EtapaConfig[] | undefined) {
+  etapasActivas = etapas && etapas.length > 0 ? etapas : ETAPAS_DEFAULT;
 }
 
-export const MILESTONE_LABELS = [
-  "Solicitud aprobada",
-  "KYC",
-  "Cotización",
-  "Crédito liberado",
-  "Disposición",
-  "Comprobante",
-  "Desembolso",
-] as const;
+export function getEtapas(): EtapaConfig[] {
+  return etapasActivas;
+}
+
+function alcanzada(deal: PayDeskDeal, etapa: EtapaConfig): boolean {
+  if (etapa.tipo === "personalizada") return Boolean(deal.etapasExtra?.[etapa.id]);
+  switch (etapa.id) {
+    case "solicitud":
+      return Boolean(deal.fechaSolicitud);
+    case "kyc":
+      return Boolean(deal.estatusKyc);
+    case "cotizacion":
+      return deal.cotizacionEstatus === "completado";
+    case "credito":
+      return Boolean(deal.creditoLiberadoFecha);
+    case "disposicion":
+      return Boolean(deal.disposicionCreditoFecha);
+    case "comprobante":
+      return deal.comprobanteEntregaEstatus === "completado";
+    case "desembolso":
+      return Boolean(deal.desembolsoFecha);
+    default:
+      return false;
+  }
+}
+
+/** Las etapas configuradas, en orden, como booleanos — alimenta la barra de avance y el embudo del reporte. */
+export function milestones(deal: PayDeskDeal): boolean[] {
+  if (desembolsada(deal)) return etapasActivas.map(() => true);
+  return etapasActivas.map((e) => alcanzada(deal, e));
+}
 
 export function completados(deal: PayDeskDeal): number {
   return milestones(deal).filter(Boolean).length;

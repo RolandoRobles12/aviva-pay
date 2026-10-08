@@ -1,6 +1,6 @@
 import type { PayDeskDeal } from "../types/deal";
 import type { FieldLabels } from "../types/admin";
-import { completados, milestones, scopeOf, type RolloutMap } from "../lib/dealScope";
+import { completados, getEtapas, scopeOf, type RolloutMap } from "../lib/dealScope";
 import type { SortKey, SortState } from "../lib/dealSort";
 
 /** Used until the real labels (fetched from the admin's Etiquetas config) arrive, and for any key it doesn't cover. */
@@ -31,10 +31,9 @@ function formatCurrency(amount: number | null): string {
   return amount.toLocaleString("es-MX", { style: "currency", currency: "MXN" });
 }
 
-const TOTAL_MILESTONES = milestones({} as PayDeskDeal).length;
-
 /** Segmented bar: one segment per milestone, filled left to right. Labelled in text beside it, never color alone. */
 function ProgressMeter({ deal }: { deal: PayDeskDeal }) {
+  const TOTAL_MILESTONES = getEtapas().length;
   const done = completados(deal);
   const completo = done === TOTAL_MILESTONES;
   return (
@@ -263,6 +262,8 @@ export function DealsTable({
 }) {
   const l = { ...DEFAULT_LABELS, ...labels };
   const mostrarTienda = Object.keys(concesionarioNombres ?? {}).length > 1;
+  // Etapas que el admin agregó: cada una es una columna de fecha más.
+  const etapasExtra = getEtapas().filter((e) => e.tipo === "personalizada");
 
   if (deals.length === 0) {
     return (
@@ -319,6 +320,9 @@ export function DealsTable({
             <SortableHeader sortKey="desembolsoFecha" sort={sort} onSort={onSort}>
               {l.desembolsoFecha}
             </SortableHeader>
+            {etapasExtra.map((e) => (
+              <th key={e.id}>{e.label}</th>
+            ))}
           </tr>
         </thead>
         <tbody>
@@ -392,6 +396,11 @@ export function DealsTable({
               <td>
                 <DateCell iso={deal.desembolsoFecha} />
               </td>
+              {etapasExtra.map((e) => (
+                <td key={e.id}>
+                  <DateCell iso={deal.etapasExtra?.[e.id] ?? null} />
+                </td>
+              ))}
             </tr>
             );
           })}

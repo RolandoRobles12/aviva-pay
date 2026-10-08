@@ -23,6 +23,7 @@ export {
   adminSetFieldDictionary,
 } from "./http/admin/fieldDictionary";
 export { adminGetFieldLabels, adminSetFieldLabels } from "./http/admin/fieldLabels";
+export { adminGetEtapas, adminSetEtapas } from "./http/admin/etapas";
 export {
   adminGetStageDateProperties,
   adminSetStageDateProperties,

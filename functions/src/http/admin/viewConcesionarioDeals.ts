@@ -3,6 +3,7 @@ import { assertAdmin } from "../../auth/adminGuard";
 import { getConcesionario } from "../../firestore/concesionariosRepository";
 import { getDealsByConcesionario } from "../../firestore/dealsRepository";
 import { getFieldLabels } from "../../firestore/fieldLabelsRepository";
+import { getEtapas } from "../../firestore/etapasRepository";
 import { getRollout, resolveRolloutForStore } from "../../firestore/rolloutRepository";
 
 interface Request {
@@ -32,10 +33,11 @@ export const adminGetConcesionarioDeals = onCall<Request>(
       throw new HttpsError("not-found", "Concesionario no encontrado");
     }
 
-    const [deals, labels, rollout] = await Promise.all([
+    const [deals, labels, rollout, etapas] = await Promise.all([
       getDealsByConcesionario(concesionarioId),
       getFieldLabels(),
       getRollout(),
+      getEtapas(),
     ]);
 
     return {
@@ -46,6 +48,7 @@ export const adminGetConcesionarioDeals = onCall<Request>(
       },
       deals,
       labels,
+      etapas,
       // The cutoff this store is held to: deals approved before it are
       // historical and never counted as pending. See rolloutRepository.ts.
       rolloutDesde: resolveRolloutForStore(rollout, concesionario.rolloutDesde),

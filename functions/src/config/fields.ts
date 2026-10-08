@@ -231,6 +231,25 @@ export const STAGE_DATE_EXTRA_PROPERTIES_DEFAULT: Record<StageDateKey, string[]>
 
 
 /**
+ * Las siete etapas base del avance de un crédito, en orden. Cada una se
+ * calcula con campos que Paydesk ya conoce (ver `milestones()` en el
+ * frontend), así que su id es fijo. Estos son los **valores por defecto**:
+ * la lista en uso vive en Firestore y se edita desde `/admin/etapas` —
+ * ver firestore/etapasRepository.ts. Ahí también se pueden agregar etapas
+ * personalizadas, que se marcan como alcanzadas cuando una propiedad de
+ * fecha de HubSpot tiene valor.
+ */
+export const ETAPAS_BASE_DEFAULT = [
+  { id: "solicitud", label: "Solicitud aprobada" },
+  { id: "kyc", label: "KYC" },
+  { id: "cotizacion", label: "Cotización" },
+  { id: "credito", label: "Crédito liberado" },
+  { id: "disposicion", label: "Disposición" },
+  { id: "comprobante", label: "Comprobante" },
+  { id: "desembolso", label: "Desembolso" },
+] as const;
+
+/**
  * Los valores que acepta `codigo_paydesk_estatus`, el desplegable de
  * HubSpot. Tienen que coincidir **exactamente** con los valores internos de
  * sus opciones: HubSpot rechaza cualquier otra cosa, y como las propiedades

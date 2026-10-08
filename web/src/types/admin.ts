@@ -20,6 +20,14 @@ export type FieldLabels = Record<string, string>;
 /** Stage-date field → ordered list of extra HubSpot properties to check, beyond the field dictionary's own — first non-empty wins. */
 export type StageDateProperties = Record<string, string[]>;
 
+/** Una etapa del avance de un crédito. Las `base` se calculan con campos conocidos; las personalizadas, con una propiedad de fecha de HubSpot. */
+export interface EtapaConfig {
+  id: string;
+  label: string;
+  tipo: "base" | "personalizada";
+  propiedad?: string;
+}
+
 export interface AdminUser {
   uid: string;
   email: string;

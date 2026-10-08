@@ -21,6 +21,8 @@ export interface PayDeskDeal {
   cancelado?: boolean;
   /** Cuándo entró a la etapa de cancelación, según HubSpot. */
   canceladoFecha?: string | null;
+  /** Fecha de cada etapa personalizada, por id. Ausente en deals anteriores a esa función. */
+  etapasExtra?: Record<string, string | null>;
   /** Qué alcanzó a pasar con el vale antes de morir — ver CanceladasPage. */
   valeResumen?: "nunca-leido" | "leido-sin-usar" | "utilizado" | "sin-vale" | null;
   kiosco: string | null;
