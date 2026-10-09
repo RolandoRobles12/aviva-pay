@@ -20,6 +20,7 @@ const CONFIGURACION = [
   { to: "/admin/notificaciones", label: "Notificaciones" },
   { to: "/admin/ocr", label: "Verificación de documentos" },
   { to: "/admin/administradores", label: "Administradores" },
+  { to: "/admin/bitacora", label: "Bitácora" },
 ];
 
 function Shell() {

@@ -1,4 +1,5 @@
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { conBitacora } from "./bitacoraConfig";
 import { TTL_CONFIG_MS } from "./configCache";
 
 const COLLECTION = "paydesk_config";
@@ -62,9 +63,11 @@ export async function getOcrConfigFresh(): Promise<OcrConfig> {
 }
 
 export async function setOcrConfig(config: OcrConfig, actualizadoPor: string): Promise<void> {
-  await ocrDoc().set(
-    { ...config, actualizadoPor, actualizadoEn: FieldValue.serverTimestamp() },
-    { merge: true },
+  await conBitacora(ocrDoc(), actualizadoPor, (ref) =>
+    ref.set(
+      { ...config, actualizadoPor, actualizadoEn: FieldValue.serverTimestamp() },
+      { merge: true },
+    ),
   );
   cached = null;
 }

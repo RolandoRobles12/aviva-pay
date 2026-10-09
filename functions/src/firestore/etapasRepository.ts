@@ -1,4 +1,5 @@
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { conBitacora } from "./bitacoraConfig";
 import { ETAPAS_BASE_DEFAULT } from "../config/fields";
 import { TTL_CONFIG_MS } from "./configCache";
 
@@ -68,10 +69,12 @@ export async function setEtapas(
   etapas: EtapaConfig[],
   actualizadoPor: string,
 ): Promise<void> {
-  await etapasDoc().set({
-    etapas,
-    actualizadoPor,
-    actualizadoEn: FieldValue.serverTimestamp(),
-  });
+  await conBitacora(etapasDoc(), actualizadoPor, (ref) =>
+    ref.set({
+      etapas,
+      actualizadoPor,
+      actualizadoEn: FieldValue.serverTimestamp(),
+    }),
+  );
   cached = null;
 }

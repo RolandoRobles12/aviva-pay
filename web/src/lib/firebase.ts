@@ -505,3 +505,17 @@ export const adminEstadoSistemaCallable = httpsCallable<void, EstadoSistema>(
   functions,
   "adminEstadoSistema",
 );
+
+export interface EntradaBitacora {
+  documento: string;
+  antes: Record<string, unknown> | null;
+  despues: Record<string, unknown> | null;
+  por: string;
+  /** Epoch millis. */
+  en: number | null;
+}
+
+export const adminListBitacoraCallable = httpsCallable<void, { entradas: EntradaBitacora[] }>(
+  functions,
+  "adminListBitacora",
+);

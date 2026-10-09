@@ -15,6 +15,7 @@ import { AdminLayout } from "./pages/admin/AdminLayout";
 import { TiendasPage } from "./pages/admin/TiendasPage";
 import { DiccionarioPage } from "./pages/admin/DiccionarioPage";
 import { RevisionPage } from "./pages/admin/RevisionPage";
+import { BitacoraPage } from "./pages/admin/BitacoraPage";
 import { EstadoPage } from "./pages/admin/EstadoPage";
 import { NotificacionesPage } from "./pages/admin/NotificacionesPage";
 import { OcrPage } from "./pages/admin/OcrPage";
@@ -87,6 +88,14 @@ export function App() {
           }
         />
         <Route path="revision" element={<RevisionPage />} />
+        <Route
+          path="bitacora"
+          element={
+            <SoloSuperAdmin>
+              <BitacoraPage />
+            </SoloSuperAdmin>
+          }
+        />
         <Route
           path="estado"
           element={

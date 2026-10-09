@@ -2419,3 +2419,38 @@ h3 {
 .estado-fila--alerta > span {
   color: #b42318;
 }
+
+/* Bitácora de configuración (admin). */
+.bitacora {
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.bitacora summary {
+  cursor: pointer;
+}
+.bitacora__cambio {
+  margin-top: 10px;
+}
+.bitacora__llave {
+  font-weight: 600;
+}
+.bitacora__columnas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.bitacora__valor {
+  margin: 0;
+  max-height: 240px;
+  overflow: auto;
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+@media (max-width: 600px) {
+  .bitacora__columnas {
+    grid-template-columns: 1fr;
+  }
+}

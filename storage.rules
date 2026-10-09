@@ -8,8 +8,9 @@ rules_version = '2';
 // write to Storage directly — uploads go through the uploadCotizacion /
 // uploadComprobante (and admin/*) callable functions so the deal_id and
 // file can be validated server-side first. No client read/write path
-// exists; the long-expiry signed URL returned at upload time is what
-// makes a file reachable, independent of these rules.
+// exists. A file is only reachable through a 15-minute signed URL that
+// the getArchivoUrl function issues to the store that owns the deal or
+// to an admin (see functions/src/storage/dealFiles.ts).
 service firebase.storage {
   match /b/{bucket}/o {
     match /paydesk_deals/{dealId}/{allPaths=**} {

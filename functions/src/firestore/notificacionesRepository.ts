@@ -1,4 +1,5 @@
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { conBitacora } from "./bitacoraConfig";
 import { TTL_CONFIG_MS } from "./configCache";
 
 const COLLECTION = "paydesk_config";
@@ -111,10 +112,12 @@ export async function setNotificacionesConfig(
   config: NotificacionesConfig,
   actualizadoPor: string,
 ): Promise<void> {
-  await configDoc().set({
-    ...config,
-    actualizadoPor,
-    actualizadoEn: FieldValue.serverTimestamp(),
-  });
+  await conBitacora(configDoc(), actualizadoPor, (ref) =>
+    ref.set({
+      ...config,
+      actualizadoPor,
+      actualizadoEn: FieldValue.serverTimestamp(),
+    }),
+  );
   cached = null;
 }

@@ -1,4 +1,5 @@
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { conBitacora } from "./bitacoraConfig";
 import { FIELD_LABELS, type FieldLabelKey } from "../config/fields";
 
 const COLLECTION = "paydesk_config";
@@ -52,13 +53,15 @@ export async function setFieldLabels(
   etiquetas: Partial<FieldLabels>,
   actualizadoPor: string,
 ): Promise<void> {
-  await labelsDoc().set(
-    {
-      etiquetas,
-      actualizadoPor,
-      actualizadoEn: FieldValue.serverTimestamp(),
-    },
-    { merge: true },
+  await conBitacora(labelsDoc(), actualizadoPor, (ref) =>
+    ref.set(
+      {
+        etiquetas,
+        actualizadoPor,
+        actualizadoEn: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    ),
   );
   cached = null;
 }
