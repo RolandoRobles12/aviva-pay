@@ -1,7 +1,6 @@
 import { logger } from "firebase-functions/v2";
-import { getStorage } from "firebase-admin/storage";
 import { uploadDealFile } from "./files";
-import { storeDealFile } from "../storage/dealFiles";
+import { descargar, storeDealFile } from "../storage/dealFiles";
 import { updateDealProperties, toHubspotDateProperty } from "./deals";
 import { getDeal, patchDealFields } from "../firestore/dealsRepository";
 import {
@@ -11,6 +10,11 @@ import {
 } from "../ocr/validarDocumento";
 import { notificar } from "../notificaciones/notificar";
 import type { RevisionDocumento } from "../types/deal";
+import { guardarVerificacion } from "../firestore/verificacionesRepository";
+import {
+  registrarEventoDocumento,
+  type ResultadoEvento,
+} from "../firestore/eventosDocumentoRepository";
 
 interface UploadedFile {
   fileName: string;
@@ -21,7 +25,6 @@ interface UploadedFile {
 export type TipoDocumento = "cotizacion" | "comprobante";
 
 export interface ResultadoSubida {
-  url: string;
   verificacion: ResultadoOcr | null;
   /** El documento se guardó pero espera la aprobación de un administrador. */
   enRevision: boolean;
@@ -35,16 +38,53 @@ type Capturado =
   | { tipo: "cotizacion"; fechaEntregaAcordada: string; montoTotalCompra: string }
   | { tipo: "comprobante"; fechaEntrega: string; firmaClienteConfirmada: string };
 
+/** Para las métricas; un fallo aquí nunca interrumpe una subida. */
+async function registrarEvento(
+  dealId: string,
+  tipo: TipoDocumento,
+  resultado: ResultadoEvento,
+  minutosEnRevision: number | null = null,
+) {
+  try {
+    const deal = await getDeal(dealId);
+    await registrarEventoDocumento({
+      dealId,
+      concesionarioId: deal?.concesionarioId ?? null,
+      tipo,
+      resultado,
+      minutosEnRevision,
+    });
+  } catch (err) {
+    logger.error(`registrarEvento: no se pudo registrar ${resultado} del deal ${dealId}`, err);
+  }
+}
+
+/** Guarda la verificación en su colección privada (ver verificacionesRepository.ts). */
+async function guardarVerificacionDe(
+  dealId: string,
+  tipo: TipoDocumento,
+  verificacion: ResultadoOcr | null,
+) {
+  if (!verificacion) return;
+  const deal = await getDeal(dealId);
+  await guardarVerificacion({
+    dealId,
+    tipo,
+    concesionarioId: deal?.concesionarioId ?? null,
+    verificacion,
+  });
+}
+
 /**
  * Escribe un documento ya aceptado: copia en HubSpot Files (cuya URL va a
  * la propiedad del deal, para el equipo que trabaja en HubSpot), marca la
  * casilla en HubSpot y deja el deal en "completado" en Firestore con la
- * URL de Storage (la que abre "Ver archivo" en Paydesk). Las dos URLs son
- * distintas a propósito: cada una es para un público distinto.
+ * ruta del archivo en Storage, de la que "Ver archivo" genera una liga
+ * temporal (ver http/getArchivoUrl.ts).
  */
 async function aplicarDocumento(
   dealId: string,
-  archivo: { fileName: string; buffer: Buffer; storageUrl: string },
+  archivo: { fileName: string; buffer: Buffer; path: string },
   capturado: Capturado,
 ): Promise<void> {
   const hubspotFile = await uploadDealFile(dealId, archivo.fileName, archivo.buffer, {
@@ -64,7 +104,9 @@ async function aplicarDocumento(
     });
     await patchDealFields(dealId, {
       cotizacionEstatus: "completado",
-      cotizacionUrl: archivo.storageUrl,
+      cotizacionPath: archivo.path,
+      // La liga permanente de antes ya no se guarda (ver storage/dealFiles.ts).
+      cotizacionUrl: null,
       cotizacionFechaEntregaAcordada: fechaEntregaAcordada
         ? new Date(fechaEntregaAcordada).toISOString()
         : null,
@@ -81,7 +123,8 @@ async function aplicarDocumento(
     });
     await patchDealFields(dealId, {
       comprobanteEntregaEstatus: "completado",
-      comprobanteUrl: archivo.storageUrl,
+      comprobantePath: archivo.path,
+      comprobanteUrl: null,
       comprobanteFechaEntrega: fechaEntrega ? new Date(fechaEntrega).toISOString() : null,
       comprobanteFirmaClienteConfirmada: true,
       comprobanteRevision: null,
@@ -125,8 +168,9 @@ async function subirDocumento(
         evento: "documento_rechazado",
         dealId,
         tipo: capturado.tipo,
-        motivo: err.message,
+        motivo: err.detalle,
       });
+      await registrarEvento(dealId, capturado.tipo, "rechazado_auto");
     }
     throw err;
   }
@@ -138,7 +182,7 @@ async function subirDocumento(
     file.buffer,
     file.mimeType,
   );
-  const campoOcr = capturado.tipo === "cotizacion" ? "cotizacionOcr" : "comprobanteOcr";
+  await guardarVerificacionDe(dealId, capturado.tipo, verificacion);
   const campoRevision =
     capturado.tipo === "cotizacion" ? "cotizacionRevision" : "comprobanteRevision";
 
@@ -148,13 +192,12 @@ async function subirDocumento(
     const revision: RevisionDocumento = {
       estado: "pendiente",
       storagePath: storageFile.path,
-      url: storageFile.url,
       fileName: file.fileName,
       mimeType: file.mimeType ?? null,
       capturado,
       subidoEn: new Date().toISOString(),
     };
-    await patchDealFields(dealId, { [campoOcr]: verificacion, [campoRevision]: revision });
+    await patchDealFields(dealId, { [campoRevision]: revision });
     logger.info(`subirDocumento: ${capturado.tipo} del deal ${dealId} quedó en revisión`);
     await notificar({
       evento: "documento_en_revision",
@@ -162,18 +205,20 @@ async function subirDocumento(
       tipo: capturado.tipo,
       motivos: verificacion?.motivos ?? [],
     });
-    return { url: storageFile.url, verificacion, enRevision: true };
+    await registrarEvento(dealId, capturado.tipo, "en_revision");
+    return { verificacion, enRevision: true };
   }
 
   await aplicarDocumento(
     dealId,
-    { fileName: file.fileName, buffer: file.buffer, storageUrl: storageFile.url },
+    { fileName: file.fileName, buffer: file.buffer, path: storageFile.path },
     capturado,
   );
-  if (verificacion) await patchDealFields(dealId, { [campoOcr]: verificacion });
+  // Las subidas del admin no cuentan para las métricas de la tienda.
+  if (!esAdmin) await registrarEvento(dealId, capturado.tipo, "aceptado");
 
   logger.info(`subirDocumento: ${capturado.tipo} del deal ${dealId} aplicado`);
-  return { url: storageFile.url, verificacion, enRevision: false };
+  return { verificacion, enRevision: false };
 }
 
 export function writeCotizacion(
@@ -243,6 +288,7 @@ export async function resolverRevision(params: {
     throw new RevisionNoPendienteError("Este documento ya no está en revisión.");
   }
   const campoRevision = tipo === "cotizacion" ? "cotizacionRevision" : "comprobanteRevision";
+  const minutos = Math.round((Date.now() - Date.parse(revision.subidoEn)) / 60_000);
 
   if (decision === "rechazar") {
     await patchDealFields(dealId, {
@@ -255,16 +301,18 @@ export async function resolverRevision(params: {
       },
     });
     logger.info(`resolverRevision: ${tipo} del deal ${dealId} rechazado por ${resueltoPor}`);
+    await registrarEvento(dealId, tipo, "rechazado_admin", minutos);
     await notificar({ evento: "revision_resuelta", dealId, tipo, decision, comentario, resueltoPor });
     return;
   }
 
-  const [buffer] = await getStorage().bucket().file(revision.storagePath).download();
+  const buffer = await descargar(revision.storagePath);
   await aplicarDocumento(
     dealId,
-    { fileName: revision.fileName, buffer, storageUrl: revision.url },
+    { fileName: revision.fileName, buffer, path: revision.storagePath },
     revision.capturado as Capturado,
   );
   logger.info(`resolverRevision: ${tipo} del deal ${dealId} aprobado por ${resueltoPor}`);
+  await registrarEvento(dealId, tipo, "aprobado_admin", minutos);
   await notificar({ evento: "revision_resuelta", dealId, tipo, decision, comentario, resueltoPor });
 }

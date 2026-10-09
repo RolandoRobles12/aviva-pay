@@ -1,5 +1,11 @@
 import { initializeApp } from "firebase/app";
 import {
+  getToken as getAppCheckToken,
+  initializeAppCheck,
+  ReCaptchaEnterpriseProvider,
+  type AppCheck,
+} from "firebase/app-check";
+import {
   browserLocalPersistence,
   browserSessionPersistence,
   getAuth,
@@ -47,6 +53,31 @@ const firebaseConfig = {
 };
 
 export const app = initializeApp(firebaseConfig);
+
+/**
+ * App Check (reCAPTCHA Enterprise): demuestra al backend que la llamada
+ * viene de este sitio y no de un script. Solo se activa si el despliegue
+ * trae la llave del sitio; el backend lo exige solo con
+ * APP_CHECK_ENFORCE=true (ver functions/src/auth/appCheck.ts).
+ */
+const APP_CHECK_SITE_KEY = import.meta.env.VITE_APP_CHECK_SITE_KEY as string | undefined;
+const appCheck: AppCheck | null = APP_CHECK_SITE_KEY
+  ? initializeAppCheck(app, {
+      provider: new ReCaptchaEnterpriseProvider(APP_CHECK_SITE_KEY),
+      isTokenAutoRefreshEnabled: true,
+    })
+  : null;
+
+/** Encabezado de App Check para las llamadas `fetch` directas (las subidas); vacío si no está activo. */
+export async function encabezadoAppCheck(): Promise<Record<string, string>> {
+  if (!appCheck) return {};
+  try {
+    const { token } = await getAppCheckToken(appCheck, false);
+    return { "X-Firebase-AppCheck": token };
+  } catch {
+    return {};
+  }
+}
 export const auth = getAuth(app);
 // Which language Firebase renders its auth emails in (invite, password
 // reset) — independent of the template's configured language in Console.
@@ -441,3 +472,14 @@ export const adminProbarNotificacionCallable = httpsCallable<
   { destino: Pick<DestinoNotificacion, "tipo" | "valor"> },
   { ok: boolean; mensaje: string }
 >(functions, "adminProbarNotificacion");
+
+/** Liga temporal (minutos) para abrir una cotización o comprobante. */
+export const getArchivoUrlCallable = httpsCallable<
+  { dealId: string; tipo: "cotizacion" | "comprobante"; revision?: boolean },
+  { url: string; minutos: number | null }
+>(functions, "getArchivoUrl");
+
+export const adminMigrarLigasArchivosCallable = httpsCallable<
+  void,
+  { ok: true; migrados: number; revisados: number }
+>(functions, "adminMigrarLigasArchivos");

@@ -26,6 +26,8 @@ export { adminGetFieldLabels, adminSetFieldLabels } from "./http/admin/fieldLabe
 export { adminGetEtapas, adminSetEtapas } from "./http/admin/etapas";
 export { adminGetOcr, adminSetOcr, adminProbarOcr } from "./http/admin/ocr";
 export { adminListRevisiones, adminResolverRevision } from "./http/admin/revisiones";
+export { adminMigrarLigasArchivos } from "./http/admin/migrarLigas";
+export { getArchivoUrl } from "./http/getArchivoUrl";
 export {
   adminGetNotificaciones,
   adminSetNotificaciones,

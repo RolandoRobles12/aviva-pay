@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { VerificacionAviso } from "./VerificacionAviso";
+import { ArchivoLink } from "./ArchivoLink";
 import type { Verificacion } from "../lib/uploads";
 import { uploadCotizacion } from "../lib/uploads";
 import { CurrencyInput } from "./CurrencyInput";
@@ -9,15 +10,15 @@ import type { FieldLabels } from "../types/admin";
 export function CotizacionUploadForm({
   dealId,
   labels,
-  existingUrl,
+  reemplazo = false,
   onUploaded,
   onCancel,
   onUpload = uploadCotizacion,
 }: {
   dealId: string;
   labels?: FieldLabels;
-  /** Pass the current cotizacionUrl when this is a replace, not a first upload — shows a warning and a link to what's there today. */
-  existingUrl?: string | null;
+  /** Ya hay un documento: muestra el aviso de reemplazo y la liga al actual. */
+  reemplazo?: boolean;
   onUploaded: () => void;
   onCancel: () => void;
   /** Defaults to the concesionario endpoint; the admin preview passes adminUploadCotizacion instead. */
@@ -66,14 +67,14 @@ export function CotizacionUploadForm({
 
   return (
     <form className="upload-form" onSubmit={handleSubmit}>
-      <h3>{existingUrl ? "Reemplazar cotización" : "Nueva cotización"}</h3>
+      <h3>{reemplazo ? "Reemplazar cotización" : "Nueva cotización"}</h3>
 
-      {existingUrl && (
+      {reemplazo && (
         <p className="callout callout--warn">
           Ya hay una cotización subida para este cliente.{" "}
-          <a href={existingUrl} target="_blank" rel="noopener noreferrer">
+          <ArchivoLink dealId={dealId} tipo="cotizacion">
             Ver archivo actual
-          </a>
+          </ArchivoLink>
           . Subir un archivo nuevo la reemplazará.
         </p>
       )}
@@ -120,7 +121,7 @@ export function CotizacionUploadForm({
         <button type="submit" disabled={submitting}>
           {submitting
             ? "Subiendo..."
-            : existingUrl
+            : reemplazo
               ? "Reemplazar cotización"
               : "Guardar cotización"}
         </button>

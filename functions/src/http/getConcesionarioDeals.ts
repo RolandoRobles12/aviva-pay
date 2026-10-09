@@ -1,4 +1,5 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { exigirAppCheck } from "../auth/appCheck";
 import { getConcesionariosByIds } from "../firestore/concesionariosRepository";
 import { getDealsByConcesionarioIds } from "../firestore/dealsRepository";
 import { getFieldLabels } from "../firestore/fieldLabelsRepository";
@@ -21,6 +22,7 @@ import { getRollout, resolveRolloutForStore } from "../firestore/rolloutReposito
 export const getConcesionarioDeals = onCall(
   { region: "us-central1" },
   async (request) => {
+    exigirAppCheck(request);
     const concesionarioIds = request.auth?.token?.concesionarioIds as
       | string[]
       | undefined;

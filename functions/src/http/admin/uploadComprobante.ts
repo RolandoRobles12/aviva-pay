@@ -54,7 +54,7 @@ export const adminUploadComprobante = onRequest(
         return;
       }
 
-      const { url, verificacion, enRevision } = await writeComprobante(dealId, {
+      const { verificacion, enRevision } = await writeComprobante(dealId, {
         esAdmin: true,
         file,
         fechaEntrega,
@@ -64,9 +64,6 @@ export const adminUploadComprobante = onRequest(
       logger.info(`adminUploadComprobante: deal ${dealId} replaced by ${auth.email ?? "admin"}`);
       res.status(200).json({
         ok: true,
-        url,
-        // Lo que la tienda necesita saber de la verificación; los datos que
-        // leyó Claude y el error técnico se quedan en la solicitud.
         enRevision,
         verificacion: verificacion
           ? { estado: verificacion.estado, motivos: verificacion.motivos }

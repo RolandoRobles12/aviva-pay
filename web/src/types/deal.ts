@@ -20,7 +20,6 @@ export interface VerificacionDocumento {
 /** Documento en espera de un administrador, o rechazado por uno. Ver functions/src/hubspot/uploads.ts. */
 export interface RevisionDocumento {
   estado: "pendiente" | "rechazado";
-  url: string;
   fileName: string;
   capturado: Record<string, string>;
   subidoEn: string;
@@ -78,6 +77,9 @@ export interface PayDeskDeal {
   /** Resultado de la verificación con Claude del último documento subido. Solo lo muestra el admin. */
   cotizacionOcr?: VerificacionDocumento;
   comprobanteOcr?: VerificacionDocumento;
+  /** Ruta del documento vigente en Storage; "Ver archivo" pide una liga temporal con ella. */
+  cotizacionPath?: string | null;
+  comprobantePath?: string | null;
   /** Documento que espera aprobación de un administrador, o que uno rechazó. */
   cotizacionRevision?: RevisionDocumento | null;
   comprobanteRevision?: RevisionDocumento | null;

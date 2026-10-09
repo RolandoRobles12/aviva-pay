@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { VerificacionAviso } from "./VerificacionAviso";
+import { ArchivoLink } from "./ArchivoLink";
 import type { Verificacion } from "../lib/uploads";
 import { uploadComprobante } from "../lib/uploads";
 import type { FieldLabels } from "../types/admin";
@@ -8,15 +9,15 @@ import type { FieldLabels } from "../types/admin";
 export function ComprobanteUploadForm({
   dealId,
   labels,
-  existingUrl,
+  reemplazo = false,
   onUploaded,
   onCancel,
   onUpload = uploadComprobante,
 }: {
   dealId: string;
   labels?: FieldLabels;
-  /** Pass the current comprobanteUrl when this is a replace, not a first upload — shows a warning and a link to what's there today. */
-  existingUrl?: string | null;
+  /** Ya hay un documento: muestra el aviso de reemplazo y la liga al actual. */
+  reemplazo?: boolean;
   onUploaded: () => void;
   onCancel: () => void;
   /** Defaults to the concesionario endpoint; the admin preview passes adminUploadComprobante instead. */
@@ -69,14 +70,14 @@ export function ComprobanteUploadForm({
 
   return (
     <form className="upload-form" onSubmit={handleSubmit}>
-      <h3>{existingUrl ? "Reemplazar comprobante de entrega" : "Comprobante de entrega"}</h3>
+      <h3>{reemplazo ? "Reemplazar comprobante de entrega" : "Comprobante de entrega"}</h3>
 
-      {existingUrl && (
+      {reemplazo && (
         <p className="callout callout--warn">
           Ya hay un comprobante subido para este cliente.{" "}
-          <a href={existingUrl} target="_blank" rel="noopener noreferrer">
+          <ArchivoLink dealId={dealId} tipo="comprobante">
             Ver archivo actual
-          </a>
+          </ArchivoLink>
           . Subir un archivo nuevo lo reemplazará.
         </p>
       )}
@@ -121,7 +122,7 @@ export function ComprobanteUploadForm({
         <button type="submit" disabled={submitting}>
           {submitting
             ? "Subiendo..."
-            : existingUrl
+            : reemplazo
               ? "Reemplazar comprobante"
               : "Guardar comprobante"}
         </button>

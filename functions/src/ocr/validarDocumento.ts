@@ -18,8 +18,6 @@ export interface ResultadoOcr {
   modelo: ModeloOcr;
   /** Detalle de las reglas que fallaron, para que el equipo revise a mano. */
   motivos: string[];
-  /** Los motivos que sí se le muestran a la tienda (ver `visibleParaTienda` en validate.ts). */
-  motivosTienda: string[];
   /** Por qué no se pudo verificar (solo `no-verificado`), para diagnosticar desde el admin. Nunca se muestra a la tienda. */
   errorTecnico?: string;
   /** Lo que Claude leyó del documento, para auditoría. */
@@ -27,8 +25,29 @@ export interface ResultadoOcr {
   revisadoEn: string;
 }
 
-/** El archivo claramente no sirve (ilegible, otro tipo de documento). `message` se le muestra a la tienda. */
-export class OcrRechazadoError extends Error {}
+/**
+ * El archivo claramente no sirve (ilegible, otro tipo de documento).
+ * `message` es genérico y es lo que ve la tienda: le dice que hay un
+ * problema y que lo vuelva a subir, sin detallar qué se detectó. `detalle`
+ * lleva el motivo real, para el equipo de Aviva (Slack, logs).
+ */
+export class OcrRechazadoError extends Error {
+  constructor(
+    message: string,
+    public readonly detalle: string,
+  ) {
+    super(message);
+  }
+}
+
+/** Lo que ve la tienda cuando su documento se rechaza al subirlo. */
+export function mensajeRechazoTienda(tipo: DocumentoTipo): string {
+  const doc = tipo === "cotizacion" ? "la cotización" : "el comprobante de entrega";
+  return (
+    `Hubo un problema con el archivo y no pudimos aceptarlo. ` +
+    `Revisa que sea ${doc} correcto, completo y legible, y vuelve a subirlo.`
+  );
+}
 
 const HASHES = "paydesk_file_hashes";
 
@@ -98,7 +117,6 @@ export async function validarDocumento(params: {
         "El documento no se pudo verificar automáticamente.",
         ...(duplicadoEn ? [`Este mismo archivo ya se subió en otra solicitud (${duplicadoEn}).`] : []),
       ],
-      motivosTienda: [],
       errorTecnico: err instanceof Error ? err.message.slice(0, 300) : String(err).slice(0, 300),
       revisadoEn: ahora,
     };
@@ -119,7 +137,6 @@ export async function validarDocumento(params: {
     estado,
     modelo,
     motivos: fallidas.map((r) => r.detalle),
-    motivosTienda: fallidas.filter((r) => r.visibleParaTienda).map((r) => r.detalle),
     datos: analisis,
     revisadoEn: ahora,
   };
@@ -132,7 +149,8 @@ export async function validarDocumento(params: {
   if (estado === "rechazado" && !params.esAdmin) {
     const rechazos = fallidas.filter((r) => r.severidad === "rechazo");
     throw new OcrRechazadoError(
-      `No pudimos aceptar el documento: ${rechazos.map((r) => r.detalle).join(" ")}`,
+      mensajeRechazoTienda(tipo),
+      rechazos.map((r) => r.detalle).join(" "),
     );
   }
 

@@ -4,6 +4,8 @@ import { parseMultipart } from "./multipart";
 import { getDeal } from "../firestore/dealsRepository";
 import { writeComprobante } from "../hubspot/uploads";
 import { OcrRechazadoError } from "../ocr/validarDocumento";
+import { AppCheckError, exigirAppCheckHttp } from "../auth/appCheck";
+import { esLimiteExcedido, limitar, MENSAJE_LIMITE } from "../auth/rateLimit";
 import { verifyBearerToken } from "../auth/requestAuth";
 
 /**
@@ -32,6 +34,10 @@ export const uploadComprobante = onRequest(
         res.status(401).json({ error: "Inicia sesión para continuar" });
         return;
       }
+      await exigirAppCheckHttp(req);
+      // Cada subida cuesta una llamada a Claude: 30 por hora por persona
+      // sobra para una tienda real y corta un abuso a tiempo.
+      await limitar("upload", auth.uid, { max: 30, ventanaSeg: 3600 });
 
       const { fields, file } = await parseMultipart(req);
       const { dealId, fechaEntrega, firmaClienteConfirmada } = fields;
@@ -56,24 +62,24 @@ export const uploadComprobante = onRequest(
         return;
       }
 
-      const { url, verificacion, enRevision } = await writeComprobante(dealId, {
+      const { enRevision } = await writeComprobante(dealId, {
         file,
         fechaEntrega,
         firmaClienteConfirmada,
       });
 
-      res.status(200).json({
-        ok: true,
-        url,
-        // Lo que la tienda necesita saber de la verificación; los datos que
-        // leyó Claude, el error técnico y los motivos que delatarían qué se
-        // detectó (alteraciones, archivo repetido) se quedan para el admin.
-        enRevision,
-        verificacion: verificacion
-          ? { estado: verificacion.estado, motivos: verificacion.motivosTienda }
-          : null,
-      });
+      // A la tienda solo se le dice si quedó en revisión, nunca qué se
+      // detectó: eso se queda para el equipo de Aviva (ver ocr/validate.ts).
+      res.status(200).json({ ok: true, enRevision });
     } catch (err) {
+      if (err instanceof AppCheckError) {
+        res.status(403).json({ error: err.message });
+        return;
+      }
+      if (esLimiteExcedido(err)) {
+        res.status(429).json({ error: MENSAJE_LIMITE });
+        return;
+      }
       if (err instanceof OcrRechazadoError) {
         res.status(422).json({ error: err.message });
         return;

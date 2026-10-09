@@ -11,6 +11,11 @@
  *   repetido, señales de edición). Puede ser un error de lectura o un
  *   intento de fraude, y eso lo decide una persona: el documento se guarda
  *   pero queda en revisión hasta que un administrador lo apruebe.
+ *
+ * Los `detalle` son para el equipo de Aviva. A la tienda nunca se le dice
+ * qué se detectó, solo que hubo un problema (ver `mensajeRechazoTienda`):
+ * explicarle a quien falsificó un documento qué se notó es enseñarle a
+ * hacerlo mejor.
  */
 import type { AnalisisDocumento } from "./analizar";
 
@@ -23,12 +28,6 @@ export interface ResultadoRegla {
   severidad: Severidad;
   /** Frase en español, lista para mostrarle a la tienda. */
   detalle: string;
-  /**
-   * Si el motivo se le enseña a la tienda. Los que señalan posible fraude
-   * (archivo repetido, alteraciones) solo los ve el administrador: decirle
-   * a quien falsificó un documento qué se notó es enseñarle a hacerlo mejor.
-   */
-  visibleParaTienda: boolean;
 }
 
 export type EstadoOcr = "aprobado" | "revisar" | "rechazado";
@@ -82,8 +81,7 @@ export function validarAnalisis(ctx: ContextoValidacion): {
     severidad: Severidad,
     si: string,
     no: string,
-    visibleParaTienda = true,
-  ) => reglas.push({ id, ok, severidad, detalle: ok ? si : no, visibleParaTienda });
+  ) => reglas.push({ id, ok, severidad, detalle: ok ? si : no });
 
   add(
     "duplicado",
@@ -91,7 +89,6 @@ export function validarAnalisis(ctx: ContextoValidacion): {
     "revision",
     "El archivo no se había usado antes.",
     `Este mismo archivo ya se subió en otra solicitud (${ctx.duplicadoEn}).`,
-    false,
   );
 
   add(
@@ -163,7 +160,6 @@ export function validarAnalisis(ctx: ContextoValidacion): {
       "revision",
       "Sin señales de alteración.",
       `Posibles señales de alteración: ${a.senalesAlteracion.join("; ")}`,
-      false,
     );
   }
 

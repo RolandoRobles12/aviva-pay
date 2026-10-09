@@ -48,7 +48,7 @@ export const adminUploadCotizacion = onRequest(
         return;
       }
 
-      const { url, verificacion, enRevision } = await writeCotizacion(dealId, {
+      const { verificacion, enRevision } = await writeCotizacion(dealId, {
         esAdmin: true,
         file,
         fechaEntregaAcordada,
@@ -58,9 +58,6 @@ export const adminUploadCotizacion = onRequest(
       logger.info(`adminUploadCotizacion: deal ${dealId} replaced by ${auth.email ?? "admin"}`);
       res.status(200).json({
         ok: true,
-        url,
-        // Lo que la tienda necesita saber de la verificación; los datos que
-        // leyó Claude y el error técnico se quedan en la solicitud.
         enRevision,
         verificacion: verificacion
           ? { estado: verificacion.estado, motivos: verificacion.motivos }

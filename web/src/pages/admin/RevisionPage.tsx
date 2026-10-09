@@ -4,6 +4,7 @@ import {
   adminResolverRevisionCallable,
   type RevisionPendiente,
 } from "../../lib/firebase";
+import { ArchivoLink } from "../../components/ArchivoLink";
 
 const TIPO: Record<RevisionPendiente["tipo"], string> = {
   cotizacion: "Cotización",
@@ -77,9 +78,9 @@ function Tarjeta({ r, onResuelta }: { r: RevisionPendiente; onResuelta: () => vo
             {r.dealId}
           </div>
         </div>
-        <a href={r.revision.url} target="_blank" rel="noopener noreferrer" className="upload-button">
+        <ArchivoLink dealId={r.dealId} tipo={r.tipo} revision className="upload-button">
           Ver documento
-        </a>
+        </ArchivoLink>
       </header>
 
       <div className="callout callout--warn">

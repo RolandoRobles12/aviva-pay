@@ -8,6 +8,7 @@ import {
   type TipoDocumento,
 } from "../../hubspot/uploads";
 import type { PayDeskDeal } from "../../types/deal";
+import { getVerificacionesDeDeals } from "../../firestore/verificacionesRepository";
 
 /**
  * Los documentos que la verificación automática dejó en revisión, de todas
@@ -30,6 +31,7 @@ export const adminListRevisiones = onCall({ region: "us-central1" }, async (requ
   const ids = [...new Set(items.map((i) => i.deal.concesionarioId).filter((v): v is string => !!v))];
   const tiendas = ids.length ? await getConcesionariosByIds(ids) : [];
   const nombre = new Map(tiendas.map((t) => [t.concesionarioId, t.nombre]));
+  const verificaciones = await getVerificacionesDeDeals(items.map((i) => i.deal.dealId));
 
   return {
     revisiones: items
@@ -40,7 +42,7 @@ export const adminListRevisiones = onCall({ region: "us-central1" }, async (requ
         tienda: (deal.concesionarioId && nombre.get(deal.concesionarioId)) ?? deal.kiosco,
         montoAprobado: deal.montoAprobado,
         revision: tipo === "cotizacion" ? deal.cotizacionRevision! : deal.comprobanteRevision!,
-        verificacion: (tipo === "cotizacion" ? deal.cotizacionOcr : deal.comprobanteOcr) ?? null,
+        verificacion: verificaciones.get(`${deal.dealId}_${tipo}`)?.verificacion ?? null,
       }))
       .sort((a, b) => a.revision.subidoEn.localeCompare(b.revision.subidoEn)),
   };

@@ -1,4 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { exigirAppCheck } from "../auth/appCheck";
+import { limitar } from "../auth/rateLimit";
 import { logger } from "firebase-functions/v2";
 import { normalizarCodigo } from "../vale/codigo";
 import { consumirVale, getVale } from "../firestore/valesRepository";
@@ -40,6 +42,8 @@ export const confirmarDisposicion = onCall<ConfirmarRequest>(
         "Inicia sesión con tu tienda para confirmar una disposición.",
       );
     }
+    exigirAppCheck(request);
+    await limitar("confirmarDisposicion", uid, { max: 30, ventanaSeg: 600 });
 
     const codigo = normalizarCodigo(request.data?.codigo ?? "");
     if (!codigo) {

@@ -4,6 +4,7 @@ import { getConcesionario } from "../../firestore/concesionariosRepository";
 import { getDealsByConcesionario } from "../../firestore/dealsRepository";
 import { getFieldLabels } from "../../firestore/fieldLabelsRepository";
 import { getEtapas } from "../../firestore/etapasRepository";
+import { getVerificacionesDeDeals } from "../../firestore/verificacionesRepository";
 import { getRollout, resolveRolloutForStore } from "../../firestore/rolloutRepository";
 
 interface Request {
@@ -40,13 +41,22 @@ export const adminGetConcesionarioDeals = onCall<Request>(
       getEtapas(),
     ]);
 
+    // La verificación vive aparte (la tienda no la puede leer); para el
+    // admin se adjunta a cada deal, como antes.
+    const verificaciones = await getVerificacionesDeDeals(deals.map((d) => d.dealId));
+    const conVerificacion = deals.map((d) => ({
+      ...d,
+      cotizacionOcr: verificaciones.get(`${d.dealId}_cotizacion`)?.verificacion ?? null,
+      comprobanteOcr: verificaciones.get(`${d.dealId}_comprobante`)?.verificacion ?? null,
+    }));
+
     return {
       concesionario: {
         concesionarioId: concesionario.concesionarioId,
         nombre: concesionario.nombre,
         numero: concesionario.numero,
       },
-      deals,
+      deals: conVerificacion,
       labels,
       etapas,
       // The cutoff this store is held to: deals approved before it are

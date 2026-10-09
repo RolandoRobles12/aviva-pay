@@ -1,5 +1,6 @@
 import type { PayDeskDeal, RevisionDocumento, VerificacionDocumento } from "../types/deal";
 import type { FieldLabels } from "../types/admin";
+import { ArchivoLink } from "./ArchivoLink";
 import { completados, getEtapas, scopeOf, type RolloutMap } from "../lib/dealScope";
 import type { SortKey, SortState } from "../lib/dealSort";
 
@@ -115,7 +116,7 @@ function DateCell({ iso }: { iso: string | null }) {
 function UploadCell({
   estatus,
   dateIso,
-  url,
+  archivo,
   onUpload,
   ctaLabel,
   historica,
@@ -123,8 +124,8 @@ function UploadCell({
 }: {
   estatus: "pendiente" | "completado";
   dateIso: string | null;
-  /** cotizacionUrl/comprobanteUrl — the uploaded file's public URL, once completado. */
-  url: string | null;
+  /** El documento vigente, para "Ver archivo" (liga temporal). Null si no tiene archivo. */
+  archivo: { dealId: string; tipo: "cotizacion" | "comprobante" } | null;
   onUpload?: () => void;
   ctaLabel: string;
   historica: boolean;
@@ -142,16 +143,15 @@ function UploadCell({
     );
     return (
       <div className="cell-upload-done">
-        {url ? (
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="cell-done-link"
+        {archivo ? (
+          <ArchivoLink
+            dealId={archivo.dealId}
+            tipo={archivo.tipo}
+            className="cell-done-link link-button"
             title="Ver archivo"
           >
             {pill}
-          </a>
+          </ArchivoLink>
         ) : (
           pill
         )}
@@ -170,15 +170,9 @@ function UploadCell({
   if (revision?.estado === "pendiente") {
     return (
       <div className="cell-upload-done">
-        <a
-          href={revision.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="cell-review"
-          title="El equipo de Aviva está revisando este documento"
-        >
+        <span className="cell-review" title="El equipo de Aviva está revisando este documento">
           En revisión
-        </a>
+        </span>
         {onUpload && (
           <button type="button" className="link-button link-button--muted" onClick={onUpload}>
             Reemplazar
@@ -190,7 +184,8 @@ function UploadCell({
   const rechazo =
     revision?.estado === "rechazado" ? (
       <span className="cell-rejected" title={revision.comentario}>
-        Rechazado{revision.comentario ? `: ${revision.comentario}` : ""}
+        Hubo un problema con el documento
+        {revision.comentario ? `: ${revision.comentario}` : ""}. Vuelve a subirlo.
       </span>
     ) : null;
   if (!onUpload) return rechazo ?? <span className="cell-pending">Pendiente</span>;
@@ -419,7 +414,11 @@ export function DealsTable({
                   estatus={deal.cotizacionEstatus}
                   revision={deal.cotizacionRevision}
                   dateIso={deal.cotizacionFechaEntregaAcordada}
-                  url={deal.cotizacionUrl}
+                  archivo={
+                    deal.cotizacionPath || deal.cotizacionUrl
+                      ? { dealId: deal.dealId, tipo: "cotizacion" }
+                      : null
+                  }
                   ctaLabel="Subir cotización"
                   historica={historica}
                   onUpload={
@@ -446,7 +445,11 @@ export function DealsTable({
                   estatus={deal.comprobanteEntregaEstatus}
                   revision={deal.comprobanteRevision}
                   dateIso={deal.comprobanteFechaEntrega}
-                  url={deal.comprobanteUrl}
+                  archivo={
+                    deal.comprobantePath || deal.comprobanteUrl
+                      ? { dealId: deal.dealId, tipo: "comprobante" }
+                      : null
+                  }
                   ctaLabel="Subir comprobante"
                   historica={historica}
                   onUpload={

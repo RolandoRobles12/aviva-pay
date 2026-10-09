@@ -1,4 +1,4 @@
-import { auth } from "./firebase";
+import { auth, encabezadoAppCheck } from "./firebase";
 
 // The upload endpoints run as onRequest (they take multipart bodies, which
 // callables can't), so unlike every other call they need an absolute URL.
@@ -31,14 +31,13 @@ export interface Verificacion {
 
 export interface UploadResult {
   ok: true;
-  url: string;
   /** Se guardó, pero espera que un administrador lo apruebe. */
   enRevision?: boolean;
   verificacion?: Verificacion | null;
 }
 
 async function leerRespuesta(res: Response): Promise<{
-  datos: { ok?: true; url?: string; error?: string; verificacion?: Verificacion | null; enRevision?: boolean } | null;
+  datos: { ok?: true; error?: string; verificacion?: Verificacion | null; enRevision?: boolean } | null;
   crudo: string;
 }> {
   const crudo = await res.text();
@@ -57,7 +56,7 @@ async function postMultipart(path: string, formData: FormData) {
 
   const res = await fetch(`${FUNCTIONS_BASE_URL}/${path}`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: `Bearer ${token}`, ...(await encabezadoAppCheck()) },
     body: formData,
   });
 
