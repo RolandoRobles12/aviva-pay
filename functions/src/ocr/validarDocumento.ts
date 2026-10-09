@@ -14,11 +14,12 @@ import { getDeal } from "../firestore/dealsRepository";
 /** Lo que se guarda en la solicitud (`cotizacionOcr` / `comprobanteOcr`). */
 export interface ResultadoOcr {
   estado: EstadoOcr | "no-verificado";
-  modo: "observar" | "bloquear";
   /** Qué modelo de Claude leyó el documento. */
   modelo: ModeloOcr;
   /** Detalle de las reglas que fallaron, para que el equipo revise a mano. */
   motivos: string[];
+  /** Los motivos que sí se le muestran a la tienda (ver `visibleParaTienda` en validate.ts). */
+  motivosTienda: string[];
   /** Por qué no se pudo verificar (solo `no-verificado`), para diagnosticar desde el admin. Nunca se muestra a la tienda. */
   errorTecnico?: string;
   /** Lo que Claude leyó del documento, para auditoría. */
@@ -26,7 +27,7 @@ export interface ResultadoOcr {
   revisadoEn: string;
 }
 
-/** El documento no pasó la validación y el modo es "bloquear". `message` se le muestra a la tienda. */
+/** El archivo claramente no sirve (ilegible, otro tipo de documento). `message` se le muestra a la tienda. */
 export class OcrRechazadoError extends Error {}
 
 const HASHES = "paydesk_file_hashes";
@@ -57,9 +58,13 @@ async function registrarHash(hash: string, dealId: string, tipo: DocumentoTipo) 
  * marcada `no-verificado`) — una caída del servicio no debe frenar la operación
  * de las tiendas.
  *
- * `puedeOmitirBloqueo` es para el admin, que reemplaza documentos por la
- * tienda y es quien resuelve los casos que la verificación no entiende: se
- * registra el resultado pero no se le rechaza.
+ * Lanza `OcrRechazadoError` solo cuando el archivo claramente no sirve;
+ * todo lo demás regresa el resultado y quien llama decide si el documento
+ * se aplica o queda en revisión.
+ *
+ * `esAdmin` es para el admin, que reemplaza documentos por la tienda y es
+ * quien resuelve los casos dudosos: se registra el resultado pero no se le
+ * rechaza.
  */
 export async function validarDocumento(params: {
   tipo: DocumentoTipo;
@@ -67,13 +72,12 @@ export async function validarDocumento(params: {
   file: { fileName: string; buffer: Buffer; mimeType?: string };
   montoDeclarado?: number | null;
   fechaDeclarada?: string | null;
-  puedeOmitirBloqueo?: boolean;
+  esAdmin?: boolean;
 }): Promise<ResultadoOcr | null> {
   const { modo, modelo } = await getOcrConfig();
   if (modo === "apagado") return null;
 
   const { tipo, dealId, file } = params;
-  const bloquea = modo === "bloquear" && !params.puedeOmitirBloqueo;
   const ahora = new Date().toISOString();
 
   const hash = createHash("sha256").update(file.buffer).digest("hex");
@@ -85,21 +89,16 @@ export async function validarDocumento(params: {
     analisis = await analizarDocumento(tipo, file, modelo);
   } catch (err) {
     logger.error(`validarDocumento: el análisis falló para el deal ${dealId}`, err);
-    // Un duplicado no necesita al modelo para saberse: ese sí se rechaza.
-    if (duplicadoEn && bloquea) {
-      throw new OcrRechazadoError(
-        "No pudimos validar el documento: este mismo archivo ya se subió en otra solicitud.",
-      );
-    }
+    // Sin verificación automática, lo revisa una persona.
     await registrarHash(hash, dealId, tipo);
     return {
       estado: "no-verificado",
-      modo: modo === "bloquear" ? "bloquear" : "observar",
       modelo,
       motivos: [
         "El documento no se pudo verificar automáticamente.",
-        ...(duplicadoEn ? ["Este mismo archivo ya se subió en otra solicitud."] : []),
+        ...(duplicadoEn ? [`Este mismo archivo ya se subió en otra solicitud (${duplicadoEn}).`] : []),
       ],
+      motivosTienda: [],
       errorTecnico: err instanceof Error ? err.message.slice(0, 300) : String(err).slice(0, 300),
       revisadoEn: ahora,
     };
@@ -118,23 +117,22 @@ export async function validarDocumento(params: {
   const fallidas: ResultadoRegla[] = reglas.filter((r) => !r.ok);
   const resultado: ResultadoOcr = {
     estado,
-    modo: modo === "bloquear" ? "bloquear" : "observar",
     modelo,
     motivos: fallidas.map((r) => r.detalle),
+    motivosTienda: fallidas.filter((r) => r.visibleParaTienda).map((r) => r.detalle),
     datos: analisis,
     revisadoEn: ahora,
   };
 
   logger.info(
-    `validarDocumento: ${tipo} del deal ${dealId} → ${estado} (modo ${modo}, ${modelo})`,
+    `validarDocumento: ${tipo} del deal ${dealId} → ${estado} (${modelo})`,
     resultado.motivos,
   );
 
-  if (estado === "rechazado" && bloquea) {
-    logger.warn(`validarDocumento: ${tipo} rechazado para el deal ${dealId}`, resultado.motivos);
-    const bloqueantes = fallidas.filter((r) => r.severidad === "bloqueante");
+  if (estado === "rechazado" && !params.esAdmin) {
+    const rechazos = fallidas.filter((r) => r.severidad === "rechazo");
     throw new OcrRechazadoError(
-      `No pudimos validar el documento: ${bloqueantes.map((r) => r.detalle).join(" ")}`,
+      `No pudimos aceptar el documento: ${rechazos.map((r) => r.detalle).join(" ")}`,
     );
   }
 

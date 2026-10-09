@@ -1,11 +1,32 @@
 /** Resultado guardado de la verificación de un documento (ver functions/src/ocr/validarDocumento.ts). */
 export interface VerificacionDocumento {
   estado: "aprobado" | "revisar" | "rechazado" | "no-verificado";
-  modo: "observar" | "bloquear";
   modelo?: string;
   motivos: string[];
+  motivosTienda?: string[];
   errorTecnico?: string;
+  /** Lo que Claude leyó del documento (ver functions/src/ocr/analizar.ts). */
+  datos?: {
+    tipoDetectado?: string;
+    nombreCliente?: string | null;
+    montoTotal?: number | null;
+    fechas?: string[];
+    tieneFirma?: boolean | null;
+    observaciones?: string;
+  };
   revisadoEn: string;
+}
+
+/** Documento en espera de un administrador, o rechazado por uno. Ver functions/src/hubspot/uploads.ts. */
+export interface RevisionDocumento {
+  estado: "pendiente" | "rechazado";
+  url: string;
+  fileName: string;
+  capturado: Record<string, string>;
+  subidoEn: string;
+  comentario?: string;
+  resueltoPor?: string;
+  resueltoEn?: string;
 }
 
 /**
@@ -57,6 +78,9 @@ export interface PayDeskDeal {
   /** Resultado de la verificación con Claude del último documento subido. Solo lo muestra el admin. */
   cotizacionOcr?: VerificacionDocumento;
   comprobanteOcr?: VerificacionDocumento;
+  /** Documento que espera aprobación de un administrador, o que uno rechazó. */
+  cotizacionRevision?: RevisionDocumento | null;
+  comprobanteRevision?: RevisionDocumento | null;
 
   desembolsoFecha: string | null;
 }

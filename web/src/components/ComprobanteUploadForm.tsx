@@ -27,7 +27,9 @@ export function ComprobanteUploadForm({
   const [firmaClienteConfirmada, setFirmaClienteConfirmada] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [aviso, setAviso] = useState<Verificacion | null>(null);
+  const [aviso, setAviso] = useState<{ verificacion: Verificacion | null; enRevision: boolean } | null>(
+    null,
+  );
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -42,9 +44,9 @@ export function ComprobanteUploadForm({
     setSubmitting(true);
     setError(null);
     try {
-      const { verificacion } = await onUpload({ dealId, file, fechaEntrega, firmaClienteConfirmada });
-      if (verificacion && verificacion.estado !== "aprobado") {
-        setAviso(verificacion);
+      const { verificacion, enRevision } = await onUpload({ dealId, file, fechaEntrega, firmaClienteConfirmada });
+      if (enRevision || (verificacion && verificacion.estado !== "aprobado")) {
+        setAviso({ verificacion: verificacion ?? null, enRevision: Boolean(enRevision) });
         return;
       }
       onUploaded();
@@ -55,7 +57,15 @@ export function ComprobanteUploadForm({
     }
   }
 
-  if (aviso) return <VerificacionAviso verificacion={aviso} onCerrar={onUploaded} />;
+  if (aviso) {
+    return (
+      <VerificacionAviso
+        verificacion={aviso.verificacion}
+        enRevision={aviso.enRevision}
+        onCerrar={onUploaded}
+      />
+    );
+  }
 
   return (
     <form className="upload-form" onSubmit={handleSubmit}>

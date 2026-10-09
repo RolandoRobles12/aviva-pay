@@ -28,7 +28,9 @@ export function CotizacionUploadForm({
   const [montoTotalCompra, setMontoTotalCompra] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [aviso, setAviso] = useState<Verificacion | null>(null);
+  const [aviso, setAviso] = useState<{ verificacion: Verificacion | null; enRevision: boolean } | null>(
+    null,
+  );
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -39,9 +41,9 @@ export function CotizacionUploadForm({
     setSubmitting(true);
     setError(null);
     try {
-      const { verificacion } = await onUpload({ dealId, file, fechaEntregaAcordada, montoTotalCompra });
-      if (verificacion && verificacion.estado !== "aprobado") {
-        setAviso(verificacion);
+      const { verificacion, enRevision } = await onUpload({ dealId, file, fechaEntregaAcordada, montoTotalCompra });
+      if (enRevision || (verificacion && verificacion.estado !== "aprobado")) {
+        setAviso({ verificacion: verificacion ?? null, enRevision: Boolean(enRevision) });
         return;
       }
       onUploaded();
@@ -52,7 +54,15 @@ export function CotizacionUploadForm({
     }
   }
 
-  if (aviso) return <VerificacionAviso verificacion={aviso} onCerrar={onUploaded} />;
+  if (aviso) {
+    return (
+      <VerificacionAviso
+        verificacion={aviso.verificacion}
+        enRevision={aviso.enRevision}
+        onCerrar={onUploaded}
+      />
+    );
+  }
 
   return (
     <form className="upload-form" onSubmit={handleSubmit}>

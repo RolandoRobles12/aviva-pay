@@ -1,39 +1,45 @@
 import type { Verificacion } from "../lib/uploads";
 
 /**
- * Lo que pasó con la verificación del documento recién subido, cuando no
- * fue un "aprobado" limpio. Se muestra antes de cerrar el formulario para
- * que la tienda sepa que el documento quedó en revisión y por qué — si el
- * archivo era el equivocado, puede reemplazarlo en ese momento.
+ * Qué pasó con el documento recién subido cuando no fue una aceptación
+ * limpia. Para la tienda (`enRevision`): quedó guardado pero espera a un
+ * administrador, y si hay algo que ella pueda corregir, aquí se le dice.
+ * Para el admin (que nunca queda en revisión): lo que encontró la
+ * verificación, solo como información.
  */
 export function VerificacionAviso({
   verificacion,
+  enRevision,
   onCerrar,
 }: {
-  verificacion: Verificacion;
+  verificacion: Verificacion | null;
+  enRevision: boolean;
   onCerrar: () => void;
 }) {
-  const titulo =
-    verificacion.estado === "no-verificado"
-      ? "Documento guardado, pendiente de verificación"
-      : "Documento guardado, en revisión";
+  const motivos = verificacion?.motivos ?? [];
   return (
     <div className="upload-form">
-      <h3>{titulo}</h3>
+      <h3>{enRevision ? "Documento en revisión" : "Documento guardado con observaciones"}</h3>
       <div className="callout callout--warn">
-        {verificacion.estado === "no-verificado" ? (
-          <p>No pudimos verificar el documento automáticamente. El equipo de Aviva lo revisará.</p>
+        {enRevision ? (
+          <p>
+            Recibimos tu documento. Antes de darlo por bueno, el equipo de Aviva
+            lo va a revisar; mientras tanto aparecerá como “En revisión”.
+          </p>
         ) : (
+          <p>El documento se aplicó, pero la verificación encontró lo siguiente:</p>
+        )}
+        {motivos.length > 0 && (
           <>
-            <p>El equipo de Aviva revisará el documento por lo siguiente:</p>
+            {enRevision && <p>Revisa esto, por si subiste el archivo equivocado:</p>}
             <ul>
-              {verificacion.motivos.map((m) => (
+              {motivos.map((m) => (
                 <li key={m}>{m}</li>
               ))}
             </ul>
-            <p>Si subiste el archivo equivocado, puedes reemplazarlo.</p>
           </>
         )}
+        {enRevision && <p>Si el archivo no era el correcto, puedes reemplazarlo.</p>}
       </div>
       <div className="upload-form__actions">
         <button type="button" onClick={onCerrar}>

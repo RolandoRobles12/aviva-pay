@@ -1,4 +1,4 @@
-import type { PayDeskDeal, VerificacionDocumento } from "../types/deal";
+import type { PayDeskDeal, RevisionDocumento, VerificacionDocumento } from "../types/deal";
 import type { FieldLabels } from "../types/admin";
 import { completados, getEtapas, scopeOf, type RolloutMap } from "../lib/dealScope";
 import type { SortKey, SortState } from "../lib/dealSort";
@@ -119,6 +119,7 @@ function UploadCell({
   onUpload,
   ctaLabel,
   historica,
+  revision,
 }: {
   estatus: "pendiente" | "completado";
   dateIso: string | null;
@@ -127,6 +128,8 @@ function UploadCell({
   onUpload?: () => void;
   ctaLabel: string;
   historica: boolean;
+  /** Documento que espera a un administrador o que uno rechazó (solo si el paso sigue pendiente). */
+  revision?: RevisionDocumento | null;
 }) {
   if (estatus === "completado") {
     const pill = (
@@ -164,7 +167,43 @@ function UploadCell({
       </div>
     );
   }
-  if (!onUpload) return <span className="cell-pending">Pendiente</span>;
+  if (revision?.estado === "pendiente") {
+    return (
+      <div className="cell-upload-done">
+        <a
+          href={revision.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="cell-review"
+          title="El equipo de Aviva está revisando este documento"
+        >
+          En revisión
+        </a>
+        {onUpload && (
+          <button type="button" className="link-button link-button--muted" onClick={onUpload}>
+            Reemplazar
+          </button>
+        )}
+      </div>
+    );
+  }
+  const rechazo =
+    revision?.estado === "rechazado" ? (
+      <span className="cell-rejected" title={revision.comentario}>
+        Rechazado{revision.comentario ? `: ${revision.comentario}` : ""}
+      </span>
+    ) : null;
+  if (!onUpload) return rechazo ?? <span className="cell-pending">Pendiente</span>;
+  if (rechazo) {
+    return (
+      <div className="cell-upload-done">
+        {rechazo}
+        <button type="button" className="upload-button" onClick={onUpload}>
+          <span aria-hidden>↑</span> Subir otro
+        </button>
+      </div>
+    );
+  }
   if (historica) {
     return (
       <button type="button" className="link-button link-button--muted" onClick={onUpload}>
@@ -378,6 +417,7 @@ export function DealsTable({
               <td>
                 <UploadCell
                   estatus={deal.cotizacionEstatus}
+                  revision={deal.cotizacionRevision}
                   dateIso={deal.cotizacionFechaEntregaAcordada}
                   url={deal.cotizacionUrl}
                   ctaLabel="Subir cotización"
@@ -404,6 +444,7 @@ export function DealsTable({
               <td>
                 <UploadCell
                   estatus={deal.comprobanteEntregaEstatus}
+                  revision={deal.comprobanteRevision}
                   dateIso={deal.comprobanteFechaEntrega}
                   url={deal.comprobanteUrl}
                   ctaLabel="Subir comprobante"

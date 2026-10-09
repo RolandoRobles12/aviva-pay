@@ -54,7 +54,7 @@ export const adminUploadComprobante = onRequest(
         return;
       }
 
-      const { url, verificacion } = await writeComprobante(dealId, {
+      const { url, verificacion, enRevision } = await writeComprobante(dealId, {
         esAdmin: true,
         file,
         fechaEntrega,
@@ -67,8 +67,9 @@ export const adminUploadComprobante = onRequest(
         url,
         // Lo que la tienda necesita saber de la verificación; los datos que
         // leyó Claude y el error técnico se quedan en la solicitud.
+        enRevision,
         verificacion: verificacion
-          ? { estado: verificacion.estado, modo: verificacion.modo, motivos: verificacion.motivos }
+          ? { estado: verificacion.estado, motivos: verificacion.motivos }
           : null,
       });
     } catch (err) {

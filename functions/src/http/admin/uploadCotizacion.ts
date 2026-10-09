@@ -48,7 +48,7 @@ export const adminUploadCotizacion = onRequest(
         return;
       }
 
-      const { url, verificacion } = await writeCotizacion(dealId, {
+      const { url, verificacion, enRevision } = await writeCotizacion(dealId, {
         esAdmin: true,
         file,
         fechaEntregaAcordada,
@@ -61,8 +61,9 @@ export const adminUploadCotizacion = onRequest(
         url,
         // Lo que la tienda necesita saber de la verificación; los datos que
         // leyó Claude y el error técnico se quedan en la solicitud.
+        enRevision,
         verificacion: verificacion
-          ? { estado: verificacion.estado, modo: verificacion.modo, motivos: verificacion.motivos }
+          ? { estado: verificacion.estado, motivos: verificacion.motivos }
           : null,
       });
     } catch (err) {

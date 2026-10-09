@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   adminGetOcrCallable,
   adminProbarOcrCallable,
@@ -10,21 +11,16 @@ import {
 
 const MODOS: { valor: ModoOcr; titulo: string; descripcion: string }[] = [
   {
+    valor: "automatico",
+    titulo: "Automático",
+    descripcion:
+      "Cada documento se verifica al subirlo. Si todo cuadra, se acepta solo. Si no se puede leer o no es el tipo de documento correcto, se rechaza y la tienda sube otro. Si algo no cuadra (monto, fecha, cliente, firma, archivo repetido o señales de alteración), queda en revisión hasta que un administrador lo apruebe.",
+  },
+  {
     valor: "apagado",
     titulo: "Apagado",
-    descripcion: "No se lee ningún documento.",
-  },
-  {
-    valor: "observar",
-    titulo: "Observar",
     descripcion:
-      "Claude revisa cada cotización y comprobante y el resultado se guarda en la solicitud, pero nunca se rechaza una subida. Úsalo unos días para ver cuántos documentos legítimos marcaría antes de bloquear.",
-  },
-  {
-    valor: "bloquear",
-    titulo: "Bloquear",
-    descripcion:
-      "Se rechaza el documento que no se pueda leer, no sea del tipo correcto, repita un archivo ya subido en otra solicitud o (cotización) cuyo total no coincida con el capturado. Firma, fecha, nombre del cliente y señales de alteración solo lo marcan para revisión. Los administradores no son rechazados al reemplazar documentos.",
+      "Interruptor de emergencia: los documentos se aceptan sin verificar. Úsalo solo si la verificación está fallando.",
   },
 ];
 
@@ -103,26 +99,16 @@ export function OcrPage() {
         Al subir una cotización o un comprobante de entrega, Claude lee el
         documento y reporta qué es, a quién va dirigido, sus importes, fechas,
         si trae firma y si muestra señales de alteración. Paydesk lo contrasta
-        con la solicitud y con los archivos ya subidos. El resultado, con lo
-        que Claude leyó, queda guardado en la solicitud.
+        con la solicitud y con los archivos ya subidos. Lo sospechoso llega a{" "}
+        <Link to="/admin/revision">Revisión de documentos</Link>.
       </p>
 
       <div className="callout callout--warn">
         Si Claude no responde o el formato no se puede analizar (por ejemplo,
-        una foto HEIC o mayor a 5 MB), la subida continúa y el documento queda
-        como no verificado: una caída no frena a las tiendas. Un archivo
-        repetido de otra solicitud se rechaza de todos modos.
-        Los cambios aplican en pocos minutos.
+        una foto HEIC o mayor a 5 MB), el documento se guarda y queda en
+        revisión: una caída no frena a las tiendas, pero tampoco deja pasar
+        nada sin que alguien lo vea. Los cambios aplican en pocos minutos.
       </div>
-
-      {config.modo === "observar" && (
-        <div className="callout callout--warn">
-          <strong>En modo Observar no se rechaza ningún documento.</strong> Cada
-          archivo se analiza y el resultado se ve en la vista de cada tienda
-          (Tiendas → ver como tienda), pero la subida siempre se acepta. Para
-          que se rechacen los documentos inválidos, elige <strong>Bloquear</strong>.
-        </div>
-      )}
 
       <div className="stage-date-list__actions">
         <button type="button" className="link-button" onClick={probar} disabled={probando}>

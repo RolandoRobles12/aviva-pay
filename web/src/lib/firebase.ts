@@ -13,7 +13,12 @@ import {
 } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
-import type { PayDeskConcesionario, PayDeskDeal } from "../types/deal";
+import type {
+  PayDeskConcesionario,
+  PayDeskDeal,
+  RevisionDocumento,
+  VerificacionDocumento,
+} from "../types/deal";
 import type {
   ValeAdmin,
   ValeIntento,
@@ -352,7 +357,7 @@ export const adminSetEtapasCallable = httpsCallable<
   { ok: true }
 >(functions, "adminSetEtapas");
 
-export type ModoOcr = "apagado" | "observar" | "bloquear";
+export type ModoOcr = "automatico" | "apagado";
 export type ModeloOcr = "sonnet" | "haiku";
 export interface OcrConfig {
   modo: ModoOcr;
@@ -373,3 +378,28 @@ export const adminProbarOcrCallable = httpsCallable<void, { ok: boolean; mensaje
   functions,
   "adminProbarOcr",
 );
+
+export interface RevisionPendiente {
+  dealId: string;
+  tipo: "cotizacion" | "comprobante";
+  cliente: string | null;
+  tienda: string | null;
+  montoAprobado: number | null;
+  revision: RevisionDocumento;
+  verificacion: VerificacionDocumento | null;
+}
+
+export const adminListRevisionesCallable = httpsCallable<
+  void,
+  { revisiones: RevisionPendiente[] }
+>(functions, "adminListRevisiones");
+
+export const adminResolverRevisionCallable = httpsCallable<
+  {
+    dealId: string;
+    tipo: "cotizacion" | "comprobante";
+    decision: "aprobar" | "rechazar";
+    comentario?: string;
+  },
+  { ok: true }
+>(functions, "adminResolverRevision");

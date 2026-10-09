@@ -26,18 +26,19 @@ const FUNCTIONS_BASE_URL =
 /** Resultado de la verificación del documento con Claude; `null` si está apagada. */
 export interface Verificacion {
   estado: "aprobado" | "revisar" | "rechazado" | "no-verificado";
-  modo: "observar" | "bloquear";
   motivos: string[];
 }
 
 export interface UploadResult {
   ok: true;
   url: string;
+  /** Se guardó, pero espera que un administrador lo apruebe. */
+  enRevision?: boolean;
   verificacion?: Verificacion | null;
 }
 
 async function leerRespuesta(res: Response): Promise<{
-  datos: { ok?: true; url?: string; error?: string; verificacion?: Verificacion | null } | null;
+  datos: { ok?: true; url?: string; error?: string; verificacion?: Verificacion | null; enRevision?: boolean } | null;
   crudo: string;
 }> {
   const crudo = await res.text();
