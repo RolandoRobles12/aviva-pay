@@ -34,6 +34,7 @@ import type {
   FieldLabels,
   StageDateProperties,
   EtapaConfig,
+  AdminRol,
 } from "../types/admin";
 
 const firebaseConfig = {
@@ -231,9 +232,14 @@ export const adminListAdminsCallable = httpsCallable<
 >(functions, "adminListAdmins");
 
 export const adminCreateAdminCallable = httpsCallable<
-  { email: string },
+  { email: string; rol: AdminRol },
   { ok: true }
 >(functions, "adminCreateAdmin");
+
+export const adminSetAdminRolCallable = httpsCallable<
+  { uid: string; rol: AdminRol },
+  { ok: true }
+>(functions, "adminSetAdminRol");
 
 export const adminRevokeAdminCallable = httpsCallable<
   { uid: string },

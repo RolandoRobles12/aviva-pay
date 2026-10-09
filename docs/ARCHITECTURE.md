@@ -177,12 +177,23 @@ En `/admin`, con cuentas de **Firebase Auth (Google)** que llevan un custom clai
 El claim se otorga **fuera de la aplicación** solo para el *primer* admin — si la app pudiera otorgarlo sin que nadie con el claim lo pidiera, cualquiera que se registrara (con correo o con Google) podría promoverse. Para dar de alta a ese primer admin: crear el usuario en Firebase Console (Authentication → Users; si va a entrar con Google, basta con que inicie sesión una vez para que su cuenta exista) y luego, una sola vez, desde un entorno con credenciales de Admin SDK:
 
 ```js
-await getAuth().setCustomUserClaims(uid, { admin: true });
+await getAuth().setCustomUserClaims(uid, { admin: true, adminRol: "super" });
 ```
 
 La persona debe volver a iniciar sesión para que el claim entre en su token.
 
-A partir de ahí, cualquier admin puede dar de alta a los siguientes desde `/admin/administradores` (ver abajo) — ya no hace falta tocar la consola ni el Admin SDK a mano.
+A partir de ahí, cualquier super admin puede dar de alta a los siguientes desde `/admin/administradores` (ver abajo) — ya no hace falta tocar la consola ni el Admin SDK a mano.
+
+### Roles de administrador
+
+Hay dos, en el claim `adminRol` junto a `admin: true` (ver `functions/src/auth/adminGuard.ts`):
+
+| Rol | Puede |
+|---|---|
+| `super` | Todo: configuración (diccionario, etapas, fechas de etapa, etiquetas, verificación de documentos, notificaciones, vigencia de vales, etapas de cancelación, fecha de arranque general y por tienda, sincronización con HubSpot) y alta, baja y rol de administradores. |
+| `operador` | El día a día: tiendas (renombrar e invitar o quitar usuarios), vista de cada tienda y reemplazo de documentos, revisión de documentos, vales (consultar y reemitir) y reportes. |
+
+Una cuenta con `admin: true` y **sin** `adminRol` cuenta como `super`: son las de antes de los roles, y así nadie perdió acceso al desplegar. Los admins nuevos se crean como `operador` salvo que se elija otra cosa. Cada función del backend revisa el rol (`assertAdmin` / `assertSuperAdmin`); el panel solo oculta lo que el rol no puede usar. Un cambio de rol entra al token la próxima vez que la persona abre o recarga el panel, que fuerza un token fresco.
 
 ### Qué administra
 
@@ -191,13 +202,15 @@ A partir de ahí, cualquier admin puede dar de alta a los siguientes desde `/adm
 | **Tiendas** (`/admin/tiendas`) | Catálogo de las ~481 tiendas, que aparecen solas conforme llegan deals. Renombrar (de `#0046 - TEQ CR` al nombre real), invitar o quitar correos con acceso, y fijar su fecha de arranque individual. Desde la vista de una tienda (`/admin/tiendas/:concesionarioId`) un admin también puede ver los archivos de cotización/comprobante de cada solicitud y reemplazarlos si la tienda subió el incorrecto (`adminUploadCotizacion`/`adminUploadComprobante` — mismo write-back que usa la tienda, gateado por el claim `admin` en vez de por `concesionarioIds`). |
 | **Diccionario de campos** (`/admin/diccionario`) | Mapeo de cada dato de Paydesk a su propiedad interna de HubSpot, editable sin desplegar. |
 | **Fechas de etapa** (`/admin/etapas-fecha`) | Para cada una de las cinco fechas de hito (`fechaSolicitud`, `estatusKyc`, `creditoLiberadoFecha`, `disposicionCreditoFecha`, `desembolsoFecha`), lista editable de propiedades adicionales de HubSpot donde esa fecha pudiera vivir, más allá de la propiedad del diccionario de campos — un deal puede alcanzar la misma etapa por más de un camino en HubSpot. Se revisan en orden, la primera con valor gana (ver `hubspot/deals.ts`, `stageDate()`). Vive en Firestore (`paydesk_config/stage_date_properties`), mismo patrón de caché-por-instancia que el diccionario de campos. |
-| **Administradores** (`/admin/administradores`) | Otorgar o revocar el acceso al panel, y ver el historial de quién se lo dio a quién y cuándo. |
+| **Administradores** (`/admin/administradores`) | Otorgar o revocar el acceso al panel, cambiar el rol de cada administrador, y ver el historial de quién se lo dio a quién y cuándo. Solo super admins. |
 
 ### Gestión de administradores (`/admin/administradores`)
 
 Otorgar acceso (`adminCreateAdmin`) busca la cuenta de Firebase Auth por correo y, si no existe, la crea sin contraseña — la persona entra después con "Continuar con Google" usando ese mismo correo, que Firebase enlaza automáticamente porque la cuenta recién creada no tiene ningún proveedor de inicio de sesión todavía. Luego pone el claim `admin: true`.
 
-Revocar acceso (`adminRevokeAdmin`) pone el claim en `false`. Un admin no puede revocarse a sí mismo — es la manera de evitar que alguien se quede sin poder entrar por error; si de verdad hace falta quitarle el acceso al último admin activo, hay que hacerlo con el mismo comando de Admin SDK que se usa para dar de alta al primero.
+Cambiar el rol (`adminSetAdminRol`) actualiza `adminRol`; nadie puede cambiar el suyo, así que siempre queda al menos un super admin (quien hizo el cambio).
+
+Revocar acceso (`adminRevokeAdmin`) pone el claim en `false` y quita `adminRol`. Un admin no puede revocarse a sí mismo — es la manera de evitar que alguien se quede sin poder entrar por error; si de verdad hace falta quitarle el acceso al último admin activo, hay que hacerlo con el mismo comando de Admin SDK que se usa para dar de alta al primero.
 
 Dos colecciones de Firestore respaldan esta pantalla, ambas de solo lectura/escritura desde las Cloud Functions (igual que el resto — ver `firestore.rules`):
 
@@ -253,7 +266,7 @@ La propiedad Kiosco es de tipo **multiple checkboxes**, con ~481 opciones cuyo t
 - Crear el workflow que mueve el deal a la etapa de disposición cuando `codigo_paydesk_estatus` pasa a `Utilizado`. Sin él, la fecha de disposición nunca se estampa y se pierde el dato de cuándo se gastó el crédito.
 - Catálogo de nombres reales de tienda: se puede capturar tienda por tienda en `/admin/tiendas`. Si Aviva tiene el catálogo de códigos (`TEQ`, `TEO`, `FER`…) → nombres, vale la pena un import masivo en vez de 481 ediciones a mano.
 - Confirmar con el admin de HubSpot si un deal puede tener más de un Kiosco marcado (hoy se toma el primero y se loguea el caso).
-- Crear las cuentas de admin y otorgarles el claim `admin` (ver "Alta de administradores").
+- Crear las cuentas de admin y otorgarles el claim `admin` (ver "Alta de administradores") y revisar el rol de cada una (ver "Roles de administrador").
 - Habilitar el proveedor Google en Firebase Console (Authentication → Sign-in method) — el botón "Continuar con Google" no funciona hasta activarlo en el proyecto.
 - **Corte operativo del reemplazo de NIP por correo/contraseña**: el acceso viejo (código + NIP) quedó retirado por completo, así que ninguna tienda puede entrar hasta que un admin le invite al menos un correo desde `/admin/tiendas`. Falta correr ese alta inicial para las tiendas que ya estaban activas.
 - Revisar la plantilla del correo que envía `sendPasswordResetEmail` (Firebase Console → Authentication → Templates) — hoy es la genérica de Firebase; vale la pena personalizarla con la marca de Aviva ya que es el único correo que recibe una tienda invitada.

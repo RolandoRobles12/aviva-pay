@@ -1,6 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions/v2";
-import { assertAdmin } from "../../auth/adminGuard";
+import { assertSuperAdmin } from "../../auth/adminGuard";
 import { probarConexion } from "../../ocr/analizar";
 
 import {
@@ -13,14 +13,14 @@ import {
 } from "../../firestore/ocrConfigRepository";
 
 export const adminGetOcr = onCall({ region: "us-central1" }, async (request) => {
-  assertAdmin(request);
+  assertSuperAdmin(request);
   return await getOcrConfigFresh();
 });
 
 export const adminSetOcr = onCall<{ modo?: ModoOcr; modelo?: ModeloOcr }>(
   { region: "us-central1" },
   async (request) => {
-    const admin = assertAdmin(request);
+    const admin = assertSuperAdmin(request);
     const { modo, modelo } = request.data ?? {};
     if (!esModoOcr(modo)) {
       throw new HttpsError("invalid-argument", "Modo de verificación inválido.");
@@ -42,7 +42,7 @@ export const adminSetOcr = onCall<{ modo?: ModoOcr; modelo?: ModeloOcr }>(
 export const adminProbarOcr = onCall(
   { region: "us-central1", secrets: ["ANTHROPIC_API_KEY"] },
   async (request) => {
-    assertAdmin(request);
+    assertSuperAdmin(request);
     const { modelo } = await getOcrConfigFresh();
     try {
       const nombre = await probarConexion(modelo);

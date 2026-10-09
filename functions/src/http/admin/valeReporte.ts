@@ -1,6 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions/v2";
-import { assertAdmin } from "../../auth/adminGuard";
+import { assertAdmin, assertSuperAdmin } from "../../auth/adminGuard";
 import {
   listarIntentosFallidos,
   listarVales,
@@ -169,7 +169,7 @@ export const adminGetCancelStages = onCall({ region: "us-central1" }, async (req
 export const adminSetCancelStages = onCall<{ etapas?: string[] }>(
   { region: "us-central1" },
   async (request) => {
-    const admin = assertAdmin(request);
+    const admin = assertSuperAdmin(request);
     const etapas = request.data?.etapas;
 
     if (!Array.isArray(etapas)) {

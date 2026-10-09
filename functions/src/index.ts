@@ -39,6 +39,7 @@ export {
   adminListAdmins,
   adminCreateAdmin,
   adminRevokeAdmin,
+  adminSetAdminRol,
 } from "./http/admin/admins";
 export { adminGetConcesionarioDeals } from "./http/admin/viewConcesionarioDeals";
 export { adminUploadCotizacion } from "./http/admin/uploadCotizacion";

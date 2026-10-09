@@ -10,6 +10,7 @@ import { ValePage } from "./pages/ValePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { RequireAuth } from "./components/RequireAuth";
 import { AdminLoginPage } from "./pages/admin/AdminLoginPage";
+import { SoloSuperAdmin } from "./lib/adminRol";
 import { AdminLayout } from "./pages/admin/AdminLayout";
 import { TiendasPage } from "./pages/admin/TiendasPage";
 import { DiccionarioPage } from "./pages/admin/DiccionarioPage";
@@ -60,16 +61,65 @@ export function App() {
       >
         <Route path="tiendas" element={<TiendasPage />} />
         <Route path="tiendas/:concesionarioId" element={<ConcesionarioPreviewPage />} />
-        <Route path="diccionario" element={<DiccionarioPage />} />
-        <Route path="etapas" element={<EtapasPage />} />
-        <Route path="etapas-fecha" element={<EtapaFechasPage />} />
+        <Route
+          path="diccionario"
+          element={
+            <SoloSuperAdmin>
+              <DiccionarioPage />
+            </SoloSuperAdmin>
+          }
+        />
+        <Route
+          path="etapas"
+          element={
+            <SoloSuperAdmin>
+              <EtapasPage />
+            </SoloSuperAdmin>
+          }
+        />
+        <Route
+          path="etapas-fecha"
+          element={
+            <SoloSuperAdmin>
+              <EtapaFechasPage />
+            </SoloSuperAdmin>
+          }
+        />
         <Route path="revision" element={<RevisionPage />} />
-        <Route path="notificaciones" element={<NotificacionesPage />} />
-        <Route path="ocr" element={<OcrPage />} />
-        <Route path="etiquetas" element={<EtiquetasPage />} />
+        <Route
+          path="notificaciones"
+          element={
+            <SoloSuperAdmin>
+              <NotificacionesPage />
+            </SoloSuperAdmin>
+          }
+        />
+        <Route
+          path="ocr"
+          element={
+            <SoloSuperAdmin>
+              <OcrPage />
+            </SoloSuperAdmin>
+          }
+        />
+        <Route
+          path="etiquetas"
+          element={
+            <SoloSuperAdmin>
+              <EtiquetasPage />
+            </SoloSuperAdmin>
+          }
+        />
         <Route path="vales" element={<ValesPage />} />
         <Route path="reporte-vales" element={<ReporteValesPage />} />
-        <Route path="administradores" element={<AdminsPage />} />
+        <Route
+          path="administradores"
+          element={
+            <SoloSuperAdmin>
+              <AdminsPage />
+            </SoloSuperAdmin>
+          }
+        />
       </Route>
 
       <Route path="*" element={<NotFoundPage />} />

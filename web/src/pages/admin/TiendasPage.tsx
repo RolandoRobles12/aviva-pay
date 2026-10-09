@@ -8,6 +8,7 @@ import {
   adminUpdateConcesionarioCallable,
   enviarRestablecerContrasena,
 } from "../../lib/firebase";
+import { useEsSuperAdmin } from "../../lib/adminRol";
 import type { AdminConcesionario } from "../../types/admin";
 import { Modal } from "../../components/Modal";
 import { StatTiles } from "../../components/StatTiles";
@@ -23,6 +24,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * several stores sees all of them in one combined list once they sign in.
  */
 export function TiendasPage() {
+  const esSuper = useEsSuperAdmin();
   const [tiendas, setTiendas] = useState<AdminConcesionario[] | null>(null);
   const [busqueda, setBusqueda] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -115,14 +117,16 @@ export function TiendasPage() {
           </p>
         </div>
         <div className="admin-page-head__actions">
-          <button
-            type="button"
-            className="upload-button"
-            onClick={sincronizar}
-            disabled={sincronizando}
-          >
-            {sincronizando ? "Sincronizando..." : "Sincronizar ahora"}
-          </button>
+          {esSuper && (
+            <button
+              type="button"
+              className="upload-button"
+              onClick={sincronizar}
+              disabled={sincronizando}
+            >
+              {sincronizando ? "Sincronizando..." : "Sincronizar ahora"}
+            </button>
+          )}
           <input
             type="search"
             className="admin-search"
@@ -143,6 +147,7 @@ export function TiendasPage() {
       {error && <p className="form-error">{error}</p>}
 
       <RolloutCard
+        editable={esSuper}
         fecha={fechaRollout}
         onSaved={setFechaRollout}
         onError={setError}
@@ -246,6 +251,7 @@ function EditarTiendaForm({
   const [nombre, setNombre] = useState(tienda.nombre);
   const [usuarios, setUsuarios] = useState<string[]>(tienda.usuarios);
   const [nuevoCorreo, setNuevoCorreo] = useState("");
+  const esSuper = useEsSuperAdmin();
   const [rolloutDesde, setRolloutDesde] = useState(tienda.rolloutDesde ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -451,6 +457,7 @@ function EditarTiendaForm({
           type="date"
           value={rolloutDesde}
           onChange={(e) => setRolloutDesde(e.target.value)}
+          disabled={!esSuper}
         />
       </label>
       <p className="form-note">
@@ -509,10 +516,13 @@ function EditarTiendaForm({
  * says so plainly rather than looking like a missing setting.
  */
 function RolloutCard({
+  editable,
   fecha,
   onSaved,
   onError,
 }: {
+  /** Solo un super admin cambia la fecha de arranque; el operador la ve. */
+  editable: boolean;
   fecha: string | null;
   onSaved: (f: string | null) => void;
   onError: (msg: string | null) => void;
@@ -561,6 +571,7 @@ function RolloutCard({
           )}
         </p>
       </div>
+      {editable && (
       <div className="rollout-card__control">
         <input
           type="date"
@@ -596,6 +607,7 @@ function RolloutCard({
         )}
         {ok && <span className="form-success">Guardada.</span>}
       </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions/v2";
-import { assertAdmin } from "../../auth/adminGuard";
+import { assertSuperAdmin } from "../../auth/adminGuard";
 import { ETAPAS_BASE_DEFAULT } from "../../config/fields";
 import {
   getEtapasDefaults,
@@ -11,7 +11,7 @@ import {
 
 /** Devuelve las etapas en uso y las de código, para poder restaurarlas. */
 export const adminGetEtapas = onCall({ region: "us-central1" }, async (request) => {
-  assertAdmin(request);
+  assertSuperAdmin(request);
   return { etapas: await getEtapasFresh(), defaults: getEtapasDefaults() };
 });
 
@@ -30,7 +30,7 @@ const PROPIEDAD_RE = /^[a-zA-Z0-9_]{1,100}$/;
 export const adminSetEtapas = onCall<SetRequest>(
   { region: "us-central1" },
   async (request) => {
-    const admin = assertAdmin(request);
+    const admin = assertSuperAdmin(request);
     const etapas = request.data?.etapas;
 
     if (!Array.isArray(etapas) || etapas.length === 0) {

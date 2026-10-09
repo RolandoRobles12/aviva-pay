@@ -1,6 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions/v2";
-import { assertAdmin } from "../../auth/adminGuard";
+import { assertSuperAdmin } from "../../auth/adminGuard";
 import {
   EVENTOS_NOTIFICACION,
   esEvento,
@@ -13,7 +13,7 @@ import { enviarPrueba } from "../../notificaciones/notificar";
 import { SlackError } from "../../notificaciones/slack";
 
 export const adminGetNotificaciones = onCall({ region: "us-central1" }, async (request) => {
-  assertAdmin(request);
+  assertSuperAdmin(request);
   return { config: await getNotificacionesConfigFresh(), eventos: EVENTOS_NOTIFICACION };
 });
 
@@ -49,7 +49,7 @@ function validarDestino(d: Partial<DestinoNotificacion>): DestinoNotificacion {
 export const adminSetNotificaciones = onCall<{ config?: Partial<NotificacionesConfig> }>(
   { region: "us-central1" },
   async (request) => {
-    const admin = assertAdmin(request);
+    const admin = assertSuperAdmin(request);
     const config = request.data?.config;
     if (!config || !Array.isArray(config.destinos)) {
       throw new HttpsError("invalid-argument", "config es requerido.");
@@ -83,7 +83,7 @@ const ERRORES_SLACK: Record<string, string> = {
 export const adminProbarNotificacion = onCall<{ destino?: Partial<DestinoNotificacion> }>(
   { region: "us-central1", secrets: ["SLACK_BOT_TOKEN"] },
   async (request) => {
-    const admin = assertAdmin(request);
+    const admin = assertSuperAdmin(request);
     const destino = validarDestino({ ...request.data?.destino, id: "prueba", eventos: [] });
     try {
       await enviarPrueba(destino, admin.email ?? admin.uid);

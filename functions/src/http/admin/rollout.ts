@@ -1,6 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions/v2";
-import { assertAdmin } from "../../auth/adminGuard";
+import { assertAdmin, assertSuperAdmin } from "../../auth/adminGuard";
 import { getRolloutFresh, setRollout } from "../../firestore/rolloutRepository";
 
 export const adminGetRollout = onCall({ region: "us-central1" }, async (request) => {
@@ -21,7 +21,7 @@ interface SetRequest {
 export const adminSetRollout = onCall<SetRequest>(
   { region: "us-central1" },
   async (request) => {
-    const admin = assertAdmin(request);
+    const admin = assertSuperAdmin(request);
     const fecha = request.data?.fechaRollout;
 
     if (fecha !== null && fecha !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {

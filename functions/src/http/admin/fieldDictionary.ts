@@ -1,6 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions/v2";
-import { assertAdmin } from "../../auth/adminGuard";
+import { assertSuperAdmin } from "../../auth/adminGuard";
 import {
   getFieldDictionaryFresh,
   getFieldDictionaryDefaults,
@@ -12,7 +12,7 @@ import {
 export const adminGetFieldDictionary = onCall(
   { region: "us-central1" },
   async (request) => {
-    assertAdmin(request);
+    assertSuperAdmin(request);
     return {
       campos: await getFieldDictionaryFresh(),
       defaults: getFieldDictionaryDefaults(),
@@ -34,7 +34,7 @@ interface SetRequest {
 export const adminSetFieldDictionary = onCall<SetRequest>(
   { region: "us-central1" },
   async (request) => {
-    const admin = assertAdmin(request);
+    const admin = assertSuperAdmin(request);
     const campos = request.data?.campos;
 
     if (!campos || typeof campos !== "object") {
