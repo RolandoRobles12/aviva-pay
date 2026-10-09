@@ -1,6 +1,6 @@
 import { onCall } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions/v2";
-import { assertAdmin } from "../../auth/adminGuard";
+import { assertSuperAdmin } from "../../auth/adminGuard";
 import { searchConstruramaDeals } from "../../hubspot/deals";
 import { upsertDealFromHubspot } from "../../firestore/dealsRepository";
 
@@ -27,7 +27,7 @@ export const adminSyncConstrurama = onCall(
     secrets: ["HUBSPOT_PRIVATE_APP_TOKEN"],
   },
   async (request) => {
-    const admin = assertAdmin(request);
+    const admin = assertSuperAdmin(request);
     logger.info(`adminSyncConstrurama: started by ${admin.email ?? admin.uid}`);
 
     const found = await searchConstruramaDeals();

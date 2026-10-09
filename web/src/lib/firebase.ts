@@ -1,5 +1,11 @@
 import { initializeApp } from "firebase/app";
 import {
+  getToken as getAppCheckToken,
+  initializeAppCheck,
+  ReCaptchaEnterpriseProvider,
+  type AppCheck,
+} from "firebase/app-check";
+import {
   browserLocalPersistence,
   browserSessionPersistence,
   getAuth,
@@ -13,7 +19,12 @@ import {
 } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
-import type { PayDeskConcesionario, PayDeskDeal } from "../types/deal";
+import type {
+  PayDeskConcesionario,
+  PayDeskDeal,
+  RevisionDocumento,
+  VerificacionDocumento,
+} from "../types/deal";
 import type {
   ValeAdmin,
   ValeIntento,
@@ -29,6 +40,7 @@ import type {
   FieldLabels,
   StageDateProperties,
   EtapaConfig,
+  AdminRol,
 } from "../types/admin";
 
 const firebaseConfig = {
@@ -41,6 +53,31 @@ const firebaseConfig = {
 };
 
 export const app = initializeApp(firebaseConfig);
+
+/**
+ * App Check (reCAPTCHA Enterprise): demuestra al backend que la llamada
+ * viene de este sitio y no de un script. Solo se activa si el despliegue
+ * trae la llave del sitio; el backend lo exige solo con
+ * APP_CHECK_ENFORCE=true (ver functions/src/auth/appCheck.ts).
+ */
+const APP_CHECK_SITE_KEY = import.meta.env.VITE_APP_CHECK_SITE_KEY as string | undefined;
+const appCheck: AppCheck | null = APP_CHECK_SITE_KEY
+  ? initializeAppCheck(app, {
+      provider: new ReCaptchaEnterpriseProvider(APP_CHECK_SITE_KEY),
+      isTokenAutoRefreshEnabled: true,
+    })
+  : null;
+
+/** Encabezado de App Check para las llamadas `fetch` directas (las subidas); vacío si no está activo. */
+export async function encabezadoAppCheck(): Promise<Record<string, string>> {
+  if (!appCheck) return {};
+  try {
+    const { token } = await getAppCheckToken(appCheck, false);
+    return { "X-Firebase-AppCheck": token };
+  } catch {
+    return {};
+  }
+}
 export const auth = getAuth(app);
 // Which language Firebase renders its auth emails in (invite, password
 // reset) — independent of the template's configured language in Console.
@@ -226,9 +263,14 @@ export const adminListAdminsCallable = httpsCallable<
 >(functions, "adminListAdmins");
 
 export const adminCreateAdminCallable = httpsCallable<
-  { email: string },
+  { email: string; rol: AdminRol },
   { ok: true }
 >(functions, "adminCreateAdmin");
+
+export const adminSetAdminRolCallable = httpsCallable<
+  { uid: string; rol: AdminRol },
+  { ok: true }
+>(functions, "adminSetAdminRol");
 
 export const adminRevokeAdminCallable = httpsCallable<
   { uid: string },
@@ -352,7 +394,7 @@ export const adminSetEtapasCallable = httpsCallable<
   { ok: true }
 >(functions, "adminSetEtapas");
 
-export type ModoOcr = "apagado" | "observar" | "bloquear";
+export type ModoOcr = "automatico" | "apagado";
 export type ModeloOcr = "sonnet" | "haiku";
 export interface OcrConfig {
   modo: ModoOcr;
@@ -368,3 +410,139 @@ export const adminSetOcrCallable = httpsCallable<OcrConfig, { ok: true }>(
   functions,
   "adminSetOcr",
 );
+
+export const adminProbarOcrCallable = httpsCallable<void, { ok: boolean; mensaje: string }>(
+  functions,
+  "adminProbarOcr",
+);
+
+export interface RevisionPendiente {
+  dealId: string;
+  tipo: "cotizacion" | "comprobante";
+  cliente: string | null;
+  tienda: string | null;
+  montoAprobado: number | null;
+  revision: RevisionDocumento;
+  verificacion: VerificacionDocumento | null;
+}
+
+export const adminListRevisionesCallable = httpsCallable<
+  void,
+  { revisiones: RevisionPendiente[] }
+>(functions, "adminListRevisiones");
+
+export const adminResolverRevisionCallable = httpsCallable<
+  {
+    dealId: string;
+    tipo: "cotizacion" | "comprobante";
+    decision: "aprobar" | "rechazar";
+    comentario?: string;
+  },
+  { ok: true }
+>(functions, "adminResolverRevision");
+
+export type EventoNotificacion =
+  | "documento_en_revision"
+  | "documento_rechazado"
+  | "revision_resuelta"
+  | "revision_atrasada"
+  | "error_sistema";
+
+export interface DestinoNotificacion {
+  id: string;
+  tipo: "canal" | "usuario";
+  valor: string;
+  eventos: EventoNotificacion[];
+}
+
+export interface NotificacionesConfig {
+  activo: boolean;
+  destinos: DestinoNotificacion[];
+  /** Horas en revisión antes del recordatorio; 0 lo apaga. */
+  recordatorioHoras: number;
+}
+
+export const adminGetNotificacionesCallable = httpsCallable<
+  void,
+  { config: NotificacionesConfig; eventos: EventoNotificacion[] }
+>(functions, "adminGetNotificaciones");
+
+export const adminSetNotificacionesCallable = httpsCallable<
+  { config: NotificacionesConfig },
+  { ok: true }
+>(functions, "adminSetNotificaciones");
+
+export const adminProbarNotificacionCallable = httpsCallable<
+  { destino: Pick<DestinoNotificacion, "tipo" | "valor"> },
+  { ok: boolean; mensaje: string }
+>(functions, "adminProbarNotificacion");
+
+/** Liga temporal (minutos) para abrir una cotización o comprobante. */
+export const getArchivoUrlCallable = httpsCallable<
+  { dealId: string; tipo: "cotizacion" | "comprobante"; revision?: boolean },
+  { url: string; minutos: number | null }
+>(functions, "getArchivoUrl");
+
+export const adminMigrarLigasArchivosCallable = httpsCallable<
+  void,
+  { ok: true; migrados: number; revisados: number }
+>(functions, "adminMigrarLigasArchivos");
+
+export interface EstadoSistema {
+  camposSinMapear: string[];
+  sync: {
+    ultimaExito: string | null;
+    ultimoIntento: string | null;
+    ultimoResultado: string | null;
+    ultimoError: string | null;
+  };
+  revisiones: { pendientes: number; masAntiguaHoras: number | null };
+  notificaciones: { activo: boolean; destinos: number; recordatorioHoras: number };
+  verificacion: { modo: ModoOcr; modelo: ModeloOcr };
+}
+
+export const adminEstadoSistemaCallable = httpsCallable<void, EstadoSistema>(
+  functions,
+  "adminEstadoSistema",
+);
+
+export interface EntradaBitacora {
+  documento: string;
+  antes: Record<string, unknown> | null;
+  despues: Record<string, unknown> | null;
+  por: string;
+  /** Epoch millis. */
+  en: number | null;
+}
+
+export const adminListBitacoraCallable = httpsCallable<void, { entradas: EntradaBitacora[] }>(
+  functions,
+  "adminListBitacora",
+);
+
+export interface MetricasTienda {
+  concesionarioId: string;
+  nombre: string;
+  solicitudes: number;
+  desembolsadas: number;
+  diasADesembolso: number | null;
+  documentos: number;
+  aceptados: number;
+  enRevision: number;
+  rechazadosAuto: number;
+  aprobadosAdmin: number;
+  rechazadosAdmin: number;
+  tasaRevision: number | null;
+  tasaRechazo: number | null;
+  minutosAtencion: number | null;
+  alertas: string[];
+}
+
+export const adminMetricasCallable = httpsCallable<
+  { dias: number },
+  {
+    dias: number;
+    tiendas: MetricasTienda[];
+    global: Omit<MetricasTienda, "concesionarioId" | "nombre" | "alertas">;
+  }
+>(functions, "adminMetricas");

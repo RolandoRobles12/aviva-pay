@@ -1,4 +1,8 @@
 import { useState } from "react";
+import { VerificacionAviso } from "./VerificacionAviso";
+import { ArchivoLink } from "./ArchivoLink";
+import { prepararArchivo } from "../lib/imagenes";
+import type { Verificacion } from "../lib/uploads";
 import { uploadComprobante } from "../lib/uploads";
 import type { FieldLabels } from "../types/admin";
 
@@ -6,15 +10,15 @@ import type { FieldLabels } from "../types/admin";
 export function ComprobanteUploadForm({
   dealId,
   labels,
-  existingUrl,
+  reemplazo = false,
   onUploaded,
   onCancel,
   onUpload = uploadComprobante,
 }: {
   dealId: string;
   labels?: FieldLabels;
-  /** Pass the current comprobanteUrl when this is a replace, not a first upload — shows a warning and a link to what's there today. */
-  existingUrl?: string | null;
+  /** Ya hay un documento: muestra el aviso de reemplazo y la liga al actual. */
+  reemplazo?: boolean;
   onUploaded: () => void;
   onCancel: () => void;
   /** Defaults to the concesionario endpoint; the admin preview passes adminUploadComprobante instead. */
@@ -25,6 +29,9 @@ export function ComprobanteUploadForm({
   const [firmaClienteConfirmada, setFirmaClienteConfirmada] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<{ verificacion: Verificacion | null; enRevision: boolean } | null>(
+    null,
+  );
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -39,7 +46,19 @@ export function ComprobanteUploadForm({
     setSubmitting(true);
     setError(null);
     try {
-      await onUpload({ dealId, file, fechaEntrega, firmaClienteConfirmada });
+      // Fotos de iPhone (HEIC) y fotos muy pesadas se convierten aquí,
+      // para que la verificación automática las pueda leer.
+      const archivo = await prepararArchivo(file);
+      const { verificacion, enRevision } = await onUpload({
+        dealId,
+        file: archivo,
+        fechaEntrega,
+        firmaClienteConfirmada,
+      });
+      if (enRevision || (verificacion && verificacion.estado !== "aprobado")) {
+        setAviso({ verificacion: verificacion ?? null, enRevision: Boolean(enRevision) });
+        return;
+      }
       onUploaded();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al subir el comprobante");
@@ -48,16 +67,26 @@ export function ComprobanteUploadForm({
     }
   }
 
+  if (aviso) {
+    return (
+      <VerificacionAviso
+        verificacion={aviso.verificacion}
+        enRevision={aviso.enRevision}
+        onCerrar={onUploaded}
+      />
+    );
+  }
+
   return (
     <form className="upload-form" onSubmit={handleSubmit}>
-      <h3>{existingUrl ? "Reemplazar comprobante de entrega" : "Comprobante de entrega"}</h3>
+      <h3>{reemplazo ? "Reemplazar comprobante de entrega" : "Comprobante de entrega"}</h3>
 
-      {existingUrl && (
+      {reemplazo && (
         <p className="callout callout--warn">
           Ya hay un comprobante subido para este cliente.{" "}
-          <a href={existingUrl} target="_blank" rel="noopener noreferrer">
+          <ArchivoLink dealId={dealId} tipo="comprobante">
             Ver archivo actual
-          </a>
+          </ArchivoLink>
           . Subir un archivo nuevo lo reemplazará.
         </p>
       )}
@@ -65,7 +94,7 @@ export function ComprobanteUploadForm({
       <label className="upload-form__dropzone">
         <input
           type="file"
-          accept=".pdf,image/*"
+          accept=".pdf,image/*,.heic,.heif"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           required
         />
@@ -102,7 +131,7 @@ export function ComprobanteUploadForm({
         <button type="submit" disabled={submitting}>
           {submitting
             ? "Subiendo..."
-            : existingUrl
+            : reemplazo
               ? "Reemplazar comprobante"
               : "Guardar comprobante"}
         </button>

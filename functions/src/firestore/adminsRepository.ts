@@ -1,4 +1,5 @@
 import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
+import type { AdminRol } from "../auth/adminGuard";
 
 const ADMINS_COLLECTION = "paydesk_admins";
 const AUDIT_COLLECTION = "paydesk_admin_audit";
@@ -11,12 +12,16 @@ export interface AdminRosterEntry {
   grantedByUid: string;
   grantedByEmail: string | null;
   revokedAt: Timestamp | null;
+  /** Ausente en entradas de antes de los roles: cuentan como `super`. */
+  rol?: AdminRol;
 }
 
 export interface AdminAuditEntry {
   uid: string;
   email: string;
-  action: "granted" | "revoked";
+  action: "granted" | "revoked" | "role_changed";
+  /** El rol resultante, en altas y cambios de rol. */
+  rol?: AdminRol;
   performedByUid: string;
   performedByEmail: string | null;
   at: Timestamp;
@@ -54,6 +59,7 @@ export async function recordAdminGranted(params: {
   uid: string;
   email: string;
   displayName: string | null;
+  rol: AdminRol;
   performedByUid: string;
   performedByEmail: string | null;
 }): Promise<void> {
@@ -63,6 +69,7 @@ export async function recordAdminGranted(params: {
     uid: params.uid,
     email: params.email,
     displayName: params.displayName,
+    rol: params.rol,
     grantedAt: FieldValue.serverTimestamp(),
     grantedByUid: params.performedByUid,
     grantedByEmail: params.performedByEmail,
@@ -73,6 +80,7 @@ export async function recordAdminGranted(params: {
     uid: params.uid,
     email: params.email,
     action: "granted",
+    rol: params.rol,
     performedByUid: params.performedByUid,
     performedByEmail: params.performedByEmail,
     at: FieldValue.serverTimestamp(),
@@ -104,6 +112,27 @@ export async function recordAdminRevoked(params: {
     at: FieldValue.serverTimestamp(),
   });
 
+  await batch.commit();
+}
+
+export async function recordAdminRolChanged(params: {
+  uid: string;
+  email: string;
+  rol: AdminRol;
+  performedByUid: string;
+  performedByEmail: string | null;
+}): Promise<void> {
+  const batch = getFirestore().batch();
+  batch.set(adminsCollection().doc(params.uid), { rol: params.rol }, { merge: true });
+  batch.set(auditCollection().doc(), {
+    uid: params.uid,
+    email: params.email,
+    action: "role_changed",
+    rol: params.rol,
+    performedByUid: params.performedByUid,
+    performedByEmail: params.performedByEmail,
+    at: FieldValue.serverTimestamp(),
+  });
   await batch.commit();
 }
 

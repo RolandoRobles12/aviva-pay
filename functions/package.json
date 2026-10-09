@@ -12,7 +12,9 @@
     "serve": "npm run build && firebase emulators:start --only functions,firestore,storage",
     "shell": "npm run build && firebase functions:shell",
     "deploy": "firebase deploy --only functions",
-    "logs": "firebase functions:log"
+    "logs": "firebase functions:log",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.check.json"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.132.1",
@@ -27,6 +29,8 @@
     "@types/busboy": "^1.5.4",
     "@types/cors": "^2.8.17",
     "@types/node": "^20.14.0",
-    "typescript": "^5.5.0"
+    "tsx": "^4.19.2",
+    "typescript": "^5.5.0",
+    "vitest": "^2.1.9"
   }
 }

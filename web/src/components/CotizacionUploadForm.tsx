@@ -1,4 +1,8 @@
 import { useState } from "react";
+import { VerificacionAviso } from "./VerificacionAviso";
+import { ArchivoLink } from "./ArchivoLink";
+import { prepararArchivo } from "../lib/imagenes";
+import type { Verificacion } from "../lib/uploads";
 import { uploadCotizacion } from "../lib/uploads";
 import { CurrencyInput } from "./CurrencyInput";
 import type { FieldLabels } from "../types/admin";
@@ -7,15 +11,15 @@ import type { FieldLabels } from "../types/admin";
 export function CotizacionUploadForm({
   dealId,
   labels,
-  existingUrl,
+  reemplazo = false,
   onUploaded,
   onCancel,
   onUpload = uploadCotizacion,
 }: {
   dealId: string;
   labels?: FieldLabels;
-  /** Pass the current cotizacionUrl when this is a replace, not a first upload — shows a warning and a link to what's there today. */
-  existingUrl?: string | null;
+  /** Ya hay un documento: muestra el aviso de reemplazo y la liga al actual. */
+  reemplazo?: boolean;
   onUploaded: () => void;
   onCancel: () => void;
   /** Defaults to the concesionario endpoint; the admin preview passes adminUploadCotizacion instead. */
@@ -26,6 +30,9 @@ export function CotizacionUploadForm({
   const [montoTotalCompra, setMontoTotalCompra] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<{ verificacion: Verificacion | null; enRevision: boolean } | null>(
+    null,
+  );
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -36,7 +43,19 @@ export function CotizacionUploadForm({
     setSubmitting(true);
     setError(null);
     try {
-      await onUpload({ dealId, file, fechaEntregaAcordada, montoTotalCompra });
+      // Fotos de iPhone (HEIC) y fotos muy pesadas se convierten aquí,
+      // para que la verificación automática las pueda leer.
+      const archivo = await prepararArchivo(file);
+      const { verificacion, enRevision } = await onUpload({
+        dealId,
+        file: archivo,
+        fechaEntregaAcordada,
+        montoTotalCompra,
+      });
+      if (enRevision || (verificacion && verificacion.estado !== "aprobado")) {
+        setAviso({ verificacion: verificacion ?? null, enRevision: Boolean(enRevision) });
+        return;
+      }
       onUploaded();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al subir la cotización");
@@ -45,16 +64,26 @@ export function CotizacionUploadForm({
     }
   }
 
+  if (aviso) {
+    return (
+      <VerificacionAviso
+        verificacion={aviso.verificacion}
+        enRevision={aviso.enRevision}
+        onCerrar={onUploaded}
+      />
+    );
+  }
+
   return (
     <form className="upload-form" onSubmit={handleSubmit}>
-      <h3>{existingUrl ? "Reemplazar cotización" : "Nueva cotización"}</h3>
+      <h3>{reemplazo ? "Reemplazar cotización" : "Nueva cotización"}</h3>
 
-      {existingUrl && (
+      {reemplazo && (
         <p className="callout callout--warn">
           Ya hay una cotización subida para este cliente.{" "}
-          <a href={existingUrl} target="_blank" rel="noopener noreferrer">
+          <ArchivoLink dealId={dealId} tipo="cotizacion">
             Ver archivo actual
-          </a>
+          </ArchivoLink>
           . Subir un archivo nuevo la reemplazará.
         </p>
       )}
@@ -62,7 +91,7 @@ export function CotizacionUploadForm({
       <label className="upload-form__dropzone">
         <input
           type="file"
-          accept=".pdf,.xml,image/*"
+          accept=".pdf,.xml,image/*,.heic,.heif"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           required
         />
@@ -101,7 +130,7 @@ export function CotizacionUploadForm({
         <button type="submit" disabled={submitting}>
           {submitting
             ? "Subiendo..."
-            : existingUrl
+            : reemplazo
               ? "Reemplazar cotización"
               : "Guardar cotización"}
         </button>

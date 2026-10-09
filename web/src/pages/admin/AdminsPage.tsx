@@ -3,9 +3,10 @@ import {
   adminCreateAdminCallable,
   adminListAdminsCallable,
   adminRevokeAdminCallable,
+  adminSetAdminRolCallable,
   auth,
 } from "../../lib/firebase";
-import type { AdminAuditEntry, AdminUser } from "../../types/admin";
+import type { AdminAuditEntry, AdminRol, AdminUser } from "../../types/admin";
 import { Modal } from "../../components/Modal";
 
 function formatFechaHora(millis: number): string {
@@ -21,6 +22,18 @@ function formatFechaHora(millis: number): string {
 const AUDIT_LABEL: Record<AdminAuditEntry["action"], string> = {
   granted: "Acceso otorgado",
   revoked: "Acceso revocado",
+  role_changed: "Rol cambiado",
+};
+
+const ROL_LABEL: Record<AdminRol, string> = {
+  super: "Super admin",
+  operador: "Operador",
+};
+
+const ROL_DESCRIPCION: Record<AdminRol, string> = {
+  super: "Todo, incluida la configuración y el alta de administradores.",
+  operador:
+    "El día a día: revisión de documentos, tiendas y sus usuarios, vales y reportes. Sin configuración ni administradores.",
 };
 
 /**
@@ -33,6 +46,7 @@ export function AdminsPage() {
   const [auditLog, setAuditLog] = useState<AdminAuditEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState("");
+  const [rol, setRol] = useState<AdminRol>("operador");
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [revoking, setRevoking] = useState<AdminUser | null>(null);
@@ -59,13 +73,22 @@ export function AdminsPage() {
     setSubmitting(true);
     setFormError(null);
     try {
-      await adminCreateAdminCallable({ email: email.trim() });
+      await adminCreateAdminCallable({ email: email.trim(), rol });
       setEmail("");
       await cargar();
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "No se pudo otorgar el acceso.");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleRol(admin: AdminUser, nuevo: AdminRol) {
+    try {
+      await adminSetAdminRolCallable({ uid: admin.uid, rol: nuevo });
+      await cargar();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo cambiar el rol.");
     }
   }
 
@@ -94,8 +117,10 @@ export function AdminsPage() {
         <div>
           <h1 className="admin-title">Administradores</h1>
           <p className="admin-subtitle">
-            Quién tiene acceso al panel de Aviva. La persona agregada entra
-            con "Continuar con Google" usando el mismo correo.
+            Quién tiene acceso al panel de Aviva y con qué rol. La persona
+            agregada entra con "Continuar con Google" usando el mismo correo.
+            Un cambio de rol se aplica la próxima vez que esa persona abra o
+            recargue el panel.
           </p>
         </div>
       </div>
@@ -113,6 +138,14 @@ export function AdminsPage() {
             required
           />
         </label>
+        <label>
+          Rol
+          <select value={rol} onChange={(e) => setRol(e.target.value as AdminRol)}>
+            <option value="operador">{ROL_LABEL.operador}</option>
+            <option value="super">{ROL_LABEL.super}</option>
+          </select>
+        </label>
+        <p className="form-note">{ROL_DESCRIPCION[rol]}</p>
         {formError && <p className="form-error">{formError}</p>}
         <div className="upload-form__actions">
           <button type="submit" disabled={submitting}>
@@ -127,6 +160,7 @@ export function AdminsPage() {
             <tr>
               <th>Correo</th>
               <th>Nombre</th>
+              <th>Rol</th>
               <th>Otorgado por</th>
               <th>Desde</th>
               <th></th>
@@ -137,6 +171,20 @@ export function AdminsPage() {
               <tr key={a.uid}>
                 <td className="cell-mono">{a.email}</td>
                 <td>{a.displayName ?? "—"}</td>
+                <td>
+                  {a.uid === currentUid ? (
+                    ROL_LABEL[a.rol]
+                  ) : (
+                    <select
+                      value={a.rol}
+                      onChange={(e) => handleRol(a, e.target.value as AdminRol)}
+                      title={ROL_DESCRIPCION[a.rol]}
+                    >
+                      <option value="operador">{ROL_LABEL.operador}</option>
+                      <option value="super">{ROL_LABEL.super}</option>
+                    </select>
+                  )}
+                </td>
                 <td>{a.grantedByEmail ?? "—"}</td>
                 <td>{formatFechaHora(a.grantedAt)}</td>
                 <td className="cell-actions">
@@ -173,7 +221,10 @@ export function AdminsPage() {
             {auditLog.map((entry, i) => (
               <tr key={i}>
                 <td>{formatFechaHora(entry.at)}</td>
-                <td>{AUDIT_LABEL[entry.action]}</td>
+                <td>
+                  {AUDIT_LABEL[entry.action]}
+                  {entry.rol ? ` · ${ROL_LABEL[entry.rol]}` : ""}
+                </td>
                 <td className="cell-mono">{entry.email}</td>
                 <td>{entry.performedByEmail ?? "—"}</td>
               </tr>

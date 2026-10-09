@@ -24,7 +24,18 @@ export {
 } from "./http/admin/fieldDictionary";
 export { adminGetFieldLabels, adminSetFieldLabels } from "./http/admin/fieldLabels";
 export { adminGetEtapas, adminSetEtapas } from "./http/admin/etapas";
-export { adminGetOcr, adminSetOcr } from "./http/admin/ocr";
+export { adminGetOcr, adminSetOcr, adminProbarOcr } from "./http/admin/ocr";
+export { adminListRevisiones, adminResolverRevision } from "./http/admin/revisiones";
+export { adminMigrarLigasArchivos } from "./http/admin/migrarLigas";
+export { adminEstadoSistema } from "./http/admin/estado";
+export { adminListBitacora } from "./http/admin/bitacora";
+export { adminMetricas } from "./http/admin/metricas";
+export { getArchivoUrl } from "./http/getArchivoUrl";
+export {
+  adminGetNotificaciones,
+  adminSetNotificaciones,
+  adminProbarNotificacion,
+} from "./http/admin/notificaciones";
 export {
   adminGetStageDateProperties,
   adminSetStageDateProperties,
@@ -33,6 +44,7 @@ export {
   adminListAdmins,
   adminCreateAdmin,
   adminRevokeAdmin,
+  adminSetAdminRol,
 } from "./http/admin/admins";
 export { adminGetConcesionarioDeals } from "./http/admin/viewConcesionarioDeals";
 export { adminUploadCotizacion } from "./http/admin/uploadCotizacion";
@@ -51,3 +63,8 @@ export {
   adminGetValeConfig,
   adminSetValeConfig,
 } from "./http/admin/vales";
+
+// Tareas programadas
+export { sincronizacionPeriodica } from "./programadas/sincronizacionPeriodica";
+export { recordatorioRevisiones } from "./programadas/recordatorioRevisiones";
+export { revisionDiaria } from "./programadas/revisionDiaria";

@@ -76,5 +76,32 @@ service cloud.firestore {
     match /paydesk_admin_audit/{entryId} {
       allow read, write: if false;
     }
+
+    // Resultado completo de verificar cada documento (lo que leyó Claude,
+    // motivos de sospecha). Nunca desde el cliente: la tienda solo debe
+    // saber que hubo un problema, no qué se detectó. Ver
+    // functions/src/firestore/verificacionesRepository.ts.
+    match /paydesk_verificaciones/{id} {
+      allow read, write: if false;
+    }
+
+    // Internas de las funciones: bitácora de documentos (métricas),
+    // bitácora de cambios de configuración, ventanas de límite de
+    // solicitudes, agrupación de alertas y huellas de archivos.
+    match /paydesk_eventos_documento/{id} {
+      allow read, write: if false;
+    }
+    match /paydesk_config_bitacora/{id} {
+      allow read, write: if false;
+    }
+    match /paydesk_rate/{id} {
+      allow read, write: if false;
+    }
+    match /paydesk_alertas/{id} {
+      allow read, write: if false;
+    }
+    match /paydesk_file_hashes/{hash} {
+      allow read, write: if false;
+    }
   }
 }

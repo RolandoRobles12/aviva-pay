@@ -28,10 +28,14 @@ export interface EtapaConfig {
   propiedad?: string;
 }
 
+/** Super: todo, incluida configuración y administradores. Operador: el día a día. */
+export type AdminRol = "super" | "operador";
+
 export interface AdminUser {
   uid: string;
   email: string;
   displayName: string | null;
+  rol: AdminRol;
   /** Epoch millis. */
   grantedAt: number;
   grantedByEmail: string | null;
@@ -40,7 +44,8 @@ export interface AdminUser {
 export interface AdminAuditEntry {
   uid: string;
   email: string;
-  action: "granted" | "revoked";
+  action: "granted" | "revoked" | "role_changed";
+  rol: AdminRol | null;
   performedByEmail: string | null;
   /** Epoch millis. */
   at: number;

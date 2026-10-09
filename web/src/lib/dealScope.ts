@@ -62,9 +62,12 @@ function desembolsada(deal: PayDeskDeal): boolean {
 export function requiereAccion(deal: PayDeskDeal, rolloutPorTienda: RolloutMap): boolean {
   if (desembolsada(deal)) return false;
   if (scopeOf(deal, rolloutPorTienda) !== "activa") return false;
+  // Un documento en revisión ya no depende de la tienda: espera a Aviva.
   return (
-    deal.cotizacionEstatus === "pendiente" ||
-    deal.comprobanteEntregaEstatus === "pendiente"
+    (deal.cotizacionEstatus === "pendiente" &&
+      deal.cotizacionRevision?.estado !== "pendiente") ||
+    (deal.comprobanteEntregaEstatus === "pendiente" &&
+      deal.comprobanteRevision?.estado !== "pendiente")
   );
 }
 

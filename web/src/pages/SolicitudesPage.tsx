@@ -147,7 +147,10 @@ export function SolicitudesPage() {
           <CotizacionUploadForm
             dealId={activeModal.dealId}
             labels={labels}
-            existingUrl={deals.find((d) => d.dealId === activeModal.dealId)?.cotizacionUrl}
+            reemplazo={(() => {
+              const d = deals.find((x) => x.dealId === activeModal.dealId);
+              return Boolean(d?.cotizacionPath || d?.cotizacionUrl);
+            })()}
             onUploaded={() => setActiveModal(null)}
             onCancel={() => setActiveModal(null)}
           />
@@ -177,7 +180,10 @@ export function SolicitudesPage() {
           <ComprobanteUploadForm
             dealId={activeModal.dealId}
             labels={labels}
-            existingUrl={deals.find((d) => d.dealId === activeModal.dealId)?.comprobanteUrl}
+            reemplazo={(() => {
+              const d = deals.find((x) => x.dealId === activeModal.dealId);
+              return Boolean(d?.comprobantePath || d?.comprobanteUrl);
+            })()}
             onUploaded={() => setActiveModal(null)}
             onCancel={() => setActiveModal(null)}
           />

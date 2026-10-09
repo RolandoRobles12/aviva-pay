@@ -5,6 +5,7 @@ import {
   adminReemitirValeCallable,
   adminSetValeConfigCallable,
 } from "../../lib/firebase";
+import { useEsSuperAdmin } from "../../lib/adminRol";
 import type { ValeAdmin } from "../../types/vale";
 
 const moneda = new Intl.NumberFormat("es-MX", {
@@ -39,6 +40,7 @@ const ETIQUETA_ESTADO: Record<ValeAdmin["estado"], string> = {
  * presente, que es justo el fraude que el mecanismo cierra.
  */
 export function ValesPage() {
+  const esSuper = useEsSuperAdmin();
   const [dealId, setDealId] = useState("");
   const [buscando, setBuscando] = useState(false);
   const [vale, setVale] = useState<ValeAdmin | null>(null);
@@ -217,6 +219,7 @@ export function ValesPage() {
         </div>
       )}
 
+      {esSuper && (
       <form className="vales-card" onSubmit={guardarVigencia}>
         <h2>Vigencia</h2>
         <label htmlFor="vigencia-horas">Horas que dura un vale desde que se emite</label>
@@ -237,6 +240,7 @@ export function ValesPage() {
           vales nuevos, no a los ya emitidos.
         </p>
       </form>
+      )}
     </section>
   );
 }

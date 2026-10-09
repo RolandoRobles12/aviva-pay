@@ -1,4 +1,5 @@
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { conBitacora } from "./bitacoraConfig";
 import { VALE_VIGENCIA_HORAS_DEFAULT } from "../config/fields";
 
 const COLLECTION = "paydesk_config";
@@ -56,13 +57,15 @@ export async function setValeConfig(
   vigenciaHoras: number,
   actualizadoPor: string,
 ): Promise<void> {
-  await configDoc().set(
-    {
-      vigenciaHoras,
-      actualizadoPor,
-      actualizadoEn: FieldValue.serverTimestamp(),
-    },
-    { merge: true },
+  await conBitacora(configDoc(), actualizadoPor, (ref) =>
+    ref.set(
+      {
+        vigenciaHoras,
+        actualizadoPor,
+        actualizadoEn: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    ),
   );
   cached = null;
 }

@@ -1,5 +1,6 @@
-import type { PayDeskDeal } from "../types/deal";
+import type { PayDeskDeal, RevisionDocumento, VerificacionDocumento } from "../types/deal";
 import type { FieldLabels } from "../types/admin";
+import { ArchivoLink } from "./ArchivoLink";
 import { completados, getEtapas, scopeOf, type RolloutMap } from "../lib/dealScope";
 import type { SortKey, SortState } from "../lib/dealSort";
 
@@ -115,18 +116,21 @@ function DateCell({ iso }: { iso: string | null }) {
 function UploadCell({
   estatus,
   dateIso,
-  url,
+  archivo,
   onUpload,
   ctaLabel,
   historica,
+  revision,
 }: {
   estatus: "pendiente" | "completado";
   dateIso: string | null;
-  /** cotizacionUrl/comprobanteUrl — the uploaded file's public URL, once completado. */
-  url: string | null;
+  /** El documento vigente, para "Ver archivo" (liga temporal). Null si no tiene archivo. */
+  archivo: { dealId: string; tipo: "cotizacion" | "comprobante" } | null;
   onUpload?: () => void;
   ctaLabel: string;
   historica: boolean;
+  /** Documento que espera a un administrador o que uno rechazó (solo si el paso sigue pendiente). */
+  revision?: RevisionDocumento | null;
 }) {
   if (estatus === "completado") {
     const pill = (
@@ -139,16 +143,15 @@ function UploadCell({
     );
     return (
       <div className="cell-upload-done">
-        {url ? (
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="cell-done-link"
+        {archivo ? (
+          <ArchivoLink
+            dealId={archivo.dealId}
+            tipo={archivo.tipo}
+            className="cell-done-link link-button"
             title="Ver archivo"
           >
             {pill}
-          </a>
+          </ArchivoLink>
         ) : (
           pill
         )}
@@ -164,7 +167,38 @@ function UploadCell({
       </div>
     );
   }
-  if (!onUpload) return <span className="cell-pending">Pendiente</span>;
+  if (revision?.estado === "pendiente") {
+    return (
+      <div className="cell-upload-done">
+        <span className="cell-review" title="El equipo de Aviva está revisando este documento">
+          En revisión
+        </span>
+        {onUpload && (
+          <button type="button" className="link-button link-button--muted" onClick={onUpload}>
+            Reemplazar
+          </button>
+        )}
+      </div>
+    );
+  }
+  const rechazo =
+    revision?.estado === "rechazado" ? (
+      <span className="cell-rejected" title={revision.comentario}>
+        Hubo un problema con el documento
+        {revision.comentario ? `: ${revision.comentario}` : ""}. Vuelve a subirlo.
+      </span>
+    ) : null;
+  if (!onUpload) return rechazo ?? <span className="cell-pending">Pendiente</span>;
+  if (rechazo) {
+    return (
+      <div className="cell-upload-done">
+        {rechazo}
+        <button type="button" className="upload-button" onClick={onUpload}>
+          <span aria-hidden>↑</span> Subir otro
+        </button>
+      </div>
+    );
+  }
   if (historica) {
     return (
       <button type="button" className="link-button link-button--muted" onClick={onUpload}>
@@ -176,6 +210,24 @@ function UploadCell({
     <button type="button" className="upload-button" onClick={onUpload}>
       <span aria-hidden>↑</span> {ctaLabel}
     </button>
+  );
+}
+
+const ETIQUETA_VERIFICACION: Record<VerificacionDocumento["estado"], string> = {
+  aprobado: "Verificado",
+  revisar: "Revisar",
+  rechazado: "No pasó la verificación",
+  "no-verificado": "Sin verificar",
+};
+
+/** Solo en la vista del admin: qué dijo la verificación con Claude del documento. Los motivos van en el title. */
+function VerificacionTag({ v }: { v?: VerificacionDocumento }) {
+  if (!v) return null;
+  const detalle = [...v.motivos, ...(v.errorTecnico ? [`Error: ${v.errorTecnico}`] : [])].join("\n");
+  return (
+    <span className={`tag-verificacion tag-verificacion--${v.estado}`} title={detalle || undefined}>
+      {ETIQUETA_VERIFICACION[v.estado]}
+    </span>
   );
 }
 
@@ -236,6 +288,7 @@ export function DealsTable({
   onUploadCotizacion,
   onUploadComprobante,
   onValidarCodigo,
+  mostrarVerificacion = false,
 }: {
   deals: PayDeskDeal[];
   /** From the admin's Etiquetas config. Falls back to DEFAULT_LABELS for any missing key. */
@@ -259,6 +312,8 @@ export function DealsTable({
   onUploadComprobante?: (dealId: string) => void;
   /** Abre la ventana de validación del vale desde la fila. Omitir para una tabla de solo lectura. */
   onValidarCodigo?: (dealId: string) => void;
+  /** Vista del admin: muestra el resultado de la verificación de cada documento. La tienda no lo ve. */
+  mostrarVerificacion?: boolean;
 }) {
   const l = { ...DEFAULT_LABELS, ...labels };
   const mostrarTienda = Object.keys(concesionarioNombres ?? {}).length > 1;
@@ -357,8 +412,13 @@ export function DealsTable({
               <td>
                 <UploadCell
                   estatus={deal.cotizacionEstatus}
+                  revision={deal.cotizacionRevision}
                   dateIso={deal.cotizacionFechaEntregaAcordada}
-                  url={deal.cotizacionUrl}
+                  archivo={
+                    deal.cotizacionPath || deal.cotizacionUrl
+                      ? { dealId: deal.dealId, tipo: "cotizacion" }
+                      : null
+                  }
                   ctaLabel="Subir cotización"
                   historica={historica}
                   onUpload={
@@ -367,6 +427,7 @@ export function DealsTable({
                       : undefined
                   }
                 />
+                {mostrarVerificacion && <VerificacionTag v={deal.cotizacionOcr} />}
               </td>
               <td>
                 <CreditoLiberadoCell
@@ -382,8 +443,13 @@ export function DealsTable({
               <td>
                 <UploadCell
                   estatus={deal.comprobanteEntregaEstatus}
+                  revision={deal.comprobanteRevision}
                   dateIso={deal.comprobanteFechaEntrega}
-                  url={deal.comprobanteUrl}
+                  archivo={
+                    deal.comprobantePath || deal.comprobanteUrl
+                      ? { dealId: deal.dealId, tipo: "comprobante" }
+                      : null
+                  }
                   ctaLabel="Subir comprobante"
                   historica={historica}
                   onUpload={
@@ -392,6 +458,7 @@ export function DealsTable({
                       : undefined
                   }
                 />
+                {mostrarVerificacion && <VerificacionTag v={deal.comprobanteOcr} />}
               </td>
               <td>
                 <DateCell iso={deal.desembolsoFecha} />

@@ -12,6 +12,8 @@
     "build": "npm run build --workspace functions && npm run build --workspace web",
     "build:web": "npm run build --workspace web",
     "build:functions": "npm run build --workspace functions",
-    "emulators": "firebase emulators:start"
+    "emulators": "firebase emulators:start",
+    "test": "npm test --workspace functions && npm test --workspace web",
+    "typecheck": "npm run typecheck --workspace functions && npm run typecheck --workspace web"
   }
 }

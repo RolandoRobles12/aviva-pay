@@ -2305,3 +2305,156 @@ h3 {
   color: color-mix(in srgb, var(--negro-off) 60%, transparent);
   max-width: 26ch;
 }
+
+/* Resultado de la verificación de documentos (solo vista del admin). */
+.tag-verificacion {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: help;
+  border: 1px solid currentColor;
+}
+.tag-verificacion--aprobado { color: #1f7a3d; }
+.tag-verificacion--revisar { color: #9a6700; }
+.tag-verificacion--rechazado { color: #b42318; }
+.tag-verificacion--no-verificado { color: #6b7280; }
+
+/* Documento esperando revisión de Aviva, o rechazado por Aviva. */
+.cell-review {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #9a6700;
+  background: color-mix(in srgb, #9a6700 12%, transparent);
+  text-decoration: none;
+}
+.cell-rejected {
+  display: inline-block;
+  max-width: 220px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #b42318;
+  white-space: normal;
+}
+
+/* Bandeja de revisión de documentos (admin). */
+.revision-card {
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  display: grid;
+  gap: 12px;
+}
+.revision-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.revision-card__meta {
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+.revision-card__datos {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: 0;
+}
+.revision-card__datos dt {
+  font-weight: 600;
+}
+.revision-card__datos dd {
+  margin: 0;
+}
+@media (max-width: 600px) {
+  .revision-card__datos {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Notificaciones (admin): eventos por destino. */
+.notif-eventos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+.notif-evento {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: normal;
+}
+
+/* Estado del sistema (admin). */
+.estado-lista {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+.estado-fila {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border, #e5e7eb);
+}
+.estado-fila > span {
+  font-weight: 700;
+}
+.estado-fila--ok > span {
+  color: #1f7a3d;
+}
+.estado-fila--alerta {
+  border-color: #b4231866;
+}
+.estado-fila--alerta > span {
+  color: #b42318;
+}
+
+/* Bitácora de configuración (admin). */
+.bitacora {
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.bitacora summary {
+  cursor: pointer;
+}
+.bitacora__cambio {
+  margin-top: 10px;
+}
+.bitacora__llave {
+  font-weight: 600;
+}
+.bitacora__columnas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.bitacora__valor {
+  margin: 0;
+  max-height: 240px;
+  overflow: auto;
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+@media (max-width: 600px) {
+  .bitacora__columnas {
+    grid-template-columns: 1fr;
+  }
+}
+
+.metricas__global td {
+  font-weight: 600;
+}

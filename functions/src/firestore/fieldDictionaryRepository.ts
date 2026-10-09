@@ -1,4 +1,5 @@
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { conBitacora } from "./bitacoraConfig";
 import {
   HUBSPOT_DEAL_PROPERTIES,
   type HubspotDealPropertyKey,
@@ -65,13 +66,15 @@ export async function setFieldDictionary(
   campos: Partial<FieldDictionary>,
   actualizadoPor: string,
 ): Promise<void> {
-  await dictionaryDoc().set(
-    {
-      campos,
-      actualizadoPor,
-      actualizadoEn: FieldValue.serverTimestamp(),
-    },
-    { merge: true },
+  await conBitacora(dictionaryDoc(), actualizadoPor, (ref) =>
+    ref.set(
+      {
+        campos,
+        actualizadoPor,
+        actualizadoEn: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    ),
   );
   cached = null;
 }

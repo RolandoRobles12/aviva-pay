@@ -22,6 +22,10 @@ export const env = {
   get hubspotWebhookSecret(): string {
     return required("HUBSPOT_WEBHOOK_SECRET");
   },
+  /** Token del bot de Slack (xoxb-…) para las notificaciones (notificaciones/slack.ts). */
+  get slackBotToken(): string {
+    return required("SLACK_BOT_TOKEN");
+  },
   /** Llave de la API de Claude, para la verificación de documentos (ocr/analizar.ts). */
   get anthropicApiKey(): string {
     return required("ANTHROPIC_API_KEY");

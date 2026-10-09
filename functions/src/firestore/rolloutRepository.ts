@@ -1,4 +1,5 @@
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { conBitacora } from "./bitacoraConfig";
 
 const COLLECTION = "paydesk_config";
 const DOC_ID = "rollout";
@@ -59,13 +60,15 @@ export async function setRollout(
   fechaRollout: string | null,
   actualizadoPor: string,
 ): Promise<void> {
-  await rolloutDoc().set(
-    {
-      fechaRollout,
-      actualizadoPor,
-      actualizadoEn: FieldValue.serverTimestamp(),
-    },
-    { merge: true },
+  await conBitacora(rolloutDoc(), actualizadoPor, (ref) =>
+    ref.set(
+      {
+        fechaRollout,
+        actualizadoPor,
+        actualizadoEn: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    ),
   );
   cached = null;
 }

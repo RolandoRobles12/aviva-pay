@@ -1,6 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions/v2";
-import { assertAdmin } from "../../auth/adminGuard";
+import { assertAdmin, assertSuperAdmin } from "../../auth/adminGuard";
 import { getDeal } from "../../firestore/dealsRepository";
 import { getConcesionario } from "../../firestore/concesionariosRepository";
 import { getValeVigenteDeDeal } from "../../firestore/valesRepository";
@@ -118,7 +118,7 @@ export const adminGetValeConfig = onCall({ region: "us-central1" }, async (reque
 export const adminSetValeConfig = onCall<{ vigenciaHoras?: number }>(
   { region: "us-central1" },
   async (request) => {
-    const admin = assertAdmin(request);
+    const admin = assertSuperAdmin(request);
     const horas = Number(request.data?.vigenciaHoras);
 
     if (!Number.isInteger(horas) || horas < 1 || horas > 720) {

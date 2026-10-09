@@ -1,6 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions/v2";
-import { assertAdmin } from "../../auth/adminGuard";
+import { assertSuperAdmin } from "../../auth/adminGuard";
 import {
   getFieldLabelsFresh,
   getFieldLabelsDefaults,
@@ -10,7 +10,7 @@ import {
 
 /** Returns the labels in effect plus the code defaults, so the UI can show what each falls back to. */
 export const adminGetFieldLabels = onCall({ region: "us-central1" }, async (request) => {
-  assertAdmin(request);
+  assertSuperAdmin(request);
   return {
     etiquetas: await getFieldLabelsFresh(),
     defaults: getFieldLabelsDefaults(),
@@ -29,7 +29,7 @@ interface SetRequest {
 export const adminSetFieldLabels = onCall<SetRequest>(
   { region: "us-central1" },
   async (request) => {
-    const admin = assertAdmin(request);
+    const admin = assertSuperAdmin(request);
     const etiquetas = request.data?.etiquetas;
 
     if (!etiquetas || typeof etiquetas !== "object") {

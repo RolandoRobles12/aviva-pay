@@ -72,6 +72,16 @@ export const adminUpdateConcesionario = onCall<UpdateRequest>(
     }
 
     if (rolloutDesde !== undefined) {
+      // La fecha de arranque decide qué se le exige a la tienda: es
+      // configuración, no operación, así que solo la cambia un super admin.
+      // Un operador puede mandarla igual a la que ya tiene (el formulario
+      // envía todos los campos) sin que eso cuente como cambio.
+      if (admin.rol !== "super" && rolloutDesde !== (concesionario.rolloutDesde ?? null)) {
+        throw new HttpsError(
+          "permission-denied",
+          "Solo un super administrador puede cambiar la fecha de arranque de una tienda.",
+        );
+      }
       if (rolloutDesde !== null && !/^\d{4}-\d{2}-\d{2}$/.test(rolloutDesde)) {
         throw new HttpsError(
           "invalid-argument",

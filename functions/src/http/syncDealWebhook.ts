@@ -1,10 +1,9 @@
 import { onRequest } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions/v2";
 import { env } from "../config/env";
-import { fetchDealById, updateDealProperties } from "../hubspot/deals";
-import { upsertDealFromHubspot } from "../firestore/dealsRepository";
-import { emitirValeParaDeal } from "../vale/emitir";
-import { cancelarValeSiElDealSeCancelo } from "../vale/cancelacion";
+import { fetchDealById } from "../hubspot/deals";
+import { procesarDeal } from "../sync/procesarDeal";
+import { alertar } from "../notificaciones/alertas";
 
 interface SyncWebhookBody {
   // HubSpot's Record ID property is numeric, and the workflow webhook
@@ -41,7 +40,7 @@ export const syncDealWebhook = onRequest(
   {
     cors: false,
     region: "us-central1",
-    secrets: ["HUBSPOT_WEBHOOK_SECRET", "HUBSPOT_PRIVATE_APP_TOKEN"],
+    secrets: ["HUBSPOT_WEBHOOK_SECRET", "HUBSPOT_PRIVATE_APP_TOKEN", "SLACK_BOT_TOKEN"],
   },
   async (req, res) => {
     if (req.method !== "POST") {
@@ -63,64 +62,36 @@ export const syncDealWebhook = onRequest(
     }
     const dealId = String(rawDealId);
 
-    const result = await fetchDealById(dealId);
-    if (!result) {
-      logger.warn(`syncDealWebhook: deal ${dealId} not found in HubSpot`);
-      res.status(404).send("Deal not found");
-      return;
+    try {
+      const result = await fetchDealById(dealId);
+      if (!result) {
+        logger.warn(`syncDealWebhook: deal ${dealId} not found in HubSpot`);
+        res.status(404).send("Deal not found");
+        return;
+      }
+      const { deal } = result;
+
+      // No product/pipeline check here on purpose: this endpoint is only
+      // ever called by the HubSpot Workflow that's already scoped to this
+      // product — unlike the admin-triggered backfill, which scans the
+      // whole portal and has to filter for itself.
+      if (!deal.concesionarioId) {
+        // The deal doesn't name a concesionario yet — nothing to group it
+        // under. The workflow re-triggers on the next relevant property
+        // change, by which point the field should be filled in.
+        logger.warn(`syncDealWebhook: deal ${dealId} has no concesionario set, skipping`);
+        res.status(200).json({ ok: true, skipped: "no-concesionario" });
+        return;
+      }
+
+      const r = await procesarDeal(deal, "hubspot-workflow");
+      res.status(200).json({ ok: true, ...r });
+    } catch (err) {
+      logger.error(`syncDealWebhook: failed for deal ${dealId}`, err);
+      await alertar("webhook", `Falló la sincronización del deal ${dealId} desde HubSpot`, err);
+      // 500 para que HubSpot reintente; la sincronización periódica lo
+      // recoge de todos modos si los reintentos se agotan.
+      res.status(500).send("Error");
     }
-    const { deal } = result;
-
-    // No product/pipeline check here on purpose: this portal isn't
-    // exclusive to Construrama, but this endpoint is only ever called by
-    // the HubSpot Workflow that's already scoped to this product — unlike
-    // the admin-triggered backfill (adminSyncConstrurama), which scans the
-    // whole portal and has to filter for itself.
-    if (!deal.concesionarioId) {
-      // The deal doesn't name a concesionario yet — nothing to group it
-      // under. The workflow re-triggers on the next relevant property
-      // change, by which point the field should be filled in.
-      logger.warn(
-        `syncDealWebhook: deal ${dealId} has no concesionario set, skipping`,
-      );
-      res.status(200).json({ ok: true, skipped: "no-concesionario" });
-      return;
-    }
-
-    const { isNewConcesionario } = await upsertDealFromHubspot(deal);
-
-    // Cancelar va ANTES de emitir, y no es un detalle de orden: si el deal
-    // llegara con etapa cancelada y fecha de crédito liberado a la vez,
-    // emitir primero crearía un vale vivo para un crédito muerto.
-    const valesCancelados = await cancelarValeSiElDealSeCancelo(deal);
-
-    // El vale de un solo uso nace aquí, en cuanto el deal trae la fecha de
-    // crédito liberado: a partir de ese momento el cliente ya puede
-    // presentarse en la tienda. `emitirValeParaDeal` es idempotente, así
-    // que este workflow puede volver a disparar todas las veces que quiera
-    // sin generar un segundo vale — ver vale/emitir.ts.
-    const vale =
-      valesCancelados.length > 0
-        ? { vale: null }
-        : await emitirValeParaDeal(deal, { emitidoPor: "hubspot-workflow" });
-
-    if (isNewConcesionario) {
-      // First time we see this store: hand HubSpot the login URL so the
-      // notification workflow can pass it on. There's no store-wide
-      // código anymore — access is per person (invited email + password,
-      // see concesionario/userSync.ts), granted from the admin catalog,
-      // never through HubSpot.
-      await updateDealProperties(dealId, { paydeskUrl: env.payDeskBaseUrl });
-      logger.info(
-        `syncDealWebhook: registered concesionario ${deal.concesionarioId}`,
-      );
-    }
-
-    res.status(200).json({
-      ok: true,
-      isNewConcesionario,
-      valeEmitido: vale.vale !== null,
-      valesCancelados: valesCancelados.length,
-    });
   },
 );

@@ -256,7 +256,15 @@ const SEARCH_PAGE_SIZE = 100;
  * Properties come back directly in the search results, so this doesn't do
  * a getById per deal.
  */
-export async function searchConstruramaDeals(): Promise<
+export async function searchConstruramaDeals(opciones: {
+  /**
+   * Solo deals modificados en HubSpot desde esta fecha (la sincronización
+   * periódica). En ese modo también entran los deals en etapa de
+   * cancelación: justo esos son los que más importa no perderse, porque
+   * cancelan el vale.
+   */
+  modificadosDesde?: Date;
+} = {}): Promise<
   Array<{
     deal: DealSincronizado;
     pipelineId: string | null;
@@ -276,11 +284,17 @@ export async function searchConstruramaDeals(): Promise<
       operator: FilterOperatorEnum.In,
       values: [HUBSPOT_PIPELINES.current, HUBSPOT_PIPELINES.legacy],
     },
-    {
-      propertyName: "dealstage",
-      operator: FilterOperatorEnum.NotIn,
-      values: [...HUBSPOT_EXCLUDED_STAGES],
-    },
+    opciones.modificadosDesde
+      ? {
+          propertyName: "hs_lastmodifieddate",
+          operator: FilterOperatorEnum.Gte,
+          value: String(opciones.modificadosDesde.getTime()),
+        }
+      : {
+          propertyName: "dealstage",
+          operator: FilterOperatorEnum.NotIn,
+          values: [...HUBSPOT_EXCLUDED_STAGES],
+        },
   ];
 
   const approvedDateProperties = [

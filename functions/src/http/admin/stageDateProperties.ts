@@ -1,6 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions/v2";
-import { assertAdmin } from "../../auth/adminGuard";
+import { assertSuperAdmin } from "../../auth/adminGuard";
 import { STAGE_DATE_KEYS } from "../../config/fields";
 import {
   getStageDatePropertiesFresh,
@@ -13,7 +13,7 @@ import {
 export const adminGetStageDateProperties = onCall(
   { region: "us-central1" },
   async (request) => {
-    assertAdmin(request);
+    assertSuperAdmin(request);
     return {
       propiedades: await getStageDatePropertiesFresh(),
       defaults: getStageDatePropertiesDefaults(),
@@ -34,7 +34,7 @@ interface SetRequest {
 export const adminSetStageDateProperties = onCall<SetRequest>(
   { region: "us-central1" },
   async (request) => {
-    const admin = assertAdmin(request);
+    const admin = assertSuperAdmin(request);
     const propiedades = request.data?.propiedades;
 
     if (!propiedades || typeof propiedades !== "object") {

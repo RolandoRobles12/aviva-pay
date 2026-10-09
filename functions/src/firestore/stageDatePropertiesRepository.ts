@@ -1,4 +1,5 @@
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { conBitacora } from "./bitacoraConfig";
 import {
   STAGE_DATE_EXTRA_PROPERTIES_DEFAULT,
   STAGE_DATE_KEYS,
@@ -66,13 +67,15 @@ export async function setStageDateProperties(
   propiedades: Partial<StageDateProperties>,
   actualizadoPor: string,
 ): Promise<void> {
-  await doc().set(
-    {
-      propiedades,
-      actualizadoPor,
-      actualizadoEn: FieldValue.serverTimestamp(),
-    },
-    { merge: true },
+  await conBitacora(doc(), actualizadoPor, (ref) =>
+    ref.set(
+      {
+        propiedades,
+        actualizadoPor,
+        actualizadoEn: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    ),
   );
   cached = null;
 }

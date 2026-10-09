@@ -1,4 +1,4 @@
-import { auth } from "./firebase";
+import { auth, encabezadoAppCheck } from "./firebase";
 
 // The upload endpoints run as onRequest (they take multipart bodies, which
 // callables can't), so unlike every other call they need an absolute URL.
@@ -23,8 +23,21 @@ const FUNCTIONS_BASE_URL =
  * any non-JSON error page (a 401 from the platform, Hosting's SPA
  * fallback) threw a parse error and buried the status code.
  */
+/** Resultado de la verificación del documento con Claude; `null` si está apagada. */
+export interface Verificacion {
+  estado: "aprobado" | "revisar" | "rechazado" | "no-verificado";
+  motivos: string[];
+}
+
+export interface UploadResult {
+  ok: true;
+  /** Se guardó, pero espera que un administrador lo apruebe. */
+  enRevision?: boolean;
+  verificacion?: Verificacion | null;
+}
+
 async function leerRespuesta(res: Response): Promise<{
-  datos: { ok?: true; url?: string; error?: string } | null;
+  datos: { ok?: true; error?: string; verificacion?: Verificacion | null; enRevision?: boolean } | null;
   crudo: string;
 }> {
   const crudo = await res.text();
@@ -43,7 +56,7 @@ async function postMultipart(path: string, formData: FormData) {
 
   const res = await fetch(`${FUNCTIONS_BASE_URL}/${path}`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: `Bearer ${token}`, ...(await encabezadoAppCheck()) },
     body: formData,
   });
 
@@ -69,7 +82,7 @@ async function postMultipart(path: string, formData: FormData) {
     );
   }
 
-  return datos as { ok: true; url: string };
+  return datos as UploadResult;
 }
 
 function cotizacionFormData(params: {

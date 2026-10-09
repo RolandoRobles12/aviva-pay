@@ -4,6 +4,9 @@ import { parseMultipart } from "./multipart";
 import { getDeal } from "../firestore/dealsRepository";
 import { writeComprobante } from "../hubspot/uploads";
 import { OcrRechazadoError } from "../ocr/validarDocumento";
+import { AppCheckError, exigirAppCheckHttp } from "../auth/appCheck";
+import { esLimiteExcedido, limitar, MENSAJE_LIMITE } from "../auth/rateLimit";
+import { alertar } from "../notificaciones/alertas";
 import { verifyBearerToken } from "../auth/requestAuth";
 
 /**
@@ -15,7 +18,7 @@ import { verifyBearerToken } from "../auth/requestAuth";
 export const uploadComprobante = onRequest(
   {
     region: "us-central1",
-    secrets: ["HUBSPOT_PRIVATE_APP_TOKEN", "ANTHROPIC_API_KEY"],
+    secrets: ["HUBSPOT_PRIVATE_APP_TOKEN", "ANTHROPIC_API_KEY", "SLACK_BOT_TOKEN"],
     cors: true,
     // La verificación del documento con Claude se suma a las dos subidas (HubSpot y Storage).
     timeoutSeconds: 120,
@@ -32,6 +35,10 @@ export const uploadComprobante = onRequest(
         res.status(401).json({ error: "Inicia sesión para continuar" });
         return;
       }
+      await exigirAppCheckHttp(req);
+      // Cada subida cuesta una llamada a Claude: 30 por hora por persona
+      // sobra para una tienda real y corta un abuso a tiempo.
+      await limitar("upload", auth.uid, { max: 30, ventanaSeg: 3600 });
 
       const { fields, file } = await parseMultipart(req);
       const { dealId, fechaEntrega, firmaClienteConfirmada } = fields;
@@ -56,14 +63,24 @@ export const uploadComprobante = onRequest(
         return;
       }
 
-      const { url } = await writeComprobante(dealId, {
+      const { enRevision } = await writeComprobante(dealId, {
         file,
         fechaEntrega,
         firmaClienteConfirmada,
       });
 
-      res.status(200).json({ ok: true, url });
+      // A la tienda solo se le dice si quedó en revisión, nunca qué se
+      // detectó: eso se queda para el equipo de Aviva (ver ocr/validate.ts).
+      res.status(200).json({ ok: true, enRevision });
     } catch (err) {
+      if (err instanceof AppCheckError) {
+        res.status(403).json({ error: err.message });
+        return;
+      }
+      if (esLimiteExcedido(err)) {
+        res.status(429).json({ error: MENSAJE_LIMITE });
+        return;
+      }
       if (err instanceof OcrRechazadoError) {
         res.status(422).json({ error: err.message });
         return;
@@ -72,6 +89,7 @@ export const uploadComprobante = onRequest(
       // Cloud Functions log for debugging — a concesionario gets a plain
       // Spanish message instead of a wall of JSON they can't act on.
       logger.error("uploadComprobante: failed", err);
+      await alertar("subida", "Falló la subida de un comprobante", err);
       res.status(500).json({
         error:
           "No se pudo guardar el comprobante de entrega. Intenta de nuevo en unos minutos; si el problema sigue, contacta a soporte.",

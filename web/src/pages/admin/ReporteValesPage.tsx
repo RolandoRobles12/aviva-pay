@@ -5,6 +5,7 @@ import {
   adminValeIntentosCallable,
   adminValeReporteCallable,
 } from "../../lib/firebase";
+import { useEsSuperAdmin } from "../../lib/adminRol";
 import { StatTiles } from "../../components/StatTiles";
 import type { ValeIntento, ValeReporte } from "../../types/vale";
 
@@ -38,6 +39,7 @@ const MOTIVO: Record<ValeIntento["motivo"], string> = {
  * para que estas cifras se lean igual que las del portal de la tienda.
  */
 export function ReporteValesPage() {
+  const esSuper = useEsSuperAdmin();
   const [reporte, setReporte] = useState<ValeReporte | null>(null);
   const [intentos, setIntentos] = useState<ValeIntento[]>([]);
   const [etapas, setEtapas] = useState("");
@@ -232,6 +234,8 @@ export function ReporteValesPage() {
         </div>
       )}
 
+      {esSuper && (
+      <>
       <h2 className="admin-title admin-title--secondary">Etapas de cancelación</h2>
       <form className="vales-card" onSubmit={guardarEtapas}>
         <label htmlFor="etapas-cancelacion">
@@ -254,6 +258,8 @@ export function ReporteValesPage() {
           entregar material contra un crédito que ya se está retirando.
         </p>
       </form>
+      </>
+      )}
     </section>
   );
 }

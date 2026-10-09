@@ -1,0 +1,47 @@
+name: CI
+
+# Corre en cada PR y en cada push a main: tipos, pruebas y build de las
+# funciones y del sitio. Un PR en rojo no debería fusionarse.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  functions:
+    name: Funciones
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Tipos (src, scripts y pruebas)
+        run: npm run typecheck --workspace functions
+      - name: Pruebas
+        run: npm test --workspace functions
+      - name: Build
+        run: npm run build --workspace functions
+
+  web:
+    name: Sitio
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Tipos
+        run: npm run typecheck --workspace web
+      - name: Pruebas
+        run: npm test --workspace web
+      - name: Build
+        run: npm run build --workspace web

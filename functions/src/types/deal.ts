@@ -1,5 +1,3 @@
-import type { ResultadoOcr } from "../ocr/validarDocumento";
-
 /** Estatus shown for the "Cotización" and "Comprobante de entrega" columns (section 5.1). */
 export type UploadStatus = "pendiente" | "completado";
 
@@ -16,6 +14,21 @@ export type UploadStatus = "pendiente" | "completado";
  * solicitudes in a single table (one page per concesionario, not one page
  * per deal).
  */
+/** Un documento en espera de (o rechazado por) un administrador. Ver hubspot/uploads.ts. */
+export interface RevisionDocumento {
+  estado: "pendiente" | "rechazado";
+  /** Dónde vive el archivo en Storage, para aplicarlo si se aprueba. */
+  storagePath: string;
+  fileName: string;
+  mimeType: string | null;
+  /** Lo que la tienda capturó junto con el archivo (fechas, monto, firma). */
+  capturado: Record<string, string>;
+  subidoEn: string;
+  comentario?: string;
+  resueltoPor?: string;
+  resueltoEn?: string;
+}
+
 export interface PayDeskDeal {
   dealId: string;
   concesionarioId: string | null;
@@ -58,9 +71,24 @@ export interface PayDeskDeal {
 
   desembolsoFecha: string | null; // ISO
 
-  /** Resultado de la validación por OCR del último documento subido; ausente si el OCR estaba apagado. */
-  cotizacionOcr?: ResultadoOcr;
-  comprobanteOcr?: ResultadoOcr;
+  /**
+   * Ruta en Storage del documento vigente. "Ver archivo" pide una liga
+   * temporal a partir de ella (http/getArchivoUrl.ts). Ausente en deals de
+   * antes de este cambio, que todavía guardan una URL en `cotizacionUrl` /
+   * `comprobanteUrl` hasta correr la migración (adminMigrarLigasArchivos).
+   *
+   * El resultado de la verificación NO vive aquí: este documento lo lee la
+   * tienda directo de Firestore. Ver firestore/verificacionesRepository.ts.
+   */
+  cotizacionPath?: string | null;
+  comprobantePath?: string | null;
+  /**
+   * Documento subido que la verificación marcó como sospechoso y espera a
+   * un administrador (`pendiente`), o que un administrador rechazó
+   * (`rechazado`). `null`/ausente cuando no hay nada en revisión.
+   */
+  cotizacionRevision?: RevisionDocumento | null;
+  comprobanteRevision?: RevisionDocumento | null;
 
   /**
    * Fecha (ISO) de cada etapa personalizada que el admin definió, por id de

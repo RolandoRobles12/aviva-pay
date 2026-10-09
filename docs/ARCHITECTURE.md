@@ -177,12 +177,23 @@ En `/admin`, con cuentas de **Firebase Auth (Google)** que llevan un custom clai
 El claim se otorga **fuera de la aplicación** solo para el *primer* admin — si la app pudiera otorgarlo sin que nadie con el claim lo pidiera, cualquiera que se registrara (con correo o con Google) podría promoverse. Para dar de alta a ese primer admin: crear el usuario en Firebase Console (Authentication → Users; si va a entrar con Google, basta con que inicie sesión una vez para que su cuenta exista) y luego, una sola vez, desde un entorno con credenciales de Admin SDK:
 
 ```js
-await getAuth().setCustomUserClaims(uid, { admin: true });
+await getAuth().setCustomUserClaims(uid, { admin: true, adminRol: "super" });
 ```
 
 La persona debe volver a iniciar sesión para que el claim entre en su token.
 
-A partir de ahí, cualquier admin puede dar de alta a los siguientes desde `/admin/administradores` (ver abajo) — ya no hace falta tocar la consola ni el Admin SDK a mano.
+A partir de ahí, cualquier super admin puede dar de alta a los siguientes desde `/admin/administradores` (ver abajo) — ya no hace falta tocar la consola ni el Admin SDK a mano.
+
+### Roles de administrador
+
+Hay dos, en el claim `adminRol` junto a `admin: true` (ver `functions/src/auth/adminGuard.ts`):
+
+| Rol | Puede |
+|---|---|
+| `super` | Todo: configuración (diccionario, etapas, fechas de etapa, etiquetas, verificación de documentos, notificaciones, vigencia de vales, etapas de cancelación, fecha de arranque general y por tienda, sincronización con HubSpot) y alta, baja y rol de administradores. |
+| `operador` | El día a día: tiendas (renombrar e invitar o quitar usuarios), vista de cada tienda y reemplazo de documentos, revisión de documentos, vales (consultar y reemitir) y reportes. |
+
+Una cuenta con `admin: true` y **sin** `adminRol` cuenta como `super`: son las de antes de los roles, y así nadie perdió acceso al desplegar. Los admins nuevos se crean como `operador` salvo que se elija otra cosa. Cada función del backend revisa el rol (`assertAdmin` / `assertSuperAdmin`); el panel solo oculta lo que el rol no puede usar. Un cambio de rol entra al token la próxima vez que la persona abre o recarga el panel, que fuerza un token fresco.
 
 ### Qué administra
 
@@ -191,13 +202,15 @@ A partir de ahí, cualquier admin puede dar de alta a los siguientes desde `/adm
 | **Tiendas** (`/admin/tiendas`) | Catálogo de las ~481 tiendas, que aparecen solas conforme llegan deals. Renombrar (de `#0046 - TEQ CR` al nombre real), invitar o quitar correos con acceso, y fijar su fecha de arranque individual. Desde la vista de una tienda (`/admin/tiendas/:concesionarioId`) un admin también puede ver los archivos de cotización/comprobante de cada solicitud y reemplazarlos si la tienda subió el incorrecto (`adminUploadCotizacion`/`adminUploadComprobante` — mismo write-back que usa la tienda, gateado por el claim `admin` en vez de por `concesionarioIds`). |
 | **Diccionario de campos** (`/admin/diccionario`) | Mapeo de cada dato de Paydesk a su propiedad interna de HubSpot, editable sin desplegar. |
 | **Fechas de etapa** (`/admin/etapas-fecha`) | Para cada una de las cinco fechas de hito (`fechaSolicitud`, `estatusKyc`, `creditoLiberadoFecha`, `disposicionCreditoFecha`, `desembolsoFecha`), lista editable de propiedades adicionales de HubSpot donde esa fecha pudiera vivir, más allá de la propiedad del diccionario de campos — un deal puede alcanzar la misma etapa por más de un camino en HubSpot. Se revisan en orden, la primera con valor gana (ver `hubspot/deals.ts`, `stageDate()`). Vive en Firestore (`paydesk_config/stage_date_properties`), mismo patrón de caché-por-instancia que el diccionario de campos. |
-| **Administradores** (`/admin/administradores`) | Otorgar o revocar el acceso al panel, y ver el historial de quién se lo dio a quién y cuándo. |
+| **Administradores** (`/admin/administradores`) | Otorgar o revocar el acceso al panel, cambiar el rol de cada administrador, y ver el historial de quién se lo dio a quién y cuándo. Solo super admins. |
 
 ### Gestión de administradores (`/admin/administradores`)
 
 Otorgar acceso (`adminCreateAdmin`) busca la cuenta de Firebase Auth por correo y, si no existe, la crea sin contraseña — la persona entra después con "Continuar con Google" usando ese mismo correo, que Firebase enlaza automáticamente porque la cuenta recién creada no tiene ningún proveedor de inicio de sesión todavía. Luego pone el claim `admin: true`.
 
-Revocar acceso (`adminRevokeAdmin`) pone el claim en `false`. Un admin no puede revocarse a sí mismo — es la manera de evitar que alguien se quede sin poder entrar por error; si de verdad hace falta quitarle el acceso al último admin activo, hay que hacerlo con el mismo comando de Admin SDK que se usa para dar de alta al primero.
+Cambiar el rol (`adminSetAdminRol`) actualiza `adminRol`; nadie puede cambiar el suyo, así que siempre queda al menos un super admin (quien hizo el cambio).
+
+Revocar acceso (`adminRevokeAdmin`) pone el claim en `false` y quita `adminRol`. Un admin no puede revocarse a sí mismo — es la manera de evitar que alguien se quede sin poder entrar por error; si de verdad hace falta quitarle el acceso al último admin activo, hay que hacerlo con el mismo comando de Admin SDK que se usa para dar de alta al primero.
 
 Dos colecciones de Firestore respaldan esta pantalla, ambas de solo lectura/escritura desde las Cloud Functions (igual que el resto — ver `firestore.rules`):
 
@@ -229,7 +242,9 @@ La propiedad Kiosco es de tipo **multiple checkboxes**, con ~481 opciones cuyo t
 | Cloud Functions (`functions/`) | Sincroniza HubSpot → Firestore, autentica tiendas y admins, expone el API de lectura, y escribe de vuelta hacia HubSpot (propiedades y archivos del deal). |
 | Firestore (`paydesk_deals`, `paydesk_concesionarios`, `paydesk_concesionario_users`, `paydesk_config`) | Mirror operativo, catálogo de tiendas con sus correos invitados, índice inverso uid → tiendas, y diccionario de campos. |
 | Firebase Auth | Correo/contraseña con claim `concesionarioIds: string[]` para concesionarios; correo/contraseña o Google con claim `admin` para el equipo de Aviva. |
-| Firebase Storage | Copia canónica de cada archivo subido (cotización/comprobante) — es a donde apunta "Ver archivo" en Paydesk. Ver `storage/dealFiles.ts` y la nota en `storage.rules`. |
+| Firebase Storage | Copia canónica de cada archivo subido (cotización/comprobante). "Ver archivo" la abre con una liga de 15 minutos que emite `getArchivoUrl`. Ver `storage/dealFiles.ts` y la nota en `storage.rules`. |
+| Claude (API de Anthropic) | Lee cada cotización y comprobante al subirse y reporta sus datos; las reglas que deciden viven en el código. Ver "Documentos". |
+| Slack | Avisos al equipo de Aviva (documentos en revisión, revisiones atrasadas, errores). Ver "Operación". |
 | Aviva Paydesk (`web/`) | React + Firebase Hosting. `/` login de tienda, `/solicitudes` tabla de clientes, `/admin/*` panel interno. |
 
 ## Flujo de sincronización (HubSpot → Firestore)
@@ -244,7 +259,46 @@ La propiedad Kiosco es de tipo **multiple checkboxes**, con ~481 opciones cuyo t
 
 1. El concesionario llena el módulo de "Nueva cotización" o "Comprobante de entrega" para una fila (deal) específica de su tabla.
 2. El frontend hace `POST multipart/form-data` a `uploadCotizacion` / `uploadComprobante` con ese `dealId`.
-3. La función valida la sesión, que el deal exista **y que pertenezca a la tienda que llama**, y sube el archivo a **dos lugares en paralelo**: HubSpot Files (para que el equipo de Aviva lo vea sin salir del CRM) y Cloud Storage (la copia que sirve Paydesk). Cada copia tiene su propia liga y cada una va a un destino distinto: la de HubSpot Files se escribe en la propiedad del deal (`updateDealProperties`); la de Storage se guarda en Firestore vía `patch` (`patchDealFields`), que es lo que el listener en tiempo real refleja de inmediato y lo que "Ver archivo" abre en Paydesk. Un admin puede reemplazar el archivo de una tienda desde `/admin/tiendas/:concesionarioId` con el mismo flujo (`adminUploadCotizacion`/`adminUploadComprobante`, gateado por el claim `admin` en vez de por dueño de la tienda).
+3. La función valida la sesión, App Check y el límite de subidas, y que el deal exista **y pertenezca a la tienda que llama**.
+4. Claude verifica el documento (ver "Documentos"). Si claramente no sirve, se rechaza ahí y no se guarda nada.
+5. El archivo se guarda en Cloud Storage (solo la ruta queda en el deal). Si la verificación salió limpia, se aplica: copia en HubSpot Files (su liga va a la propiedad del deal, para el equipo que trabaja en HubSpot), casilla en HubSpot y paso en "completado". Si algo no cuadró, queda **en revisión** sin tocar HubSpot hasta que un administrador lo apruebe.
+
+Un admin puede reemplazar el archivo de una tienda desde `/admin/tiendas/:concesionarioId` con el mismo flujo (`adminUploadCotizacion`/`adminUploadComprobante`); sus subidas se verifican y registran, pero se aplican directo.
+
+## Documentos: verificación, revisión y ligas
+
+**Verificación** (`ocr/analizar.ts`, `ocr/validate.ts`, `ocr/validarDocumento.ts`). Claude (Sonnet por defecto, Haiku como alternativa, elegible en `/admin/ocr`) lee el documento y devuelve solo hechos: tipo de documento, cliente, total e importes, fechas, firma, señales de alteración. Las decisiones las toma el código:
+
+| Resultado | Cuándo | Qué pasa |
+|---|---|---|
+| Aceptado | Todo cuadra | Se aplica solo |
+| Rechazado | Ilegible, o no es el tipo de documento | La tienda ve un mensaje genérico y lo vuelve a subir; no se guarda nada |
+| En revisión | Monto, fecha, cliente o firma no cuadran; archivo repetido de otra solicitud; señales de alteración; o la verificación falló | Se guarda, la tienda lo ve "En revisión", y espera a un administrador en `/admin/revision` |
+
+**Qué ve la tienda.** Nunca qué se detectó: solo que hubo un problema y que vuelva a subir el documento (o, si un administrador lo rechazó, su comentario). Explicarle a quien falsificó un documento qué se notó es enseñarle a hacerlo mejor. Por lo mismo, el resultado completo de la verificación vive en `paydesk_verificaciones` (sin reglas de lectura), **no** en el deal: la tienda lee su deal directo de Firestore, así que cualquier cosa guardada ahí la puede ver con las herramientas del navegador.
+
+**Ligas de archivos.** El deal guarda la ruta en Storage (`cotizacionPath`/`comprobantePath`), no una liga. "Ver archivo" llama a `getArchivoUrl`, que comprueba que quien pide sea la tienda dueña del deal o un administrador y devuelve una liga firmada de 15 minutos. Antes se guardaban ligas firmadas que vencían en el año 2500: funcionaban como llaves permanentes. `/admin/estado` → "Migrar ligas y verificaciones" (`adminMigrarLigasArchivos`) las quita de los deals existentes. Las ligas viejas que ya se compartieron (correos, capturas) **siguen siendo válidas** hasta que se invalide la llave con la que se firmaron; si eso preocupa, hay que rotar la cuenta de servicio con la que las funciones firman.
+
+**Calibración.** `functions/scripts/calibrar.ts` corre la verificación sobre una carpeta de documentos reales con el resultado esperado de cada uno y reporta aciertos, para ajustar reglas o elegir modelo con datos. Instrucciones en el propio archivo. Los documentos traen datos de clientes: no se suben al repositorio.
+
+## Operación: sincronización periódica, alertas y estado
+
+- **`sincronizacionPeriodica`** (cada 30 min): trae de HubSpot los deals de Construrama modificados desde la última corrida exitosa (con 10 min de traslape), **incluidos los cancelados**, y los procesa igual que el webhook (`sync/procesarDeal.ts`). Es la red de seguridad si un aviso del workflow se pierde. Si algún deal falla, la marca no avanza y la siguiente corrida lo reintenta. La sincronización completa (`/admin/tiendas` → "Sincronizar ahora") sigue existiendo para el backfill inicial.
+- **Alertas** (`notificaciones/alertas.ts`): las fallas que antes solo quedaban en los logs (verificación caída, subidas, webhook, sincronización, campos del diccionario sin mapear) llegan a Slack como `error_sistema`, agrupadas: un aviso por tipo cada 30 min, con el conteo de las omitidas.
+- **`recordatorioRevisiones`** (cada hora): un documento con más de N horas en revisión (4 por defecto, configurable en `/admin/notificaciones`; 0 lo apaga) se avisa como `revision_atrasada`, una sola vez por subida.
+- **`revisionDiaria`** (9:00): avisa si el diccionario tiene campos sin propiedad de HubSpot.
+- **`/admin/estado`**: todo lo anterior de un vistazo — campos sin mapear, última sincronización, bandeja de revisión, notificaciones y verificación.
+- **`/admin/bitacora`**: cada cambio a `paydesk_config` con quién, cuándo, el valor anterior y el nuevo (`firestore/bitacoraConfig.ts`).
+- **`/admin/metricas`**: por tienda, solicitudes, desembolsos, días a desembolso, tasa de documentos en revisión y rechazados, y tiempo de atención de Aviva, con las tiendas fuera de lo normal primero. Sale de `paydesk_eventos_documento`, que registra qué pasó con cada subida.
+
+## Seguridad: límites de solicitudes y App Check
+
+- **Límites** (`auth/rateLimit.ts`, ventana fija en `paydesk_rate`): subidas 30/h por persona (cada una cuesta una llamada a Claude), validar vale 60 y confirmar disposición 30 cada 10 min por persona, página pública del vale 60 cada 10 min por IP, ligas de archivos 120 cada 10 min. Los documentos traen `expira`: conviene activar una política TTL de Firestore sobre ese campo para que se borren solos.
+- **App Check** (`auth/appCheck.ts`): comprueba que las llamadas de tiendas y la página del vale vienen del sitio de Paydesk. Para activarlo: (1) registrar el sitio en Firebase App Check con reCAPTCHA Enterprise; (2) desplegar el sitio con `VITE_APP_CHECK_SITE_KEY`; (3) ya con eso en producción, poner `APP_CHECK_ENFORCE=true` en `functions/.env` y desplegar funciones. Hacerlo en otro orden deja fuera a todas las tiendas.
+
+## Pruebas y CI
+
+`npm test` corre las pruebas de `functions/test` y `web/test` (Vitest): reglas de verificación, roles, límites, migración de ligas, avisos, recordatorios, métricas, etapas configurables y preparación de fotos. `npm run typecheck` revisa tipos de ambos. `.github/workflows/ci.yml` corre tipos, pruebas y build en cada PR y en cada push a `main`.
 
 ## Pendientes conocidos
 
@@ -253,11 +307,16 @@ La propiedad Kiosco es de tipo **multiple checkboxes**, con ~481 opciones cuyo t
 - Crear el workflow que mueve el deal a la etapa de disposición cuando `codigo_paydesk_estatus` pasa a `Utilizado`. Sin él, la fecha de disposición nunca se estampa y se pierde el dato de cuándo se gastó el crédito.
 - Catálogo de nombres reales de tienda: se puede capturar tienda por tienda en `/admin/tiendas`. Si Aviva tiene el catálogo de códigos (`TEQ`, `TEO`, `FER`…) → nombres, vale la pena un import masivo en vez de 481 ediciones a mano.
 - Confirmar con el admin de HubSpot si un deal puede tener más de un Kiosco marcado (hoy se toma el primero y se loguea el caso).
-- Crear las cuentas de admin y otorgarles el claim `admin` (ver "Alta de administradores").
+- Crear las cuentas de admin y otorgarles el claim `admin` (ver "Alta de administradores") y revisar el rol de cada una (ver "Roles de administrador").
 - Habilitar el proveedor Google en Firebase Console (Authentication → Sign-in method) — el botón "Continuar con Google" no funciona hasta activarlo en el proyecto.
 - **Corte operativo del reemplazo de NIP por correo/contraseña**: el acceso viejo (código + NIP) quedó retirado por completo, así que ninguna tienda puede entrar hasta que un admin le invite al menos un correo desde `/admin/tiendas`. Falta correr ese alta inicial para las tiendas que ya estaban activas.
 - Revisar la plantilla del correo que envía `sendPasswordResetEmail` (Firebase Console → Authentication → Templates) — hoy es la genérica de Firebase; vale la pena personalizarla con la marca de Aviva ya que es el único correo que recibe una tienda invitada.
 - Confirmar pipeline/stage IDs de HubSpot (`HUBSPOT_PIPELINE` en `fields.ts`).
 - Confirmar con el dueño del workflow de HubSpot: cómo se dispara la notificación (sección 9) y a qué contacto de la tienda le llega.
 - Provisionar el private app de HubSpot dedicado (scopes: lectura/escritura de deals y files).
+- Secretos de funciones antes de desplegar: `ANTHROPIC_API_KEY` y `SLACK_BOT_TOKEN` (`firebase functions:secrets:set ...`). Sin ellos el despliegue falla.
+- Correr una vez "Migrar ligas y verificaciones" en `/admin/estado` después de desplegar.
+- Calibrar la verificación con documentos reales (`functions/scripts/calibrar.ts`) antes de confiar en ella.
+- Activar App Check en el orden descrito en "Seguridad", y una política TTL sobre `paydesk_rate.expira`.
+- Habilitar Cloud Scheduler en el proyecto (lo usan las tareas programadas; el primer despliegue lo pide).
 - Dominio propio (`pay.avivacredito.com`) y proyecto Firebase separado del resto de Aviva. Mientras no exista, las ligas usan `https://<projectId>.web.app`, que sí resuelve; `PAYDESK_BASE_URL` lo sobrescribe el día que el dominio apunte a Hosting. **Ojo:** la liga del vale se congela en HubSpot al emitirse, así que los vales emitidos con una base vieja siguen apuntando ahí — hay que reemitirlos desde `/admin/vales`.

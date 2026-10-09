@@ -3,15 +3,24 @@
  * No tocan red ni Firestore, para poder probarlas aisladas. Las decisiones
  * viven aquí y no en el modelo: el modelo solo dice qué ve.
  *
- * Cada regla es `bloqueante` (si falla, el documento se rechaza cuando el
- * modo es "bloquear") o `aviso` (solo lo marca para revisión). Bloquea solo
- * lo que no tiene explicación inocente; lo que depende de un juicio fino
- * (¿hay firma?, ¿se ve editado?) lo revisa una persona.
+ * Cada regla es de `rechazo` o de `revision`:
+ * - `rechazo`: el archivo claramente no sirve (ilegible, no es el tipo de
+ *   documento) y la tienda lo puede corregir sola subiendo el correcto. Se
+ *   rechaza al momento, sin molestar a nadie.
+ * - `revision`: algo no cuadra (monto, fecha, nombre, firma, archivo
+ *   repetido, señales de edición). Puede ser un error de lectura o un
+ *   intento de fraude, y eso lo decide una persona: el documento se guarda
+ *   pero queda en revisión hasta que un administrador lo apruebe.
+ *
+ * Los `detalle` son para el equipo de Aviva. A la tienda nunca se le dice
+ * qué se detectó, solo que hubo un problema (ver `mensajeRechazoTienda`):
+ * explicarle a quien falsificó un documento qué se notó es enseñarle a
+ * hacerlo mejor.
  */
 import type { AnalisisDocumento } from "./analizar";
 
 export type DocumentoTipo = "cotizacion" | "comprobante";
-export type Severidad = "bloqueante" | "aviso";
+export type Severidad = "rechazo" | "revision";
 
 export interface ResultadoRegla {
   id: string;
@@ -66,21 +75,26 @@ export function validarAnalisis(ctx: ContextoValidacion): {
 } {
   const { tipo, analisis: a } = ctx;
   const reglas: ResultadoRegla[] = [];
-  const add = (id: string, ok: boolean, severidad: Severidad, si: string, no: string) =>
-    reglas.push({ id, ok, severidad, detalle: ok ? si : no });
+  const add = (
+    id: string,
+    ok: boolean,
+    severidad: Severidad,
+    si: string,
+    no: string,
+  ) => reglas.push({ id, ok, severidad, detalle: ok ? si : no });
 
   add(
     "duplicado",
     !ctx.duplicadoEn,
-    "bloqueante",
+    "revision",
     "El archivo no se había usado antes.",
-    "Este mismo archivo ya se subió en otra solicitud. Cada operación necesita su propio documento.",
+    `Este mismo archivo ya se subió en otra solicitud (${ctx.duplicadoEn}).`,
   );
 
   add(
     "legible",
     a.legible,
-    "bloqueante",
+    "rechazo",
     "El documento es legible.",
     "No pudimos leer el documento. Sube una foto más nítida y completa, o el PDF original.",
   );
@@ -90,7 +104,7 @@ export function validarAnalisis(ctx: ContextoValidacion): {
     add(
       "tipo",
       TIPOS_ACEPTADOS[tipo].includes(a.tipoDetectado),
-      "bloqueante",
+      "rechazo",
       "El tipo de documento corresponde.",
       tipo === "cotizacion"
         ? "El archivo no parece una cotización, factura o nota de venta."
@@ -105,7 +119,7 @@ export function validarAnalisis(ctx: ContextoValidacion): {
       add(
         "monto",
         hay,
-        "bloqueante",
+        "revision",
         "El monto capturado aparece en el documento.",
         "El monto total capturado no coincide con el del documento. Revisa que sea el total de la cotización.",
       );
@@ -115,7 +129,7 @@ export function validarAnalisis(ctx: ContextoValidacion): {
       add(
         "firma",
         a.tieneFirma !== false,
-        "aviso",
+        "revision",
         "El comprobante tiene firma.",
         "No se ve la firma del cliente en el comprobante.",
       );
@@ -123,7 +137,7 @@ export function validarAnalisis(ctx: ContextoValidacion): {
         add(
           "fecha",
           a.fechas.includes(ctx.fechaDeclarada),
-          "aviso",
+          "revision",
           "La fecha de entrega aparece en el documento.",
           "La fecha de entrega capturada no aparece en el documento.",
         );
@@ -134,7 +148,7 @@ export function validarAnalisis(ctx: ContextoValidacion): {
       add(
         "cliente",
         a.nombreCliente != null && nombreCoincide(a.nombreCliente, ctx.cliente),
-        "aviso",
+        "revision",
         "El nombre del cliente aparece en el documento.",
         "El nombre del cliente no aparece en el documento.",
       );
@@ -143,13 +157,13 @@ export function validarAnalisis(ctx: ContextoValidacion): {
     add(
       "alteracion",
       a.senalesAlteracion.length === 0,
-      "aviso",
+      "revision",
       "Sin señales de alteración.",
       `Posibles señales de alteración: ${a.senalesAlteracion.join("; ")}`,
     );
   }
 
-  const estado: EstadoOcr = reglas.some((r) => !r.ok && r.severidad === "bloqueante")
+  const estado: EstadoOcr = reglas.some((r) => !r.ok && r.severidad === "rechazo")
     ? "rechazado"
     : reglas.some((r) => !r.ok)
       ? "revisar"

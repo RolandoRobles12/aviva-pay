@@ -1,4 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { exigirAppCheck } from "../auth/appCheck";
+import { limitar } from "../auth/rateLimit";
 import { logger } from "firebase-functions/v2";
 import { normalizarCodigo } from "../vale/codigo";
 import {
@@ -43,6 +45,10 @@ export const validarVale = onCall<ValidarRequest>(
         "Inicia sesión con tu tienda para validar un código.",
       );
     }
+    exigirAppCheck(request);
+    // Una caja real valida unos cuantos códigos por hora; cientos en
+    // minutos es alguien probando combinaciones.
+    await limitar("validarVale", uid, { max: 60, ventanaSeg: 600 });
 
     const medio: ValeMedioLectura =
       request.data?.medio === "escaneo" ? "escaneo" : "manual";
