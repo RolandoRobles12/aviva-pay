@@ -2392,3 +2392,30 @@ h3 {
   gap: 4px;
   font-weight: normal;
 }
+
+/* Estado del sistema (admin). */
+.estado-lista {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+.estado-fila {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border, #e5e7eb);
+}
+.estado-fila > span {
+  font-weight: 700;
+}
+.estado-fila--ok > span {
+  color: #1f7a3d;
+}
+.estado-fila--alerta {
+  border-color: #b4231866;
+}
+.estado-fila--alerta > span {
+  color: #b42318;
+}

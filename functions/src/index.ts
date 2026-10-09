@@ -27,6 +27,7 @@ export { adminGetEtapas, adminSetEtapas } from "./http/admin/etapas";
 export { adminGetOcr, adminSetOcr, adminProbarOcr } from "./http/admin/ocr";
 export { adminListRevisiones, adminResolverRevision } from "./http/admin/revisiones";
 export { adminMigrarLigasArchivos } from "./http/admin/migrarLigas";
+export { adminEstadoSistema } from "./http/admin/estado";
 export { getArchivoUrl } from "./http/getArchivoUrl";
 export {
   adminGetNotificaciones,
@@ -60,3 +61,8 @@ export {
   adminGetValeConfig,
   adminSetValeConfig,
 } from "./http/admin/vales";
+
+// Tareas programadas
+export { sincronizacionPeriodica } from "./programadas/sincronizacionPeriodica";
+export { recordatorioRevisiones } from "./programadas/recordatorioRevisiones";
+export { revisionDiaria } from "./programadas/revisionDiaria";

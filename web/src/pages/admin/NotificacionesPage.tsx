@@ -24,6 +24,17 @@ const EVENTOS: { valor: EventoNotificacion; titulo: string; descripcion: string 
     titulo: "Revisión resuelta",
     descripcion: "Un administrador aprobó o rechazó un documento en revisión.",
   },
+  {
+    valor: "revision_atrasada",
+    titulo: "Revisión atrasada",
+    descripcion: "Un documento lleva más de las horas configuradas en revisión sin atenderse.",
+  },
+  {
+    valor: "error_sistema",
+    titulo: "Errores del sistema",
+    descripcion:
+      "La verificación, HubSpot o la sincronización fallaron, o hay campos sin mapear. Se agrupan para no inundar el canal.",
+  },
 ];
 
 function nuevoId(): string {
@@ -190,6 +201,18 @@ export function NotificacionesPage() {
           />{" "}
           <strong>Enviar notificaciones</strong>
         </label>
+
+        <label>
+          Avisar una revisión atrasada después de (horas)
+          <input
+            type="number"
+            min={0}
+            max={168}
+            value={config.recordatorioHoras}
+            onChange={(e) => setConfig({ ...config, recordatorioHoras: Number(e.target.value) })}
+          />
+        </label>
+        <p className="form-note">0 apaga el recordatorio. Se avisa una sola vez por documento.</p>
 
         {config.destinos.length === 0 && (
           <p className="stage-date-list__empty">Todavía no hay destinos.</p>

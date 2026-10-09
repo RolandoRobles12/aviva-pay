@@ -15,6 +15,7 @@ import { AdminLayout } from "./pages/admin/AdminLayout";
 import { TiendasPage } from "./pages/admin/TiendasPage";
 import { DiccionarioPage } from "./pages/admin/DiccionarioPage";
 import { RevisionPage } from "./pages/admin/RevisionPage";
+import { EstadoPage } from "./pages/admin/EstadoPage";
 import { NotificacionesPage } from "./pages/admin/NotificacionesPage";
 import { OcrPage } from "./pages/admin/OcrPage";
 import { EtapasPage } from "./pages/admin/EtapasPage";
@@ -86,6 +87,14 @@ export function App() {
           }
         />
         <Route path="revision" element={<RevisionPage />} />
+        <Route
+          path="estado"
+          element={
+            <SoloSuperAdmin>
+              <EstadoPage />
+            </SoloSuperAdmin>
+          }
+        />
         <Route
           path="notificaciones"
           element={

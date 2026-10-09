@@ -10,6 +10,7 @@ import {
 } from "./validate";
 import { getOcrConfig, type ModeloOcr } from "../firestore/ocrConfigRepository";
 import { getDeal } from "../firestore/dealsRepository";
+import { alertar } from "../notificaciones/alertas";
 
 /** Lo que se guarda en la solicitud (`cotizacionOcr` / `comprobanteOcr`). */
 export interface ResultadoOcr {
@@ -108,6 +109,11 @@ export async function validarDocumento(params: {
     analisis = await analizarDocumento(tipo, file, modelo);
   } catch (err) {
     logger.error(`validarDocumento: el análisis falló para el deal ${dealId}`, err);
+    await alertar(
+      "verificacion",
+      "La verificación automática de documentos está fallando; los documentos caen en revisión manual",
+      err,
+    );
     // Sin verificación automática, lo revisa una persona.
     await registrarHash(hash, dealId, tipo);
     return {

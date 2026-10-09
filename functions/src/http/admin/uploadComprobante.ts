@@ -4,6 +4,7 @@ import { parseMultipart } from "../multipart";
 import { getDeal } from "../../firestore/dealsRepository";
 import { writeComprobante } from "../../hubspot/uploads";
 import { OcrRechazadoError } from "../../ocr/validarDocumento";
+import { alertar } from "../../notificaciones/alertas";
 import { verifyBearerToken } from "../../auth/requestAuth";
 
 /**
@@ -15,7 +16,7 @@ import { verifyBearerToken } from "../../auth/requestAuth";
 export const adminUploadComprobante = onRequest(
   {
     region: "us-central1",
-    secrets: ["HUBSPOT_PRIVATE_APP_TOKEN", "ANTHROPIC_API_KEY"],
+    secrets: ["HUBSPOT_PRIVATE_APP_TOKEN", "ANTHROPIC_API_KEY", "SLACK_BOT_TOKEN"],
     cors: true,
     // La verificación del documento con Claude se suma a las dos subidas (HubSpot y Storage).
     timeoutSeconds: 120,
@@ -75,6 +76,7 @@ export const adminUploadComprobante = onRequest(
         return;
       }
       logger.error("adminUploadComprobante: failed", err);
+      await alertar("subida", "Falló la subida de un comprobante (admin)", err);
       res.status(500).json({
         error: "No se pudo guardar el comprobante de entrega. Intenta de nuevo en unos minutos.",
       });

@@ -57,9 +57,14 @@ export const adminSetNotificaciones = onCall<{ config?: Partial<NotificacionesCo
     if (config.destinos.length > 30) {
       throw new HttpsError("invalid-argument", "Máximo 30 destinos.");
     }
+    const horas = Number(config.recordatorioHoras ?? 4);
+    if (!Number.isFinite(horas) || horas < 0 || horas > 168) {
+      throw new HttpsError("invalid-argument", "El recordatorio debe ser de 0 a 168 horas.");
+    }
     const limpio: NotificacionesConfig = {
       activo: config.activo === true,
       destinos: config.destinos.map(validarDestino),
+      recordatorioHoras: horas,
     };
     await setNotificacionesConfig(limpio, admin.email ?? admin.uid);
     logger.info(`adminSetNotificaciones: actualizado por ${admin.email ?? admin.uid}`);

@@ -444,7 +444,9 @@ export const adminResolverRevisionCallable = httpsCallable<
 export type EventoNotificacion =
   | "documento_en_revision"
   | "documento_rechazado"
-  | "revision_resuelta";
+  | "revision_resuelta"
+  | "revision_atrasada"
+  | "error_sistema";
 
 export interface DestinoNotificacion {
   id: string;
@@ -456,6 +458,8 @@ export interface DestinoNotificacion {
 export interface NotificacionesConfig {
   activo: boolean;
   destinos: DestinoNotificacion[];
+  /** Horas en revisión antes del recordatorio; 0 lo apaga. */
+  recordatorioHoras: number;
 }
 
 export const adminGetNotificacionesCallable = httpsCallable<
@@ -483,3 +487,21 @@ export const adminMigrarLigasArchivosCallable = httpsCallable<
   void,
   { ok: true; migrados: number; revisados: number }
 >(functions, "adminMigrarLigasArchivos");
+
+export interface EstadoSistema {
+  camposSinMapear: string[];
+  sync: {
+    ultimaExito: string | null;
+    ultimoIntento: string | null;
+    ultimoResultado: string | null;
+    ultimoError: string | null;
+  };
+  revisiones: { pendientes: number; masAntiguaHoras: number | null };
+  notificaciones: { activo: boolean; destinos: number; recordatorioHoras: number };
+  verificacion: { modo: ModoOcr; modelo: ModeloOcr };
+}
+
+export const adminEstadoSistemaCallable = httpsCallable<void, EstadoSistema>(
+  functions,
+  "adminEstadoSistema",
+);

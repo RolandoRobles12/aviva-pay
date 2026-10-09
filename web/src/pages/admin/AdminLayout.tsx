@@ -12,6 +12,7 @@ const OPERACION = [
 ];
 
 const CONFIGURACION = [
+  { to: "/admin/estado", label: "Estado del sistema" },
   { to: "/admin/diccionario", label: "Diccionario de campos" },
   { to: "/admin/etapas", label: "Etapas" },
   { to: "/admin/etapas-fecha", label: "Fechas de etapa" },

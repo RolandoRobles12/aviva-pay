@@ -13,6 +13,8 @@ type TipoDocumento = "cotizacion" | "comprobante";
 
 export type Aviso =
   | { evento: "documento_en_revision"; dealId: string; tipo: TipoDocumento; motivos: string[] }
+  | { evento: "revision_atrasada"; dealId: string; tipo: TipoDocumento; horas: number }
+  | { evento: "error_sistema"; titulo: string; detalle: string }
   | { evento: "documento_rechazado"; dealId: string; tipo: TipoDocumento; motivo: string }
   | {
       evento: "revision_resuelta";
@@ -49,11 +51,25 @@ async function contexto(dealId: string) {
  */
 export function construirMensaje(
   aviso: Aviso,
-  ctx: { cliente: string; tienda: string },
+  ctx: { cliente: string; tienda: string } | null,
   urlRevision: string,
 ): { texto: string; blocks: unknown[] } {
+  if (aviso.evento === "error_sistema") {
+    const titulo = `:rotating_light: ${aviso.titulo}`;
+    return {
+      texto: titulo,
+      blocks: [
+        { type: "section", text: { type: "mrkdwn", text: `*${esc(titulo)}*` } },
+        {
+          type: "context",
+          elements: [{ type: "mrkdwn", text: esc(aviso.detalle).slice(0, 2900) }],
+        },
+      ],
+    };
+  }
+
   const doc = DOCUMENTO[aviso.tipo];
-  const quien = `*${esc(ctx.cliente)}* · ${esc(ctx.tienda)}`;
+  const quien = ctx ? `*${esc(ctx.cliente)}* · ${esc(ctx.tienda)}` : "";
   let titulo: string;
   let detalle: string;
 
@@ -63,6 +79,10 @@ export function construirMensaje(
       detalle = aviso.motivos.length
         ? aviso.motivos.map((m) => `• ${esc(m)}`).join("\n")
         : "La verificación automática no lo pudo dar por bueno.";
+      break;
+    case "revision_atrasada":
+      titulo = `:hourglass: Revisión atrasada: ${doc}`;
+      detalle = `Lleva ${aviso.horas} h esperando a un administrador. La tienda lo ve “En revisión” hasta que alguien lo apruebe o rechace.`;
       break;
     case "documento_rechazado":
       titulo = `:no_entry: Documento rechazado al subir: ${doc}`;
@@ -82,7 +102,7 @@ export function construirMensaje(
     { type: "section", text: { type: "mrkdwn", text: `*${titulo}*\n${quien} · deal ${aviso.dealId}` } },
     { type: "section", text: { type: "mrkdwn", text: detalle } },
   ];
-  if (aviso.evento === "documento_en_revision") {
+  if (aviso.evento === "documento_en_revision" || aviso.evento === "revision_atrasada") {
     blocks.push({
       type: "actions",
       elements: [
@@ -95,7 +115,8 @@ export function construirMensaje(
       ],
     });
   }
-  return { texto: `${titulo} — ${ctx.cliente} (${ctx.tienda})`, blocks };
+  const sufijo = ctx ? ` — ${ctx.cliente} (${ctx.tienda})` : "";
+  return { texto: `${titulo}${sufijo}`, blocks };
 }
 
 async function enviarA(destino: DestinoNotificacion, mensaje: { texto: string; blocks: unknown[] }) {
@@ -117,7 +138,7 @@ export async function notificar(aviso: Aviso): Promise<void> {
 
     const mensaje = construirMensaje(
       aviso,
-      await contexto(aviso.dealId),
+      "dealId" in aviso ? await contexto(aviso.dealId) : null,
       `${env.payDeskBaseUrl}/admin/revision`,
     );
     const resultados = await Promise.allSettled(destinos.map((d) => enviarA(d, mensaje)));
@@ -130,7 +151,7 @@ export async function notificar(aviso: Aviso): Promise<void> {
       }
     });
   } catch (err) {
-    logger.error(`notificar: falló el aviso ${aviso.evento} del deal ${aviso.dealId}`, err);
+    logger.error(`notificar: falló el aviso ${aviso.evento}`, err);
   }
 }
 

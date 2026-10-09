@@ -6,6 +6,7 @@ import { writeComprobante } from "../hubspot/uploads";
 import { OcrRechazadoError } from "../ocr/validarDocumento";
 import { AppCheckError, exigirAppCheckHttp } from "../auth/appCheck";
 import { esLimiteExcedido, limitar, MENSAJE_LIMITE } from "../auth/rateLimit";
+import { alertar } from "../notificaciones/alertas";
 import { verifyBearerToken } from "../auth/requestAuth";
 
 /**
@@ -88,6 +89,7 @@ export const uploadComprobante = onRequest(
       // Cloud Functions log for debugging — a concesionario gets a plain
       // Spanish message instead of a wall of JSON they can't act on.
       logger.error("uploadComprobante: failed", err);
+      await alertar("subida", "Falló la subida de un comprobante", err);
       res.status(500).json({
         error:
           "No se pudo guardar el comprobante de entrega. Intenta de nuevo en unos minutos; si el problema sigue, contacta a soporte.",

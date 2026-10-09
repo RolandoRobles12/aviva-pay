@@ -4,6 +4,7 @@ import { parseMultipart } from "../multipart";
 import { getDeal } from "../../firestore/dealsRepository";
 import { writeCotizacion } from "../../hubspot/uploads";
 import { OcrRechazadoError } from "../../ocr/validarDocumento";
+import { alertar } from "../../notificaciones/alertas";
 import { verifyBearerToken } from "../../auth/requestAuth";
 
 /**
@@ -16,7 +17,7 @@ import { verifyBearerToken } from "../../auth/requestAuth";
 export const adminUploadCotizacion = onRequest(
   {
     region: "us-central1",
-    secrets: ["HUBSPOT_PRIVATE_APP_TOKEN", "ANTHROPIC_API_KEY"],
+    secrets: ["HUBSPOT_PRIVATE_APP_TOKEN", "ANTHROPIC_API_KEY", "SLACK_BOT_TOKEN"],
     cors: true,
     // La verificación del documento con Claude se suma a las dos subidas (HubSpot y Storage).
     timeoutSeconds: 120,
@@ -69,6 +70,7 @@ export const adminUploadCotizacion = onRequest(
         return;
       }
       logger.error("adminUploadCotizacion: failed", err);
+      await alertar("subida", "Falló la subida de una cotización (admin)", err);
       res.status(500).json({
         error: "No se pudo guardar la cotización. Intenta de nuevo en unos minutos.",
       });

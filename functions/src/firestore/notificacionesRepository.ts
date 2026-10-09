@@ -12,11 +12,19 @@ const DOC_ID = "notificaciones";
  * - `documento_rechazado` — un documento se rechazó al subirlo (ilegible o
  *   de otro tipo). Útil para ver si una tienda insiste con archivos malos.
  * - `revision_resuelta` — un administrador aprobó o rechazó un documento.
+ * - `revision_atrasada` — un documento lleva más de `recordatorioHoras` en
+ *   revisión sin que nadie lo atienda. Se avisa una vez por documento.
+ * - `error_sistema` — algo falló sin que nadie lo viera: Claude no
+ *   respondió, HubSpot rechazó una escritura, la sincronización falló, hay
+ *   campos sin mapear. Se agrupa para no inundar el canal (ver
+ *   notificaciones/alertas.ts).
  */
 export const EVENTOS_NOTIFICACION = [
   "documento_en_revision",
   "documento_rechazado",
   "revision_resuelta",
+  "revision_atrasada",
+  "error_sistema",
 ] as const;
 
 export type EventoNotificacion = (typeof EVENTOS_NOTIFICACION)[number];
@@ -36,9 +44,17 @@ export interface DestinoNotificacion {
 export interface NotificacionesConfig {
   activo: boolean;
   destinos: DestinoNotificacion[];
+  /** Horas en revisión antes de avisar `revision_atrasada`. 0 apaga el recordatorio. */
+  recordatorioHoras: number;
 }
 
-const DEFAULT: NotificacionesConfig = { activo: false, destinos: [] };
+export const RECORDATORIO_HORAS_DEFAULT = 4;
+
+const DEFAULT: NotificacionesConfig = {
+  activo: false,
+  destinos: [],
+  recordatorioHoras: RECORDATORIO_HORAS_DEFAULT,
+};
 
 let cached: NotificacionesConfig | null = null;
 let cacheExpira = 0;
@@ -69,7 +85,13 @@ function sanitize(data: Record<string, unknown> | undefined): NotificacionesConf
         ];
       })
     : [];
-  return { activo: data.activo === true, destinos };
+  const horas = Number(data.recordatorioHoras);
+  return {
+    activo: data.activo === true,
+    destinos,
+    recordatorioHoras:
+      Number.isFinite(horas) && horas >= 0 && horas <= 168 ? horas : RECORDATORIO_HORAS_DEFAULT,
+  };
 }
 
 export async function getNotificacionesConfig(): Promise<NotificacionesConfig> {
