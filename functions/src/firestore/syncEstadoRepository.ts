@@ -6,6 +6,8 @@ export interface SyncEstado {
   ultimoIntento: string | null;
   ultimoResultado: string | null;
   ultimoError: string | null;
+  /** Deals que fallaron en una corrida, con cuántas veces van: se reintentan aparte. */
+  reintentos: Record<string, number>;
 }
 
 function ref() {
@@ -20,9 +22,14 @@ export async function getSyncEstado(): Promise<SyncEstado> {
     ultimoIntento: d.ultimoIntento ?? null,
     ultimoResultado: d.ultimoResultado ?? null,
     ultimoError: d.ultimoError ?? null,
+    reintentos: d.reintentos ?? {},
   };
 }
 
 export async function setSyncEstado(cambios: Partial<SyncEstado>): Promise<void> {
-  await ref().set(cambios, { merge: true });
+  // `reintentos` se reemplaza entero (con merge se mezclaría y nunca se
+  // borrarían los que ya se resolvieron).
+  const { reintentos, ...resto } = cambios;
+  await ref().set(resto, { merge: true });
+  if (reintentos !== undefined) await ref().update({ reintentos });
 }

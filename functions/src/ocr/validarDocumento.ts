@@ -89,6 +89,8 @@ async function registrarHash(hash: string, dealId: string, tipo: DocumentoTipo) 
 export async function validarDocumento(params: {
   tipo: DocumentoTipo;
   dealId: string;
+  /** Nombre del cliente según el deal; si no se pasa, se lee del deal. */
+  cliente?: string | null;
   file: { fileName: string; buffer: Buffer; mimeType?: string };
   montoDeclarado?: number | null;
   fechaDeclarada?: string | null;
@@ -128,11 +130,12 @@ export async function validarDocumento(params: {
     };
   }
 
-  const deal = await getDeal(dealId);
+  const cliente =
+    params.cliente !== undefined ? params.cliente : ((await getDeal(dealId))?.cliente ?? null);
   const { estado, reglas } = validarAnalisis({
     tipo,
     analisis,
-    cliente: deal?.cliente ?? null,
+    cliente,
     montoDeclarado: params.montoDeclarado,
     fechaDeclarada: params.fechaDeclarada,
     duplicadoEn,

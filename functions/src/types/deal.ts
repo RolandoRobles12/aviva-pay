@@ -16,7 +16,8 @@ export type UploadStatus = "pendiente" | "completado";
  */
 /** Un documento en espera de (o rechazado por) un administrador. Ver hubspot/uploads.ts. */
 export interface RevisionDocumento {
-  estado: "pendiente" | "rechazado";
+  /** `aprobando`: un administrador la tomó y se está aplicando (ver tomarRevision). */
+  estado: "pendiente" | "aprobando" | "rechazado";
   /** Dónde vive el archivo en Storage, para aplicarlo si se aprueba. */
   storagePath: string;
   fileName: string;

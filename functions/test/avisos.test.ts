@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { construirMensaje } from "../src/notificaciones/notificar";
 import { debeAvisar } from "../src/notificaciones/alertas";
 import { atrasadas } from "../src/programadas/recordatorioRevisiones";
+import { siguientesReintentos, ventanaDesde, MAX_REINTENTOS } from "../src/programadas/sincronizacionPeriodica";
+import { validarDestino } from "../src/http/admin/notificaciones";
 import { camposSinMapear } from "../src/programadas/revisionDiaria";
 import { mensajeRechazoTienda } from "../src/ocr/validarDocumento";
 
@@ -71,5 +73,40 @@ describe("mensaje de rechazo a la tienda", () => {
     const m = mensajeRechazoTienda("cotizacion");
     expect(m).toMatch(/vuelve a subirlo/);
     expect(m).not.toMatch(/alteraci|repetido|Claude/i);
+  });
+});
+
+describe("sincronización periódica", () => {
+  const ahora = Date.parse("2026-10-09T12:00:00Z");
+  it("arranca 10 min antes de la última corrida exitosa", () => {
+    const r = ventanaDesde("2026-10-09T11:30:00Z", ahora);
+    expect(r.desde.toISOString()).toBe("2026-10-09T11:20:00.000Z");
+    expect(r.hueco).toBe(false);
+  });
+  it("si estuvo detenida más de 3 días, recorta y reporta el hueco", () => {
+    const r = ventanaDesde("2026-10-01T00:00:00Z", ahora);
+    expect(r.desde.toISOString()).toBe("2026-10-06T12:00:00.000Z");
+    expect(r.hueco).toBe(true);
+  });
+  it("la primera corrida mira 3 días atrás sin reportar hueco", () => {
+    expect(ventanaDesde(null, ahora).hueco).toBe(false);
+  });
+  it("un deal que falla se reintenta y se abandona al llegar al máximo", () => {
+    const a = siguientesReintentos({ x: 1, y: MAX_REINTENTOS - 1, z: 2 }, ["x", "y"], ["z"]);
+    expect(a.reintentos).toEqual({ x: 2 });
+    expect(a.abandonados).toEqual(["y"]);
+  });
+});
+
+describe("destinos de Slack", () => {
+  it("normaliza el correo pero respeta las mayúsculas de un ID de usuario", () => {
+    expect(validarDestino({ id: "1", tipo: "usuario", valor: "Ana@Aviva.com", eventos: [] }).valor).toBe(
+      "ana@aviva.com",
+    );
+    expect(validarDestino({ id: "1", tipo: "usuario", valor: "U0123ABC", eventos: [] }).valor).toBe("U0123ABC");
+  });
+  it("rechaza un canal o usuario con formato inválido", () => {
+    expect(() => validarDestino({ id: "1", tipo: "canal", valor: "no es canal", eventos: [] })).toThrow();
+    expect(() => validarDestino({ id: "1", tipo: "usuario", valor: "ana", eventos: [] })).toThrow();
   });
 });

@@ -128,13 +128,16 @@ async function enviarA(destino: DestinoNotificacion, mensaje: { texto: string; b
  * Avisa a cada destino suscrito al evento. Nunca lanza: un Slack caído o
  * mal configurado no debe tumbar la subida de una tienda ni la decisión de
  * un administrador. Los fallos quedan en los logs con el destino.
+ *
+ * Devuelve a cuántos destinos se entregó, para quien necesite saber si el
+ * aviso llegó (el recordatorio solo se da por enviado si llegó).
  */
-export async function notificar(aviso: Aviso): Promise<void> {
+export async function notificar(aviso: Aviso): Promise<{ entregados: number }> {
   try {
     const config = await getNotificacionesConfig();
-    if (!config.activo) return;
+    if (!config.activo) return { entregados: 0 };
     const destinos = config.destinos.filter((d) => d.eventos.includes(aviso.evento));
-    if (destinos.length === 0) return;
+    if (destinos.length === 0) return { entregados: 0 };
 
     const mensaje = construirMensaje(
       aviso,
@@ -150,8 +153,10 @@ export async function notificar(aviso: Aviso): Promise<void> {
         );
       }
     });
+    return { entregados: resultados.filter((r) => r.status === "fulfilled").length };
   } catch (err) {
     logger.error(`notificar: falló el aviso ${aviso.evento}`, err);
+    return { entregados: 0 };
   }
 }
 

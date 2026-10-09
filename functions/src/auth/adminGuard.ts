@@ -10,13 +10,18 @@ import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
  *   administradores.
  *
  * El rol viaja en el claim `adminRol` junto a `admin: true`. Una cuenta
- * con `admin: true` y sin `adminRol` es de antes de que existieran los
+ * con `admin: true` y **sin** `adminRol` es de antes de que existieran los
  * roles y cuenta como `super`: así nadie perdió acceso al desplegar.
+ * Cualquier otro valor que no sea exactamente "super" (un error de dedo,
+ * "Super", algo inventado) cuenta como `operador`: ante la duda, menos
+ * permisos.
  */
 export type AdminRol = "super" | "operador";
 
 export function rolDeClaims(claims: Record<string, unknown> | undefined): AdminRol {
-  return claims?.adminRol === "operador" ? "operador" : "super";
+  const rol = claims?.adminRol;
+  if (rol === undefined || rol === null) return "super";
+  return rol === "super" ? "super" : "operador";
 }
 
 export interface AdminCaller {

@@ -2,7 +2,15 @@ import { logger } from "firebase-functions/v2";
 import { uploadDealFile } from "./files";
 import { descargar, storeDealFile } from "../storage/dealFiles";
 import { updateDealProperties, toHubspotDateProperty } from "./deals";
-import { getDeal, patchDealFields } from "../firestore/dealsRepository";
+import {
+  camposOcrViejos,
+  dealsCollection,
+  devolverRevision,
+  getDeal,
+  limpiarRevisionSi,
+  patchDealFields,
+  tomarRevision,
+} from "../firestore/dealsRepository";
 import {
   OcrRechazadoError,
   validarDocumento,
@@ -41,15 +49,15 @@ type Capturado =
 /** Para las métricas; un fallo aquí nunca interrumpe una subida. */
 async function registrarEvento(
   dealId: string,
+  concesionarioId: string | null,
   tipo: TipoDocumento,
   resultado: ResultadoEvento,
   minutosEnRevision: number | null = null,
 ) {
   try {
-    const deal = await getDeal(dealId);
     await registrarEventoDocumento({
       dealId,
-      concesionarioId: deal?.concesionarioId ?? null,
+      concesionarioId,
       tipo,
       resultado,
       minutosEnRevision,
@@ -59,28 +67,16 @@ async function registrarEvento(
   }
 }
 
-/** Guarda la verificación en su colección privada (ver verificacionesRepository.ts). */
-async function guardarVerificacionDe(
-  dealId: string,
-  tipo: TipoDocumento,
-  verificacion: ResultadoOcr | null,
-) {
-  if (!verificacion) return;
-  const deal = await getDeal(dealId);
-  await guardarVerificacion({
-    dealId,
-    tipo,
-    concesionarioId: deal?.concesionarioId ?? null,
-    verificacion,
-  });
-}
-
 /**
  * Escribe un documento ya aceptado: copia en HubSpot Files (cuya URL va a
  * la propiedad del deal, para el equipo que trabaja en HubSpot), marca la
  * casilla en HubSpot y deja el deal en "completado" en Firestore con la
  * ruta del archivo en Storage, de la que "Ver archivo" genera una liga
  * temporal (ver http/getArchivoUrl.ts).
+ *
+ * No toca la revisión del deal: quien llama decide si la quita (una subida
+ * nueva sí; una aprobación solo si sigue siendo la misma — ver
+ * `limpiarRevisionSi`).
  */
 async function aplicarDocumento(
   dealId: string,
@@ -111,7 +107,6 @@ async function aplicarDocumento(
         ? new Date(fechaEntregaAcordada).toISOString()
         : null,
       cotizacionMontoTotalCompra: montoTotalCompra ? Number(montoTotalCompra) : null,
-      cotizacionRevision: null,
     });
   } else {
     const { fechaEntrega, firmaClienteConfirmada } = capturado;
@@ -127,7 +122,6 @@ async function aplicarDocumento(
       comprobanteUrl: null,
       comprobanteFechaEntrega: fechaEntrega ? new Date(fechaEntrega).toISOString() : null,
       comprobanteFirmaClienteConfirmada: true,
-      comprobanteRevision: null,
     });
   }
 }
@@ -151,11 +145,16 @@ async function subirDocumento(
   capturado: Capturado,
   esAdmin: boolean,
 ): Promise<ResultadoSubida> {
+  // Se lee una sola vez y se pasa a todo lo que lo necesita.
+  const deal = await getDeal(dealId);
+  const concesionarioId = deal?.concesionarioId ?? null;
+
   let verificacion: ResultadoOcr | null;
   try {
     verificacion = await validarDocumento({
       tipo: capturado.tipo,
       dealId,
+      cliente: deal?.cliente ?? null,
       file,
       ...(capturado.tipo === "cotizacion"
         ? { montoDeclarado: capturado.montoTotalCompra ? Number(capturado.montoTotalCompra) : null }
@@ -170,7 +169,7 @@ async function subirDocumento(
         tipo: capturado.tipo,
         motivo: err.detalle,
       });
-      await registrarEvento(dealId, capturado.tipo, "rechazado_auto");
+      await registrarEvento(dealId, concesionarioId, capturado.tipo, "rechazado_auto");
     }
     throw err;
   }
@@ -182,7 +181,9 @@ async function subirDocumento(
     file.buffer,
     file.mimeType,
   );
-  await guardarVerificacionDe(dealId, capturado.tipo, verificacion);
+  if (verificacion) {
+    await guardarVerificacion({ dealId, tipo: capturado.tipo, concesionarioId, verificacion });
+  }
   const campoRevision =
     capturado.tipo === "cotizacion" ? "cotizacionRevision" : "comprobanteRevision";
 
@@ -197,7 +198,9 @@ async function subirDocumento(
       capturado,
       subidoEn: new Date().toISOString(),
     };
-    await patchDealFields(dealId, { [campoRevision]: revision });
+    await dealsCollection()
+      .doc(dealId)
+      .update({ [campoRevision]: revision, ...camposOcrViejos(capturado.tipo) });
     logger.info(`subirDocumento: ${capturado.tipo} del deal ${dealId} quedó en revisión`);
     await notificar({
       evento: "documento_en_revision",
@@ -205,7 +208,7 @@ async function subirDocumento(
       tipo: capturado.tipo,
       motivos: verificacion?.motivos ?? [],
     });
-    await registrarEvento(dealId, capturado.tipo, "en_revision");
+    await registrarEvento(dealId, concesionarioId, capturado.tipo, "en_revision");
     return { verificacion, enRevision: true };
   }
 
@@ -214,8 +217,12 @@ async function subirDocumento(
     { fileName: file.fileName, buffer: file.buffer, path: storageFile.path },
     capturado,
   );
+  // Un documento nuevo aplicado reemplaza cualquier revisión anterior.
+  await dealsCollection()
+    .doc(dealId)
+    .update({ [campoRevision]: null, ...camposOcrViejos(capturado.tipo) });
   // Las subidas del admin no cuentan para las métricas de la tienda.
-  if (!esAdmin) await registrarEvento(dealId, capturado.tipo, "aceptado");
+  if (!esAdmin) await registrarEvento(dealId, concesionarioId, capturado.tipo, "aceptado");
 
   logger.info(`subirDocumento: ${capturado.tipo} del deal ${dealId} aplicado`);
   return { verificacion, enRevision: false };
@@ -282,37 +289,47 @@ export async function resolverRevision(params: {
   resueltoPor: string;
 }): Promise<void> {
   const { dealId, tipo, decision, comentario, resueltoPor } = params;
-  const deal = await getDeal(dealId);
-  const revision = tipo === "cotizacion" ? deal?.cotizacionRevision : deal?.comprobanteRevision;
-  if (!revision || revision.estado !== "pendiente") {
+  const resolucion = { resueltoPor, resueltoEn: new Date().toISOString() };
+
+  // Se toma de forma atómica: si dos administradores resuelven a la vez,
+  // o la tienda sube otro documento en ese momento, solo una acción gana.
+  const revision = await tomarRevision(
+    dealId,
+    tipo,
+    decision === "rechazar"
+      ? { estado: "rechazado", comentario, ...resolucion }
+      : { estado: "aprobando", ...resolucion },
+  );
+  if (!revision) {
     throw new RevisionNoPendienteError("Este documento ya no está en revisión.");
   }
-  const campoRevision = tipo === "cotizacion" ? "cotizacionRevision" : "comprobanteRevision";
   const minutos = Math.round((Date.now() - Date.parse(revision.subidoEn)) / 60_000);
+  const concesionarioId = (await getDeal(dealId))?.concesionarioId ?? null;
 
   if (decision === "rechazar") {
-    await patchDealFields(dealId, {
-      [campoRevision]: {
-        ...revision,
-        estado: "rechazado",
-        comentario,
-        resueltoPor,
-        resueltoEn: new Date().toISOString(),
-      },
-    });
     logger.info(`resolverRevision: ${tipo} del deal ${dealId} rechazado por ${resueltoPor}`);
-    await registrarEvento(dealId, tipo, "rechazado_admin", minutos);
+    await registrarEvento(dealId, concesionarioId, tipo, "rechazado_admin", minutos);
     await notificar({ evento: "revision_resuelta", dealId, tipo, decision, comentario, resueltoPor });
     return;
   }
 
-  const buffer = await descargar(revision.storagePath);
-  await aplicarDocumento(
-    dealId,
-    { fileName: revision.fileName, buffer, path: revision.storagePath },
-    revision.capturado as Capturado,
-  );
+  try {
+    const buffer = await descargar(revision.storagePath);
+    await aplicarDocumento(
+      dealId,
+      { fileName: revision.fileName, buffer, path: revision.storagePath },
+      revision.capturado as Capturado,
+    );
+  } catch (err) {
+    // Que no se quede atorada en "aprobando": vuelve a la bandeja.
+    await devolverRevision(dealId, tipo, revision.storagePath);
+    throw err;
+  }
+  // Si la tienda subió otro documento mientras tanto, esa revisión nueva
+  // se respeta.
+  await limpiarRevisionSi(dealId, tipo, revision.storagePath);
+
   logger.info(`resolverRevision: ${tipo} del deal ${dealId} aprobado por ${resueltoPor}`);
-  await registrarEvento(dealId, tipo, "aprobado_admin", minutos);
+  await registrarEvento(dealId, concesionarioId, tipo, "aprobado_admin", minutos);
   await notificar({ evento: "revision_resuelta", dealId, tipo, decision, comentario, resueltoPor });
 }

@@ -58,16 +58,19 @@ function desembolsada(deal: PayDeskDeal): boolean {
   return Boolean(deal.desembolsoFecha);
 }
 
+/** Un documento que espera a Aviva (pendiente, o aprobándose en este momento). */
+export function enRevision(revision: PayDeskDeal["cotizacionRevision"]): boolean {
+  return revision?.estado === "pendiente" || revision?.estado === "aprobando";
+}
+
 /** True when the store still owes a cotización or comprobante AND the deal is in scope. */
 export function requiereAccion(deal: PayDeskDeal, rolloutPorTienda: RolloutMap): boolean {
   if (desembolsada(deal)) return false;
   if (scopeOf(deal, rolloutPorTienda) !== "activa") return false;
   // Un documento en revisión ya no depende de la tienda: espera a Aviva.
   return (
-    (deal.cotizacionEstatus === "pendiente" &&
-      deal.cotizacionRevision?.estado !== "pendiente") ||
-    (deal.comprobanteEntregaEstatus === "pendiente" &&
-      deal.comprobanteRevision?.estado !== "pendiente")
+    (deal.cotizacionEstatus === "pendiente" && !enRevision(deal.cotizacionRevision)) ||
+    (deal.comprobanteEntregaEstatus === "pendiente" && !enRevision(deal.comprobanteRevision))
   );
 }
 

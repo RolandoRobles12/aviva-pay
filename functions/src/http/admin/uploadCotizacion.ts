@@ -3,8 +3,7 @@ import { logger } from "firebase-functions/v2";
 import { parseMultipart } from "../multipart";
 import { getDeal } from "../../firestore/dealsRepository";
 import { writeCotizacion } from "../../hubspot/uploads";
-import { OcrRechazadoError } from "../../ocr/validarDocumento";
-import { alertar } from "../../notificaciones/alertas";
+import { responderErrorSubida } from "../erroresSubida";
 import { verifyBearerToken } from "../../auth/requestAuth";
 
 /**
@@ -19,8 +18,9 @@ export const adminUploadCotizacion = onRequest(
     region: "us-central1",
     secrets: ["HUBSPOT_PRIVATE_APP_TOKEN", "ANTHROPIC_API_KEY", "SLACK_BOT_TOKEN"],
     cors: true,
-    // La verificación del documento con Claude se suma a las dos subidas (HubSpot y Storage).
-    timeoutSeconds: 120,
+    // La verificación con Claude (hasta ~100 s en el peor caso, ver
+    // ocr/analizar.ts) se suma a Storage, HubSpot y los avisos.
+    timeoutSeconds: 300,
   },
   async (req, res) => {
     if (req.method !== "POST") {
@@ -65,14 +65,10 @@ export const adminUploadCotizacion = onRequest(
           : null,
       });
     } catch (err) {
-      if (err instanceof OcrRechazadoError) {
-        res.status(422).json({ error: err.message });
-        return;
-      }
-      logger.error("adminUploadCotizacion: failed", err);
-      await alertar("subida", "Falló la subida de una cotización (admin)", err);
-      res.status(500).json({
-        error: "No se pudo guardar la cotización. Intenta de nuevo en unos minutos.",
+      await responderErrorSubida(res, err, {
+        funcion: "adminUploadCotizacion",
+        etiqueta: "una cotización (admin)",
+        mensaje500: "No se pudo guardar la cotización. Intenta de nuevo en unos minutos.",
       });
     }
   },

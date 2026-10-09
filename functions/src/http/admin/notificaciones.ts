@@ -20,7 +20,7 @@ export const adminGetNotificaciones = onCall({ region: "us-central1" }, async (r
 const CANAL_RE = /^(#[a-z0-9_-]{1,80}|[CG][A-Z0-9]{6,})$/;
 const USUARIO_RE = /^([^\s@]+@[^\s@]+\.[^\s@]+|[UW][A-Z0-9]{6,})$/;
 
-function validarDestino(d: Partial<DestinoNotificacion>): DestinoNotificacion {
+export function validarDestino(d: Partial<DestinoNotificacion>): DestinoNotificacion {
   const valor = typeof d.valor === "string" ? d.valor.trim() : "";
   if (typeof d.id !== "string" || !d.id) {
     throw new HttpsError("invalid-argument", "Destino sin id.");
@@ -43,7 +43,10 @@ function validarDestino(d: Partial<DestinoNotificacion>): DestinoNotificacion {
     throw new HttpsError("invalid-argument", "Tipo de destino inválido.");
   }
   const eventos = Array.isArray(d.eventos) ? [...new Set(d.eventos.filter(esEvento))] : [];
-  return { id: d.id, tipo: d.tipo, valor: d.tipo === "usuario" ? valor.toLowerCase() : valor, eventos };
+  // Solo el correo se normaliza: los IDs de Slack (U0123ABC) distinguen
+  // mayúsculas y en minúsculas ya no existen.
+  const normalizado = d.tipo === "usuario" && valor.includes("@") ? valor.toLowerCase() : valor;
+  return { id: d.id, tipo: d.tipo, valor: normalizado, eventos };
 }
 
 export const adminSetNotificaciones = onCall<{ config?: Partial<NotificacionesConfig> }>(

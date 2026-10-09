@@ -1,7 +1,7 @@
 import type { PayDeskDeal, RevisionDocumento, VerificacionDocumento } from "../types/deal";
 import type { FieldLabels } from "../types/admin";
 import { ArchivoLink } from "./ArchivoLink";
-import { completados, getEtapas, scopeOf, type RolloutMap } from "../lib/dealScope";
+import { completados, enRevision, getEtapas, scopeOf, type RolloutMap } from "../lib/dealScope";
 import type { SortKey, SortState } from "../lib/dealSort";
 
 /** Used until the real labels (fetched from the admin's Etiquetas config) arrive, and for any key it doesn't cover. */
@@ -129,9 +129,33 @@ function UploadCell({
   onUpload?: () => void;
   ctaLabel: string;
   historica: boolean;
-  /** Documento que espera a un administrador o que uno rechazó (solo si el paso sigue pendiente). */
+  /** Documento que espera a un administrador o que uno rechazó (también sobre un paso ya completado, si la tienda lo reemplazó). */
   revision?: RevisionDocumento | null;
 }) {
+  // La revisión va primero: si la tienda reemplazó un documento ya
+  // completado y el nuevo cayó en revisión (o Aviva lo rechazó), eso es lo
+  // que necesita ver, no el documento anterior.
+  if (enRevision(revision)) {
+    return (
+      <div className="cell-upload-done">
+        <span className="cell-review" title="El equipo de Aviva está revisando este documento">
+          En revisión
+        </span>
+        {onUpload && (
+          <button type="button" className="link-button link-button--muted" onClick={onUpload}>
+            Reemplazar
+          </button>
+        )}
+      </div>
+    );
+  }
+  const rechazo =
+    revision?.estado === "rechazado" ? (
+      <span className="cell-rejected" title={revision.comentario}>
+        Hubo un problema con el documento
+        {revision.comentario ? `: ${revision.comentario}` : ""}. Vuelve a subirlo.
+      </span>
+    ) : null;
   if (estatus === "completado") {
     const pill = (
       <span className="cell-done">
@@ -155,6 +179,7 @@ function UploadCell({
         ) : (
           pill
         )}
+        {rechazo}
         {onUpload && (
           <button
             type="button"
@@ -167,27 +192,6 @@ function UploadCell({
       </div>
     );
   }
-  if (revision?.estado === "pendiente") {
-    return (
-      <div className="cell-upload-done">
-        <span className="cell-review" title="El equipo de Aviva está revisando este documento">
-          En revisión
-        </span>
-        {onUpload && (
-          <button type="button" className="link-button link-button--muted" onClick={onUpload}>
-            Reemplazar
-          </button>
-        )}
-      </div>
-    );
-  }
-  const rechazo =
-    revision?.estado === "rechazado" ? (
-      <span className="cell-rejected" title={revision.comentario}>
-        Hubo un problema con el documento
-        {revision.comentario ? `: ${revision.comentario}` : ""}. Vuelve a subirlo.
-      </span>
-    ) : null;
   if (!onUpload) return rechazo ?? <span className="cell-pending">Pendiente</span>;
   if (rechazo) {
     return (

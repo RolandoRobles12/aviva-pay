@@ -193,7 +193,7 @@ Hay dos, en el claim `adminRol` junto a `admin: true` (ver `functions/src/auth/a
 | `super` | Todo: configuración (diccionario, etapas, fechas de etapa, etiquetas, verificación de documentos, notificaciones, vigencia de vales, etapas de cancelación, fecha de arranque general y por tienda, sincronización con HubSpot) y alta, baja y rol de administradores. |
 | `operador` | El día a día: tiendas (renombrar e invitar o quitar usuarios), vista de cada tienda y reemplazo de documentos, revisión de documentos, vales (consultar y reemitir) y reportes. |
 
-Una cuenta con `admin: true` y **sin** `adminRol` cuenta como `super`: son las de antes de los roles, y así nadie perdió acceso al desplegar. Los admins nuevos se crean como `operador` salvo que se elija otra cosa. Cada función del backend revisa el rol (`assertAdmin` / `assertSuperAdmin`); el panel solo oculta lo que el rol no puede usar. Un cambio de rol entra al token la próxima vez que la persona abre o recarga el panel, que fuerza un token fresco.
+Una cuenta con `admin: true` y **sin** `adminRol` cuenta como `super`: son las de antes de los roles, y así nadie perdió acceso al desplegar. Cualquier otro valor que no sea exactamente `"super"` (un error de dedo al darlo de alta a mano) cuenta como `operador`. Nadie cambia su propio rol, y ni el cambio de rol ni la baja pueden dejar el panel sin super admins. Los admins nuevos se crean como `operador` salvo que se elija otra cosa. Cada función del backend revisa el rol (`assertAdmin` / `assertSuperAdmin`); el panel solo oculta lo que el rol no puede usar. Un cambio de rol entra al token la próxima vez que la persona abre o recarga el panel, que fuerza un token fresco.
 
 ### Qué administra
 
@@ -273,7 +273,9 @@ Un admin puede reemplazar el archivo de una tienda desde `/admin/tiendas/:conces
 |---|---|---|
 | Aceptado | Todo cuadra | Se aplica solo |
 | Rechazado | Ilegible, o no es el tipo de documento | La tienda ve un mensaje genérico y lo vuelve a subir; no se guarda nada |
-| En revisión | Monto, fecha, cliente o firma no cuadran; archivo repetido de otra solicitud; señales de alteración; o la verificación falló | Se guarda, la tienda lo ve "En revisión", y espera a un administrador en `/admin/revision` |
+| En revisión | Monto, fecha, cliente o firma no cuadran; archivo repetido de otra solicitud; señales de alteración; o la verificación falló (incluidos archivos demasiado grandes para mandarlos: más de 3.5 MB en imagen o 22 MB en PDF) | Se guarda, la tienda lo ve "En revisión", y espera a un administrador en `/admin/revision` |
+
+**Resolver una revisión** es atómico: el administrador "toma" la revisión en una transacción (pasa a `aprobando` o `rechazado`), así que dos administradores no la pueden resolver a la vez. Si mientras se aprueba la tienda sube otro documento, el nuevo se queda en revisión y no se pierde. Si la aprobación falla a medio camino, la revisión regresa a la bandeja; si la función se cae, a los 10 minutos vuelve a estar disponible.
 
 **Qué ve la tienda.** Nunca qué se detectó: solo que hubo un problema y que vuelva a subir el documento (o, si un administrador lo rechazó, su comentario). Explicarle a quien falsificó un documento qué se notó es enseñarle a hacerlo mejor. Por lo mismo, el resultado completo de la verificación vive en `paydesk_verificaciones` (sin reglas de lectura), **no** en el deal: la tienda lee su deal directo de Firestore, así que cualquier cosa guardada ahí la puede ver con las herramientas del navegador.
 
@@ -283,7 +285,7 @@ Un admin puede reemplazar el archivo de una tienda desde `/admin/tiendas/:conces
 
 ## Operación: sincronización periódica, alertas y estado
 
-- **`sincronizacionPeriodica`** (cada 30 min): trae de HubSpot los deals de Construrama modificados desde la última corrida exitosa (con 10 min de traslape), **incluidos los cancelados**, y los procesa igual que el webhook (`sync/procesarDeal.ts`). Es la red de seguridad si un aviso del workflow se pierde. Si algún deal falla, la marca no avanza y la siguiente corrida lo reintenta. La sincronización completa (`/admin/tiendas` → "Sincronizar ahora") sigue existiendo para el backfill inicial.
+- **`sincronizacionPeriodica`** (cada 30 min): trae de HubSpot los deals de Construrama modificados desde la última corrida exitosa (con 10 min de traslape), **incluidos los cancelados**, y los procesa igual que el webhook (`sync/procesarDeal.ts`). Es la red de seguridad si un aviso del workflow se pierde. La marca de tiempo siempre avanza; un deal que falla se guarda aparte y se vuelve a pedir en las siguientes corridas, hasta 5 veces (después se avisa a Slack). Si la sincronización estuvo detenida más de 3 días, avisa del hueco para correr la sincronización completa. La sincronización completa (`/admin/tiendas` → "Sincronizar ahora") sigue existiendo para el backfill inicial.
 - **Alertas** (`notificaciones/alertas.ts`): las fallas que antes solo quedaban en los logs (verificación caída, subidas, webhook, sincronización, campos del diccionario sin mapear) llegan a Slack como `error_sistema`, agrupadas: un aviso por tipo cada 30 min, con el conteo de las omitidas.
 - **`recordatorioRevisiones`** (cada hora): un documento con más de N horas en revisión (4 por defecto, configurable en `/admin/notificaciones`; 0 lo apaga) se avisa como `revision_atrasada`, una sola vez por subida.
 - **`revisionDiaria`** (9:00): avisa si el diccionario tiene campos sin propiedad de HubSpot.
@@ -293,7 +295,7 @@ Un admin puede reemplazar el archivo de una tienda desde `/admin/tiendas/:conces
 
 ## Seguridad: límites de solicitudes y App Check
 
-- **Límites** (`auth/rateLimit.ts`, ventana fija en `paydesk_rate`): subidas 30/h por persona (cada una cuesta una llamada a Claude), validar vale 60 y confirmar disposición 30 cada 10 min por persona, página pública del vale 60 cada 10 min por IP, ligas de archivos 120 cada 10 min. Los documentos traen `expira`: conviene activar una política TTL de Firestore sobre ese campo para que se borren solos.
+- **Límites** (`auth/rateLimit.ts`, ventana fija en `paydesk_rate`): subidas 30/h por persona (cada una cuesta una llamada a Claude), validar vale 60 y confirmar disposición 30 cada 10 min por persona, ligas de archivos 120 cada 10 min. La página pública del vale **no** se limita por IP: detrás del balanceador de Google la IP sale de un encabezado que el cliente puede inventar. La protegen el token (128 bits, no se puede adivinar) y App Check. Los documentos traen `expira`: conviene activar una política TTL de Firestore sobre ese campo para que se borren solos.
 - **App Check** (`auth/appCheck.ts`): comprueba que las llamadas de tiendas y la página del vale vienen del sitio de Paydesk. Para activarlo: (1) registrar el sitio en Firebase App Check con reCAPTCHA Enterprise; (2) desplegar el sitio con `VITE_APP_CHECK_SITE_KEY`; (3) ya con eso en producción, poner `APP_CHECK_ENFORCE=true` en `functions/.env` y desplegar funciones. Hacerlo en otro orden deja fuera a todas las tiendas.
 
 ## Pruebas y CI

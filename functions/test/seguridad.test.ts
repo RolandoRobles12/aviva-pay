@@ -3,6 +3,7 @@ import type { CallableRequest } from "firebase-functions/v2/https";
 import { assertAdmin, assertSuperAdmin, rolDeClaims } from "../src/auth/adminGuard";
 import { decidir } from "../src/auth/rateLimit";
 import { rutaDesdeUrlFirmada } from "../src/storage/dealFiles";
+import { revisionDisponible, APROBACION_ABANDONADA_MS } from "../src/firestore/dealsRepository";
 
 const req = (token: Record<string, unknown> | null) =>
   ({ auth: token ? { uid: "u1", token } : undefined }) as unknown as CallableRequest<unknown>;
@@ -13,6 +14,11 @@ describe("roles de administrador", () => {
   });
   it("respeta operador", () => {
     expect(rolDeClaims({ admin: true, adminRol: "operador" })).toBe("operador");
+  });
+  it("un valor raro (error de dedo) cuenta como operador, nunca como super", () => {
+    expect(rolDeClaims({ admin: true, adminRol: "Super" })).toBe("operador");
+    expect(rolDeClaims({ admin: true, adminRol: "admin" })).toBe("operador");
+    expect(rolDeClaims({ admin: true, adminRol: "super" })).toBe("super");
   });
   it("assertAdmin rechaza a quien no es admin", () => {
     expect(() => assertAdmin(req({ concesionarioIds: ["x"] }))).toThrow();
@@ -53,5 +59,21 @@ describe("rutaDesdeUrlFirmada", () => {
     expect(rutaDesdeUrlFirmada("https://api.hubspot.com/files/123")).toBeNull();
     expect(rutaDesdeUrlFirmada("https://storage.googleapis.com/b/otra/cosa.pdf")).toBeNull();
     expect(rutaDesdeUrlFirmada("no es url")).toBeNull();
+  });
+});
+
+describe("revisiones disponibles para un administrador", () => {
+  const base = { storagePath: "p", fileName: "f", mimeType: null, capturado: {}, subidoEn: "2026-10-09T00:00:00Z" };
+  const ahora = Date.parse("2026-10-09T12:00:00Z");
+  it("pendiente sí; rechazada no", () => {
+    expect(revisionDisponible({ ...base, estado: "pendiente" }, ahora)).toBe(true);
+    expect(revisionDisponible({ ...base, estado: "rechazado" }, ahora)).toBe(false);
+    expect(revisionDisponible(null, ahora)).toBe(false);
+  });
+  it("una aprobación en curso no se puede tomar; una abandonada sí", () => {
+    const reciente = new Date(ahora - 60_000).toISOString();
+    const vieja = new Date(ahora - APROBACION_ABANDONADA_MS - 1).toISOString();
+    expect(revisionDisponible({ ...base, estado: "aprobando", resueltoEn: reciente }, ahora)).toBe(false);
+    expect(revisionDisponible({ ...base, estado: "aprobando", resueltoEn: vieja }, ahora)).toBe(true);
   });
 });

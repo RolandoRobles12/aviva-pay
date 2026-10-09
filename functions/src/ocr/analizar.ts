@@ -60,13 +60,23 @@ Reglas:
 
 let client: Anthropic | null = null;
 function anthropic(): Anthropic {
-  client ??= new Anthropic({ apiKey: env.anthropicApiKey, timeout: 60_000, maxRetries: 2 });
+  // 50 s por intento y un reintento: el peor caso (~100 s) cabe holgado en
+  // el timeout de las funciones de subida (300 s), así que si Claude está
+  // lento la subida llega a su camino de "no verificado" en vez de morir
+  // a medias por timeout de la plataforma.
+  client ??= new Anthropic({ apiKey: env.anthropicApiKey, timeout: 50_000, maxRetries: 1 });
   return client;
 }
 
 const IMAGENES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
-const MAX_IMAGEN_BYTES = 5 * 1024 * 1024;
-const MAX_PDF_BYTES = 30 * 1024 * 1024;
+/**
+ * Límites sobre el archivo crudo, con margen para la codificación base64
+ * (que crece ~4/3): la API limita la imagen a 5 MB y la solicitud completa
+ * a 32 MB. Un archivo arriba de esto ni se intenta — se va directo a
+ * revisión manual sin una llamada fallida ni una alerta de "Claude caído".
+ */
+const MAX_IMAGEN_BYTES = 3.5 * 1024 * 1024;
+const MAX_PDF_BYTES = 22 * 1024 * 1024;
 
 function contenidoDelArchivo(
   buffer: Buffer,

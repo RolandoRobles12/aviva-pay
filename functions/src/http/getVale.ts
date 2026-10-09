@@ -1,6 +1,5 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { exigirAppCheck } from "../auth/appCheck";
-import { limitar } from "../auth/rateLimit";
 import { getValePorToken } from "../firestore/valesRepository";
 import { getConcesionario } from "../firestore/concesionariosRepository";
 import { formatearCodigo } from "../vale/codigo";
@@ -26,10 +25,12 @@ interface GetValeRequest {
 export const getVale = onCall<GetValeRequest>(
   { region: "us-central1" },
   async (request) => {
+    // Sin límite por IP a propósito: detrás del balanceador de Google la IP
+    // sale de X-Forwarded-For, que el cliente puede inventar, así que un
+    // límite por IP se brincaría cambiando el encabezado (y cada intento
+    // crearía un documento nuevo en Firestore). Lo que protege esta página
+    // es el token (128 bits: no se puede adivinar) y App Check.
     exigirAppCheck(request);
-    // Sin sesión: se limita por IP. Generoso, porque una familia puede
-    // abrir la liga varias veces desde el mismo WiFi.
-    await limitar("getVale", request.rawRequest.ip ?? "sin-ip", { max: 60, ventanaSeg: 600 });
     const token = (request.data?.token ?? "").trim();
     if (!/^[a-f0-9]{32}$/.test(token)) {
       throw new HttpsError("not-found", "Este vale no existe o ya no está disponible.");
