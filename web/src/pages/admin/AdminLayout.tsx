@@ -20,6 +20,7 @@ export function AdminLayout() {
           <NavLink to="/admin/etapas">Etapas</NavLink>
           <NavLink to="/admin/etapas-fecha">Fechas de etapa</NavLink>
           <NavLink to="/admin/revision">Revisión de documentos</NavLink>
+          <NavLink to="/admin/notificaciones">Notificaciones</NavLink>
           <NavLink to="/admin/ocr">Verificación de documentos</NavLink>
           <NavLink to="/admin/etiquetas">Etiquetas</NavLink>
           <NavLink to="/admin/vales">Vales</NavLink>

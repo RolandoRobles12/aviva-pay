@@ -14,6 +14,7 @@ import { AdminLayout } from "./pages/admin/AdminLayout";
 import { TiendasPage } from "./pages/admin/TiendasPage";
 import { DiccionarioPage } from "./pages/admin/DiccionarioPage";
 import { RevisionPage } from "./pages/admin/RevisionPage";
+import { NotificacionesPage } from "./pages/admin/NotificacionesPage";
 import { OcrPage } from "./pages/admin/OcrPage";
 import { EtapasPage } from "./pages/admin/EtapasPage";
 import { EtapaFechasPage } from "./pages/admin/EtapaFechasPage";
@@ -63,6 +64,7 @@ export function App() {
         <Route path="etapas" element={<EtapasPage />} />
         <Route path="etapas-fecha" element={<EtapaFechasPage />} />
         <Route path="revision" element={<RevisionPage />} />
+        <Route path="notificaciones" element={<NotificacionesPage />} />
         <Route path="ocr" element={<OcrPage />} />
         <Route path="etiquetas" element={<EtiquetasPage />} />
         <Route path="vales" element={<ValesPage />} />

@@ -1,0 +1,98 @@
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { TTL_CONFIG_MS } from "./configCache";
+
+const COLLECTION = "paydesk_config";
+const DOC_ID = "notificaciones";
+
+/**
+ * Los momentos que pueden avisar a Slack:
+ * - `documento_en_revision` — la verificación dejó un documento esperando
+ *   a un administrador. Es el aviso principal: sin él, la bandeja se llena
+ *   sin que nadie se entere.
+ * - `documento_rechazado` — un documento se rechazó al subirlo (ilegible o
+ *   de otro tipo). Útil para ver si una tienda insiste con archivos malos.
+ * - `revision_resuelta` — un administrador aprobó o rechazó un documento.
+ */
+export const EVENTOS_NOTIFICACION = [
+  "documento_en_revision",
+  "documento_rechazado",
+  "revision_resuelta",
+] as const;
+
+export type EventoNotificacion = (typeof EVENTOS_NOTIFICACION)[number];
+
+/**
+ * A dónde avisar. `valor` es, para un canal, su ID (`C0123ABC`) o su
+ * nombre (`#paydesk-revisiones`); para un usuario, su correo de Slack o su
+ * ID (`U0123ABC`). El correo se resuelve al ID al momento de enviar.
+ */
+export interface DestinoNotificacion {
+  id: string;
+  tipo: "canal" | "usuario";
+  valor: string;
+  eventos: EventoNotificacion[];
+}
+
+export interface NotificacionesConfig {
+  activo: boolean;
+  destinos: DestinoNotificacion[];
+}
+
+const DEFAULT: NotificacionesConfig = { activo: false, destinos: [] };
+
+let cached: NotificacionesConfig | null = null;
+let cacheExpira = 0;
+
+function configDoc() {
+  return getFirestore().collection(COLLECTION).doc(DOC_ID);
+}
+
+export function esEvento(v: unknown): v is EventoNotificacion {
+  return (EVENTOS_NOTIFICACION as readonly string[]).includes(v as string);
+}
+
+function sanitize(data: Record<string, unknown> | undefined): NotificacionesConfig {
+  if (!data) return { ...DEFAULT };
+  const destinos = Array.isArray(data.destinos)
+    ? data.destinos.flatMap((d): DestinoNotificacion[] => {
+        if (!d || typeof d !== "object") return [];
+        const { id, tipo, valor, eventos } = d as Record<string, unknown>;
+        if (typeof id !== "string" || typeof valor !== "string" || !valor.trim()) return [];
+        if (tipo !== "canal" && tipo !== "usuario") return [];
+        return [
+          {
+            id,
+            tipo,
+            valor: valor.trim(),
+            eventos: Array.isArray(eventos) ? eventos.filter(esEvento) : [],
+          },
+        ];
+      })
+    : [];
+  return { activo: data.activo === true, destinos };
+}
+
+export async function getNotificacionesConfig(): Promise<NotificacionesConfig> {
+  if (cached && Date.now() < cacheExpira) return cached;
+  return getNotificacionesConfigFresh();
+}
+
+export async function getNotificacionesConfigFresh(): Promise<NotificacionesConfig> {
+  const snap = await configDoc().get();
+  const config = sanitize(snap.exists ? snap.data() : undefined);
+  cached = config;
+  cacheExpira = Date.now() + TTL_CONFIG_MS;
+  return config;
+}
+
+export async function setNotificacionesConfig(
+  config: NotificacionesConfig,
+  actualizadoPor: string,
+): Promise<void> {
+  await configDoc().set({
+    ...config,
+    actualizadoPor,
+    actualizadoEn: FieldValue.serverTimestamp(),
+  });
+  cached = null;
+}

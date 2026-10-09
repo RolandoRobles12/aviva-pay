@@ -16,7 +16,7 @@ import { verifyBearerToken } from "../auth/requestAuth";
 export const uploadCotizacion = onRequest(
   {
     region: "us-central1",
-    secrets: ["HUBSPOT_PRIVATE_APP_TOKEN", "ANTHROPIC_API_KEY"],
+    secrets: ["HUBSPOT_PRIVATE_APP_TOKEN", "ANTHROPIC_API_KEY", "SLACK_BOT_TOKEN"],
     cors: true,
     // La verificación del documento con Claude se suma a las dos subidas (HubSpot y Storage).
     timeoutSeconds: 120,

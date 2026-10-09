@@ -2379,3 +2379,16 @@ h3 {
     grid-template-columns: 1fr;
   }
 }
+
+/* Notificaciones (admin): eventos por destino. */
+.notif-eventos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+.notif-evento {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: normal;
+}

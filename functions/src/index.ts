@@ -27,6 +27,11 @@ export { adminGetEtapas, adminSetEtapas } from "./http/admin/etapas";
 export { adminGetOcr, adminSetOcr, adminProbarOcr } from "./http/admin/ocr";
 export { adminListRevisiones, adminResolverRevision } from "./http/admin/revisiones";
 export {
+  adminGetNotificaciones,
+  adminSetNotificaciones,
+  adminProbarNotificacion,
+} from "./http/admin/notificaciones";
+export {
   adminGetStageDateProperties,
   adminSetStageDateProperties,
 } from "./http/admin/stageDateProperties";

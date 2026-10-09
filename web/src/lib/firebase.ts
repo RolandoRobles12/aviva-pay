@@ -403,3 +403,35 @@ export const adminResolverRevisionCallable = httpsCallable<
   },
   { ok: true }
 >(functions, "adminResolverRevision");
+
+export type EventoNotificacion =
+  | "documento_en_revision"
+  | "documento_rechazado"
+  | "revision_resuelta";
+
+export interface DestinoNotificacion {
+  id: string;
+  tipo: "canal" | "usuario";
+  valor: string;
+  eventos: EventoNotificacion[];
+}
+
+export interface NotificacionesConfig {
+  activo: boolean;
+  destinos: DestinoNotificacion[];
+}
+
+export const adminGetNotificacionesCallable = httpsCallable<
+  void,
+  { config: NotificacionesConfig; eventos: EventoNotificacion[] }
+>(functions, "adminGetNotificaciones");
+
+export const adminSetNotificacionesCallable = httpsCallable<
+  { config: NotificacionesConfig },
+  { ok: true }
+>(functions, "adminSetNotificaciones");
+
+export const adminProbarNotificacionCallable = httpsCallable<
+  { destino: Pick<DestinoNotificacion, "tipo" | "valor"> },
+  { ok: boolean; mensaje: string }
+>(functions, "adminProbarNotificacion");

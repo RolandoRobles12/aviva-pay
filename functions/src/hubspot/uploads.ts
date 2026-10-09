@@ -4,7 +4,12 @@ import { uploadDealFile } from "./files";
 import { storeDealFile } from "../storage/dealFiles";
 import { updateDealProperties, toHubspotDateProperty } from "./deals";
 import { getDeal, patchDealFields } from "../firestore/dealsRepository";
-import { validarDocumento, type ResultadoOcr } from "../ocr/validarDocumento";
+import {
+  OcrRechazadoError,
+  validarDocumento,
+  type ResultadoOcr,
+} from "../ocr/validarDocumento";
+import { notificar } from "../notificaciones/notificar";
 import type { RevisionDocumento } from "../types/deal";
 
 interface UploadedFile {
@@ -103,15 +108,28 @@ async function subirDocumento(
   capturado: Capturado,
   esAdmin: boolean,
 ): Promise<ResultadoSubida> {
-  const verificacion = await validarDocumento({
-    tipo: capturado.tipo,
-    dealId,
-    file,
-    ...(capturado.tipo === "cotizacion"
-      ? { montoDeclarado: capturado.montoTotalCompra ? Number(capturado.montoTotalCompra) : null }
-      : { fechaDeclarada: capturado.fechaEntrega || null }),
-    esAdmin,
-  });
+  let verificacion: ResultadoOcr | null;
+  try {
+    verificacion = await validarDocumento({
+      tipo: capturado.tipo,
+      dealId,
+      file,
+      ...(capturado.tipo === "cotizacion"
+        ? { montoDeclarado: capturado.montoTotalCompra ? Number(capturado.montoTotalCompra) : null }
+        : { fechaDeclarada: capturado.fechaEntrega || null }),
+      esAdmin,
+    });
+  } catch (err) {
+    if (err instanceof OcrRechazadoError) {
+      await notificar({
+        evento: "documento_rechazado",
+        dealId,
+        tipo: capturado.tipo,
+        motivo: err.message,
+      });
+    }
+    throw err;
+  }
 
   const storageFile = await storeDealFile(
     dealId,
@@ -138,6 +156,12 @@ async function subirDocumento(
     };
     await patchDealFields(dealId, { [campoOcr]: verificacion, [campoRevision]: revision });
     logger.info(`subirDocumento: ${capturado.tipo} del deal ${dealId} quedó en revisión`);
+    await notificar({
+      evento: "documento_en_revision",
+      dealId,
+      tipo: capturado.tipo,
+      motivos: verificacion?.motivos ?? [],
+    });
     return { url: storageFile.url, verificacion, enRevision: true };
   }
 
@@ -231,6 +255,7 @@ export async function resolverRevision(params: {
       },
     });
     logger.info(`resolverRevision: ${tipo} del deal ${dealId} rechazado por ${resueltoPor}`);
+    await notificar({ evento: "revision_resuelta", dealId, tipo, decision, comentario, resueltoPor });
     return;
   }
 
@@ -241,4 +266,5 @@ export async function resolverRevision(params: {
     revision.capturado as Capturado,
   );
   logger.info(`resolverRevision: ${tipo} del deal ${dealId} aprobado por ${resueltoPor}`);
+  await notificar({ evento: "revision_resuelta", dealId, tipo, decision, comentario, resueltoPor });
 }

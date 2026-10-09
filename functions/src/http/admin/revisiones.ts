@@ -55,7 +55,11 @@ interface ResolverRequest {
 
 /** Aprueba (aplica en HubSpot y marca completado) o rechaza un documento en revisión. */
 export const adminResolverRevision = onCall<ResolverRequest>(
-  { region: "us-central1", secrets: ["HUBSPOT_PRIVATE_APP_TOKEN"], timeoutSeconds: 120 },
+  {
+    region: "us-central1",
+    secrets: ["HUBSPOT_PRIVATE_APP_TOKEN", "SLACK_BOT_TOKEN"],
+    timeoutSeconds: 120,
+  },
   async (request) => {
     const admin = assertAdmin(request);
     const { dealId, tipo, decision } = request.data ?? {};
