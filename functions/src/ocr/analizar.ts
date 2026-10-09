@@ -169,3 +169,13 @@ export async function analizarDocumento(
   }
   return response.parsed_output;
 }
+
+/**
+ * Diagnóstico para el admin: confirma que la llave existe y que el modelo
+ * configurado es accesible, sin gastar tokens (consulta el modelo, no le
+ * manda un mensaje).
+ */
+export async function probarConexion(modelo: ModeloOcr): Promise<string> {
+  const info = await anthropic().models.retrieve(MODELOS[modelo]);
+  return info.display_name ?? info.id;
+}

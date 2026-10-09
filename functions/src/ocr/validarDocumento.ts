@@ -19,6 +19,8 @@ export interface ResultadoOcr {
   modelo: ModeloOcr;
   /** Detalle de las reglas que fallaron, para que el equipo revise a mano. */
   motivos: string[];
+  /** Por qué no se pudo verificar (solo `no-verificado`), para diagnosticar desde el admin. Nunca se muestra a la tienda. */
+  errorTecnico?: string;
   /** Lo que Claude leyó del documento, para auditoría. */
   datos?: AnalisisDocumento;
   revisadoEn: string;
@@ -98,6 +100,7 @@ export async function validarDocumento(params: {
         "El documento no se pudo verificar automáticamente.",
         ...(duplicadoEn ? ["Este mismo archivo ya se subió en otra solicitud."] : []),
       ],
+      errorTecnico: err instanceof Error ? err.message.slice(0, 300) : String(err).slice(0, 300),
       revisadoEn: ahora,
     };
   }
@@ -121,6 +124,11 @@ export async function validarDocumento(params: {
     datos: analisis,
     revisadoEn: ahora,
   };
+
+  logger.info(
+    `validarDocumento: ${tipo} del deal ${dealId} → ${estado} (modo ${modo}, ${modelo})`,
+    resultado.motivos,
+  );
 
   if (estado === "rechazado" && bloquea) {
     logger.warn(`validarDocumento: ${tipo} rechazado para el deal ${dealId}`, resultado.motivos);

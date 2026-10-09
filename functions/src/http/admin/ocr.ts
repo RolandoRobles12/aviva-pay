@@ -1,6 +1,8 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions/v2";
 import { assertAdmin } from "../../auth/adminGuard";
+import { probarConexion } from "../../ocr/analizar";
+
 import {
   esModeloOcr,
   esModoOcr,
@@ -29,5 +31,28 @@ export const adminSetOcr = onCall<{ modo?: ModoOcr; modelo?: ModeloOcr }>(
     await setOcrConfig({ modo, modelo }, admin.email ?? admin.uid);
     logger.info(`adminSetOcr: ${modo}/${modelo} por ${admin.email ?? admin.uid}`);
     return { ok: true };
+  },
+);
+
+/**
+ * Prueba que las funciones puedan hablar con Claude: que el secreto
+ * ANTHROPIC_API_KEY exista en este despliegue y que la llave sea válida.
+ * Es la primera causa de documentos "no verificados".
+ */
+export const adminProbarOcr = onCall(
+  { region: "us-central1", secrets: ["ANTHROPIC_API_KEY"] },
+  async (request) => {
+    assertAdmin(request);
+    const { modelo } = await getOcrConfigFresh();
+    try {
+      const nombre = await probarConexion(modelo);
+      return { ok: true as const, mensaje: `Conexión correcta con ${nombre}.` };
+    } catch (err) {
+      logger.error("adminProbarOcr: falló", err);
+      return {
+        ok: false as const,
+        mensaje: err instanceof Error ? err.message : "No se pudo conectar con Claude.",
+      };
+    }
   },
 );

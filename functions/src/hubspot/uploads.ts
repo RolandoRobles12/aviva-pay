@@ -3,7 +3,7 @@ import { uploadDealFile } from "./files";
 import { storeDealFile } from "../storage/dealFiles";
 import { updateDealProperties, toHubspotDateProperty } from "./deals";
 import { patchDealFields } from "../firestore/dealsRepository";
-import { validarDocumento } from "../ocr/validarDocumento";
+import { validarDocumento, type ResultadoOcr } from "../ocr/validarDocumento";
 
 interface UploadedFile {
   fileName: string;
@@ -35,7 +35,7 @@ export async function writeCotizacion(
     /** Admin: se valida y se registra, pero no se le rechaza. */
     esAdmin?: boolean;
   },
-): Promise<{ url: string }> {
+): Promise<{ url: string; verificacion: ResultadoOcr | null }> {
   const { file, fechaEntregaAcordada, montoTotalCompra } = params;
 
   // Antes de guardar nada: un documento rechazado no deja rastro.
@@ -80,7 +80,7 @@ export async function writeCotizacion(
   });
 
   logger.info(`writeCotizacion: completed for deal ${dealId}`);
-  return { url: storageFile.url };
+  return { url: storageFile.url, verificacion: ocr };
 }
 
 /**
@@ -96,7 +96,7 @@ export async function writeComprobante(
     /** Admin: se valida y se registra, pero no se le rechaza. */
     esAdmin?: boolean;
   },
-): Promise<{ url: string }> {
+): Promise<{ url: string; verificacion: ResultadoOcr | null }> {
   const { file, fechaEntrega, firmaClienteConfirmada } = params;
 
   const ocr = await validarDocumento({
@@ -137,5 +137,5 @@ export async function writeComprobante(
   });
 
   logger.info(`writeComprobante: completed for deal ${dealId}`);
-  return { url: storageFile.url };
+  return { url: storageFile.url, verificacion: ocr };
 }

@@ -24,7 +24,7 @@ export {
 } from "./http/admin/fieldDictionary";
 export { adminGetFieldLabels, adminSetFieldLabels } from "./http/admin/fieldLabels";
 export { adminGetEtapas, adminSetEtapas } from "./http/admin/etapas";
-export { adminGetOcr, adminSetOcr } from "./http/admin/ocr";
+export { adminGetOcr, adminSetOcr, adminProbarOcr } from "./http/admin/ocr";
 export {
   adminGetStageDateProperties,
   adminSetStageDateProperties,

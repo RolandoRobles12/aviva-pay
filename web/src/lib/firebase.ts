@@ -368,3 +368,8 @@ export const adminSetOcrCallable = httpsCallable<OcrConfig, { ok: true }>(
   functions,
   "adminSetOcr",
 );
+
+export const adminProbarOcrCallable = httpsCallable<void, { ok: boolean; mensaje: string }>(
+  functions,
+  "adminProbarOcr",
+);

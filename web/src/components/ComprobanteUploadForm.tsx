@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { VerificacionAviso } from "./VerificacionAviso";
+import type { Verificacion } from "../lib/uploads";
 import { uploadComprobante } from "../lib/uploads";
 import type { FieldLabels } from "../types/admin";
 
@@ -25,6 +27,7 @@ export function ComprobanteUploadForm({
   const [firmaClienteConfirmada, setFirmaClienteConfirmada] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<Verificacion | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -39,7 +42,11 @@ export function ComprobanteUploadForm({
     setSubmitting(true);
     setError(null);
     try {
-      await onUpload({ dealId, file, fechaEntrega, firmaClienteConfirmada });
+      const { verificacion } = await onUpload({ dealId, file, fechaEntrega, firmaClienteConfirmada });
+      if (verificacion && verificacion.estado !== "aprobado") {
+        setAviso(verificacion);
+        return;
+      }
       onUploaded();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al subir el comprobante");
@@ -47,6 +54,8 @@ export function ComprobanteUploadForm({
       setSubmitting(false);
     }
   }
+
+  if (aviso) return <VerificacionAviso verificacion={aviso} onCerrar={onUploaded} />;
 
   return (
     <form className="upload-form" onSubmit={handleSubmit}>

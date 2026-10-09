@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   adminGetOcrCallable,
+  adminProbarOcrCallable,
   adminSetOcrCallable,
   type ModeloOcr,
   type ModoOcr,
@@ -51,6 +52,20 @@ export function OcrPage() {
   const [error, setError] = useState<string | null>(null);
   const [guardado, setGuardado] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [prueba, setPrueba] = useState<{ ok: boolean; mensaje: string } | null>(null);
+  const [probando, setProbando] = useState(false);
+
+  async function probar() {
+    setProbando(true);
+    setPrueba(null);
+    try {
+      setPrueba((await adminProbarOcrCallable()).data);
+    } catch (err) {
+      setPrueba({ ok: false, mensaje: err instanceof Error ? err.message : "No se pudo probar." });
+    } finally {
+      setProbando(false);
+    }
+  }
 
   useEffect(() => {
     (async () => {
@@ -98,6 +113,24 @@ export function OcrPage() {
         como no verificado: una caída no frena a las tiendas. Un archivo
         repetido de otra solicitud se rechaza de todos modos.
         Los cambios aplican en pocos minutos.
+      </div>
+
+      {config.modo === "observar" && (
+        <div className="callout callout--warn">
+          <strong>En modo Observar no se rechaza ningún documento.</strong> Cada
+          archivo se analiza y el resultado se ve en la vista de cada tienda
+          (Tiendas → ver como tienda), pero la subida siempre se acepta. Para
+          que se rechacen los documentos inválidos, elige <strong>Bloquear</strong>.
+        </div>
+      )}
+
+      <div className="stage-date-list__actions">
+        <button type="button" className="link-button" onClick={probar} disabled={probando}>
+          {probando ? "Probando..." : "Probar conexión con Claude"}
+        </button>
+        {prueba && (
+          <span className={prueba.ok ? "form-success" : "form-error"}>{prueba.mensaje}</span>
+        )}
       </div>
 
       <form className="dictionary-form" onSubmit={handleSubmit}>

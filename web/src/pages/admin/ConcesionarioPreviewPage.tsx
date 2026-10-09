@@ -124,6 +124,7 @@ export function ConcesionarioPreviewPage() {
       </div>
 
       <DealsTable
+        mostrarVerificacion
         deals={ordenarDeals(deals, sort).slice(
           pagina * POR_PAGINA,
           (pagina + 1) * POR_PAGINA,

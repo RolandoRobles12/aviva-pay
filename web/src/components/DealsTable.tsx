@@ -1,4 +1,4 @@
-import type { PayDeskDeal } from "../types/deal";
+import type { PayDeskDeal, VerificacionDocumento } from "../types/deal";
 import type { FieldLabels } from "../types/admin";
 import { completados, getEtapas, scopeOf, type RolloutMap } from "../lib/dealScope";
 import type { SortKey, SortState } from "../lib/dealSort";
@@ -179,6 +179,24 @@ function UploadCell({
   );
 }
 
+const ETIQUETA_VERIFICACION: Record<VerificacionDocumento["estado"], string> = {
+  aprobado: "Verificado",
+  revisar: "Revisar",
+  rechazado: "No pasó la verificación",
+  "no-verificado": "Sin verificar",
+};
+
+/** Solo en la vista del admin: qué dijo la verificación con Claude del documento. Los motivos van en el title. */
+function VerificacionTag({ v }: { v?: VerificacionDocumento }) {
+  if (!v) return null;
+  const detalle = [...v.motivos, ...(v.errorTecnico ? [`Error: ${v.errorTecnico}`] : [])].join("\n");
+  return (
+    <span className={`tag-verificacion tag-verificacion--${v.estado}`} title={detalle || undefined}>
+      {ETIQUETA_VERIFICACION[v.estado]}
+    </span>
+  );
+}
+
 /**
  * A column header that toggles sort on click. Both arrows shown faint
  * until this column is the active one, then the active direction lights
@@ -236,6 +254,7 @@ export function DealsTable({
   onUploadCotizacion,
   onUploadComprobante,
   onValidarCodigo,
+  mostrarVerificacion = false,
 }: {
   deals: PayDeskDeal[];
   /** From the admin's Etiquetas config. Falls back to DEFAULT_LABELS for any missing key. */
@@ -259,6 +278,8 @@ export function DealsTable({
   onUploadComprobante?: (dealId: string) => void;
   /** Abre la ventana de validación del vale desde la fila. Omitir para una tabla de solo lectura. */
   onValidarCodigo?: (dealId: string) => void;
+  /** Vista del admin: muestra el resultado de la verificación de cada documento. La tienda no lo ve. */
+  mostrarVerificacion?: boolean;
 }) {
   const l = { ...DEFAULT_LABELS, ...labels };
   const mostrarTienda = Object.keys(concesionarioNombres ?? {}).length > 1;
@@ -367,6 +388,7 @@ export function DealsTable({
                       : undefined
                   }
                 />
+                {mostrarVerificacion && <VerificacionTag v={deal.cotizacionOcr} />}
               </td>
               <td>
                 <CreditoLiberadoCell
@@ -392,6 +414,7 @@ export function DealsTable({
                       : undefined
                   }
                 />
+                {mostrarVerificacion && <VerificacionTag v={deal.comprobanteOcr} />}
               </td>
               <td>
                 <DateCell iso={deal.desembolsoFecha} />

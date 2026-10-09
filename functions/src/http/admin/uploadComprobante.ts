@@ -54,7 +54,7 @@ export const adminUploadComprobante = onRequest(
         return;
       }
 
-      const { url } = await writeComprobante(dealId, {
+      const { url, verificacion } = await writeComprobante(dealId, {
         esAdmin: true,
         file,
         fechaEntrega,
@@ -62,7 +62,15 @@ export const adminUploadComprobante = onRequest(
       });
 
       logger.info(`adminUploadComprobante: deal ${dealId} replaced by ${auth.email ?? "admin"}`);
-      res.status(200).json({ ok: true, url });
+      res.status(200).json({
+        ok: true,
+        url,
+        // Lo que la tienda necesita saber de la verificación; los datos que
+        // leyó Claude y el error técnico se quedan en la solicitud.
+        verificacion: verificacion
+          ? { estado: verificacion.estado, modo: verificacion.modo, motivos: verificacion.motivos }
+          : null,
+      });
     } catch (err) {
       if (err instanceof OcrRechazadoError) {
         res.status(422).json({ error: err.message });

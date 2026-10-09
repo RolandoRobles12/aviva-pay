@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { VerificacionAviso } from "./VerificacionAviso";
+import type { Verificacion } from "../lib/uploads";
 import { uploadCotizacion } from "../lib/uploads";
 import { CurrencyInput } from "./CurrencyInput";
 import type { FieldLabels } from "../types/admin";
@@ -26,6 +28,7 @@ export function CotizacionUploadForm({
   const [montoTotalCompra, setMontoTotalCompra] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<Verificacion | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -36,7 +39,11 @@ export function CotizacionUploadForm({
     setSubmitting(true);
     setError(null);
     try {
-      await onUpload({ dealId, file, fechaEntregaAcordada, montoTotalCompra });
+      const { verificacion } = await onUpload({ dealId, file, fechaEntregaAcordada, montoTotalCompra });
+      if (verificacion && verificacion.estado !== "aprobado") {
+        setAviso(verificacion);
+        return;
+      }
       onUploaded();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al subir la cotización");
@@ -44,6 +51,8 @@ export function CotizacionUploadForm({
       setSubmitting(false);
     }
   }
+
+  if (aviso) return <VerificacionAviso verificacion={aviso} onCerrar={onUploaded} />;
 
   return (
     <form className="upload-form" onSubmit={handleSubmit}>

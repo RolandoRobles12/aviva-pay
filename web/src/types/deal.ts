@@ -1,3 +1,13 @@
+/** Resultado guardado de la verificación de un documento (ver functions/src/ocr/validarDocumento.ts). */
+export interface VerificacionDocumento {
+  estado: "aprobado" | "revisar" | "rechazado" | "no-verificado";
+  modo: "observar" | "bloquear";
+  modelo?: string;
+  motivos: string[];
+  errorTecnico?: string;
+  revisadoEn: string;
+}
+
 /**
  * Mirrors functions/src/types/deal.ts (the Firestore document shape
  * returned by the getConcesionarioDeals callable). Kept as a plain
@@ -44,6 +54,9 @@ export interface PayDeskDeal {
   comprobanteUrl: string | null;
   comprobanteFechaEntrega: string | null;
   comprobanteFirmaClienteConfirmada: boolean | null;
+  /** Resultado de la verificación con Claude del último documento subido. Solo lo muestra el admin. */
+  cotizacionOcr?: VerificacionDocumento;
+  comprobanteOcr?: VerificacionDocumento;
 
   desembolsoFecha: string | null;
 }

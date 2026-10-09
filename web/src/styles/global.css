@@ -2305,3 +2305,19 @@ h3 {
   color: color-mix(in srgb, var(--negro-off) 60%, transparent);
   max-width: 26ch;
 }
+
+/* Resultado de la verificación de documentos (solo vista del admin). */
+.tag-verificacion {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: help;
+  border: 1px solid currentColor;
+}
+.tag-verificacion--aprobado { color: #1f7a3d; }
+.tag-verificacion--revisar { color: #9a6700; }
+.tag-verificacion--rechazado { color: #b42318; }
+.tag-verificacion--no-verificado { color: #6b7280; }
