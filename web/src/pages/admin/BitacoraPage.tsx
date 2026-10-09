@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { adminListBitacoraCallable, type EntradaBitacora } from "../../lib/firebase";
+import { llavesCambiadas } from "../../lib/bitacora";
 
 /** Nombre legible de cada documento de configuración. */
 const DOCUMENTOS: Record<string, string> = {
@@ -13,17 +14,6 @@ const DOCUMENTOS: Record<string, string> = {
   ocr: "Verificación de documentos",
   notificaciones: "Notificaciones",
 };
-
-/** Las llaves de primer nivel que cambiaron, para no mostrar el documento entero. */
-export function llavesCambiadas(
-  antes: Record<string, unknown> | null,
-  despues: Record<string, unknown> | null,
-): string[] {
-  const llaves = new Set([...Object.keys(antes ?? {}), ...Object.keys(despues ?? {})]);
-  return [...llaves].filter(
-    (k) => JSON.stringify(antes?.[k] ?? null) !== JSON.stringify(despues?.[k] ?? null),
-  );
-}
 
 function Valor({ v }: { v: unknown }) {
   return <pre className="bitacora__valor">{v === undefined ? "—" : JSON.stringify(v, null, 2)}</pre>;

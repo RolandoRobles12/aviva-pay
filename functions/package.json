@@ -12,7 +12,9 @@
     "serve": "npm run build && firebase emulators:start --only functions,firestore,storage",
     "shell": "npm run build && firebase functions:shell",
     "deploy": "firebase deploy --only functions",
-    "logs": "firebase functions:log"
+    "logs": "firebase functions:log",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.check.json"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.132.1",

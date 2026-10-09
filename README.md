@@ -1,27 +1,30 @@
 # Aviva Paydesk
 
-Portal para el concesionario (tienda de Construrama): entra con su código de tienda y NIP, ve a los clientes de su tienda con el avance de cada solicitud de crédito, y sube la cotización y el comprobante de entrega firmado. Los datos vienen de HubSpot y lo que captura la tienda se escribe de vuelta ahí.
+El portal donde Aviva y las tiendas aliadas (hoy Construrama) siguen y comprueban cada crédito de mejora de vivienda, desde la aprobación hasta la entrega del material.
 
-Incluye un panel de administración para el equipo de Aviva: catálogo de tiendas (nombres, códigos, NIPs) y diccionario de campos de HubSpot.
+- **La tienda** ve a sus clientes y en qué etapa va cada crédito, sube la cotización y el comprobante de entrega firmado, y en caja valida el código de un solo uso del cliente antes de entregarle material.
+- **Aviva** recibe cada documento verificado automáticamente con Claude; lo sospechoso queda en revisión para un administrador y se avisa en Slack. Todo se escribe de vuelta en HubSpot, que es la fuente de verdad.
+- **El panel de administración** maneja tiendas y sus usuarios, revisión de documentos, vales, métricas por tienda y configuración sin desplegar (etapas, campos de HubSpot, verificación, notificaciones), con dos roles: super admin y operador.
 
-Ver el requerimiento completo en [`docs/requerimiento.md`](docs/requerimiento.md) y las decisiones de arquitectura en [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
-
-## Estado
-
-Scaffold del proyecto. **El diccionario de campos de HubSpot todavía no está listo** — todos los nombres de propiedades usados hoy son placeholders (`TODO_*`). Se pueden capturar desde el panel (`/admin/diccionario`) o en [`functions/src/config/fields.ts`](functions/src/config/fields.ts), que es el valor por defecto. El resto del código ya está conectado a ese mapa.
+Ver el requerimiento original en [`docs/requerimiento.md`](docs/requerimiento.md) y el diseño actual en [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Estructura
 
 ```
-functions/   Cloud Functions (TypeScript) — sync con HubSpot, API de lectura, uploads
-web/         Frontend React + Vite — portal de tiendas y panel /admin
-docs/        Requerimiento y notas de arquitectura
+functions/   Cloud Functions (TypeScript): sync con HubSpot, verificación de documentos,
+             vales, avisos de Slack, tareas programadas, API de lectura y panel
+  test/      Pruebas (Vitest)
+  scripts/   calibrar.ts: mide la verificación contra documentos reales
+web/         Frontend React + Vite: portal de tiendas, página del vale y panel /admin
+  test/      Pruebas (Vitest)
+docs/        Requerimiento y arquitectura
+.github/     CI: tipos, pruebas y build en cada PR
 firestore.rules, firestore.indexes.json, storage.rules, firebase.json
 ```
 
 ## Stack
 
-React + Firebase Hosting · Cloud Functions · Firestore · Firebase Storage · HubSpot API (private app dedicado).
+React + Firebase Hosting · Cloud Functions · Firestore · Firebase Storage · Firebase Auth · HubSpot API · Claude (API de Anthropic) · Slack.
 
 ## Desarrollo local
 
@@ -32,25 +35,29 @@ npm install                 # instala functions/ y web/ (workspaces)
 
 # Backend
 cp functions/.env.example functions/.env   # y llena las variables
-npm run emulators                          # Firestore + Functions + Storage emulators
+npm run emulators                          # Firestore + Functions + Storage
 
 # Frontend
 cp web/.env.example web/.env               # config del Firebase Web SDK
 npm run dev:web
+
+# Antes de abrir un PR
+npm run typecheck
+npm test
 ```
 
 Rutas:
 
-- `/` — login de la tienda (correo + contraseña)
-- `/solicitudes` — tabla de clientes de la tienda; `/solicitudes/validar` valida el vale del cliente en la caja
+- `/` — login de la tienda (correo y contraseña)
+- `/solicitudes` — clientes de la tienda; `/solicitudes/validar` valida el vale en caja; `/solicitudes/canceladas` y `/solicitudes/reporte`
 - `/vale/:token` — el vale del cliente final, sin sesión (le llega por WhatsApp)
-- `/admin` — login del equipo de Aviva; `/admin/tiendas`, `/admin/diccionario`, `/admin/vales` y `/admin/administradores`
+- `/admin` — panel de Aviva. Operación (todos los admins): tiendas, revisión de documentos, vales, reporte de vales, métricas. Configuración (solo super admin): estado del sistema, diccionario, etapas, fechas de etapa, etiquetas, notificaciones, verificación de documentos, administradores y bitácora.
 
-Para probar en local hace falta al menos una tienda en el emulador (`paydesk_concesionarios`) con NIP generado, y una cuenta de admin con el claim `admin` — ver `docs/ARCHITECTURE.md`.
+Para probar en local hace falta una cuenta de admin con el claim `admin` (ver "Alta de administradores" en `docs/ARCHITECTURE.md`) y una tienda con al menos un correo invitado.
 
-## Variables de entorno
+## Variables de entorno y secretos
 
-Ver `functions/.env.example` y `web/.env.example`. Ninguna se commitea con valores reales.
+Ver `functions/.env.example` y `web/.env.example`. Ninguna se commitea con valores reales. En producción, los secretos de funciones van con `firebase functions:secrets:set`: `HUBSPOT_PRIVATE_APP_TOKEN`, `HUBSPOT_WEBHOOK_SECRET`, `ANTHROPIC_API_KEY` y `SLACK_BOT_TOKEN`. Si falta uno, el despliegue de funciones falla.
 
 ## Deploy
 
@@ -60,4 +67,4 @@ npm run build:web
 firebase deploy --only hosting,functions,firestore:rules,storage
 ```
 
-Pendiente antes de producción: private app de HubSpot dedicado, cuentas de admin, entrega de NIPs a las tiendas y dominio propio (`pay.avivacredito.com`) — ver "Pendientes conocidos" en `docs/ARCHITECTURE.md`.
+Después del primer despliegue con esta versión: correr "Migrar ligas y verificaciones" en `/admin/estado`. Pendientes antes y después de producción en "Pendientes conocidos" de `docs/ARCHITECTURE.md`.
