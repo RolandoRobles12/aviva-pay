@@ -14,6 +14,7 @@ import { SoloSuperAdmin } from "./lib/adminRol";
 import { AdminLayout } from "./pages/admin/AdminLayout";
 import { TiendasPage } from "./pages/admin/TiendasPage";
 import { DiccionarioPage } from "./pages/admin/DiccionarioPage";
+import { MetricasPage } from "./pages/admin/MetricasPage";
 import { RevisionPage } from "./pages/admin/RevisionPage";
 import { BitacoraPage } from "./pages/admin/BitacoraPage";
 import { EstadoPage } from "./pages/admin/EstadoPage";
@@ -88,6 +89,7 @@ export function App() {
           }
         />
         <Route path="revision" element={<RevisionPage />} />
+        <Route path="metricas" element={<MetricasPage />} />
         <Route
           path="bitacora"
           element={

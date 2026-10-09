@@ -29,6 +29,7 @@ export { adminListRevisiones, adminResolverRevision } from "./http/admin/revisio
 export { adminMigrarLigasArchivos } from "./http/admin/migrarLigas";
 export { adminEstadoSistema } from "./http/admin/estado";
 export { adminListBitacora } from "./http/admin/bitacora";
+export { adminMetricas } from "./http/admin/metricas";
 export { getArchivoUrl } from "./http/getArchivoUrl";
 export {
   adminGetNotificaciones,

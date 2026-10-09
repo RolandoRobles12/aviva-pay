@@ -519,3 +519,30 @@ export const adminListBitacoraCallable = httpsCallable<void, { entradas: Entrada
   functions,
   "adminListBitacora",
 );
+
+export interface MetricasTienda {
+  concesionarioId: string;
+  nombre: string;
+  solicitudes: number;
+  desembolsadas: number;
+  diasADesembolso: number | null;
+  documentos: number;
+  aceptados: number;
+  enRevision: number;
+  rechazadosAuto: number;
+  aprobadosAdmin: number;
+  rechazadosAdmin: number;
+  tasaRevision: number | null;
+  tasaRechazo: number | null;
+  minutosAtencion: number | null;
+  alertas: string[];
+}
+
+export const adminMetricasCallable = httpsCallable<
+  { dias: number },
+  {
+    dias: number;
+    tiendas: MetricasTienda[];
+    global: Omit<MetricasTienda, "concesionarioId" | "nombre" | "alertas">;
+  }
+>(functions, "adminMetricas");

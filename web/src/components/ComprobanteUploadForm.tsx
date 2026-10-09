@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { VerificacionAviso } from "./VerificacionAviso";
 import { ArchivoLink } from "./ArchivoLink";
+import { prepararArchivo } from "../lib/imagenes";
 import type { Verificacion } from "../lib/uploads";
 import { uploadComprobante } from "../lib/uploads";
 import type { FieldLabels } from "../types/admin";
@@ -45,7 +46,15 @@ export function ComprobanteUploadForm({
     setSubmitting(true);
     setError(null);
     try {
-      const { verificacion, enRevision } = await onUpload({ dealId, file, fechaEntrega, firmaClienteConfirmada });
+      // Fotos de iPhone (HEIC) y fotos muy pesadas se convierten aquí,
+      // para que la verificación automática las pueda leer.
+      const archivo = await prepararArchivo(file);
+      const { verificacion, enRevision } = await onUpload({
+        dealId,
+        file: archivo,
+        fechaEntrega,
+        firmaClienteConfirmada,
+      });
       if (enRevision || (verificacion && verificacion.estado !== "aprobado")) {
         setAviso({ verificacion: verificacion ?? null, enRevision: Boolean(enRevision) });
         return;
@@ -85,7 +94,7 @@ export function ComprobanteUploadForm({
       <label className="upload-form__dropzone">
         <input
           type="file"
-          accept=".pdf,image/*"
+          accept=".pdf,image/*,.heic,.heif"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           required
         />

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { VerificacionAviso } from "./VerificacionAviso";
 import { ArchivoLink } from "./ArchivoLink";
+import { prepararArchivo } from "../lib/imagenes";
 import type { Verificacion } from "../lib/uploads";
 import { uploadCotizacion } from "../lib/uploads";
 import { CurrencyInput } from "./CurrencyInput";
@@ -42,7 +43,15 @@ export function CotizacionUploadForm({
     setSubmitting(true);
     setError(null);
     try {
-      const { verificacion, enRevision } = await onUpload({ dealId, file, fechaEntregaAcordada, montoTotalCompra });
+      // Fotos de iPhone (HEIC) y fotos muy pesadas se convierten aquí,
+      // para que la verificación automática las pueda leer.
+      const archivo = await prepararArchivo(file);
+      const { verificacion, enRevision } = await onUpload({
+        dealId,
+        file: archivo,
+        fechaEntregaAcordada,
+        montoTotalCompra,
+      });
       if (enRevision || (verificacion && verificacion.estado !== "aprobado")) {
         setAviso({ verificacion: verificacion ?? null, enRevision: Boolean(enRevision) });
         return;
@@ -82,7 +91,7 @@ export function CotizacionUploadForm({
       <label className="upload-form__dropzone">
         <input
           type="file"
-          accept=".pdf,.xml,image/*"
+          accept=".pdf,.xml,image/*,.heic,.heif"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           required
         />

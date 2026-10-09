@@ -9,6 +9,7 @@ const OPERACION = [
   { to: "/admin/revision", label: "Revisión de documentos" },
   { to: "/admin/vales", label: "Vales" },
   { to: "/admin/reporte-vales", label: "Reporte de vales" },
+  { to: "/admin/metricas", label: "Métricas" },
 ];
 
 const CONFIGURACION = [

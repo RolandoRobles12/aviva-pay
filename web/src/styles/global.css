@@ -2454,3 +2454,7 @@ h3 {
     grid-template-columns: 1fr;
   }
 }
+
+.metricas__global td {
+  font-weight: 600;
+}
