@@ -5,6 +5,7 @@ import { assertSuperAdmin, type AdminRol } from "../../auth/adminGuard";
 import {
   getAdminRosterEntry,
   listActiveAdmins,
+  type AdminRosterEntry,
   listAuditLog,
   recordAdminGranted,
   recordAdminRevoked,
@@ -48,6 +49,20 @@ interface CreateAdminRequest {
 
 function esRol(v: unknown): v is AdminRol {
   return v === "super" || v === "operador";
+}
+
+/**
+ * Que el cambio no deje el panel sin super admins. Quien llama no puede
+ * cambiarse a sí mismo, pero dos super admins sí podrían bajarse uno al
+ * otro; esto lo impide revisando cuántos quedarían (las entradas sin rol
+ * son de antes de los roles y cuentan como super).
+ */
+async function asegurarOtroSuper(objetivo: AdminRosterEntry): Promise<void> {
+  if ((objetivo.rol ?? "super") !== "super") return;
+  const supers = (await listActiveAdmins()).filter((a) => (a.rol ?? "super") === "super");
+  if (supers.filter((a) => a.uid !== objetivo.uid).length === 0) {
+    throw new HttpsError("failed-precondition", "Debe quedar al menos un super administrador.");
+  }
 }
 
 /**
@@ -138,6 +153,7 @@ export const adminRevokeAdmin = onCall<RevokeAdminRequest>(
     if (!entry || entry.revokedAt !== null) {
       throw new HttpsError("not-found", "Esa cuenta no está en la lista de administradores.");
     }
+    await asegurarOtroSuper(entry);
 
     const auth = getAuth();
     const user = await auth.getUser(uid);
@@ -167,8 +183,9 @@ interface SetRolRequest {
 
 /**
  * Cambia el rol de un administrador. Nadie cambia el suyo: un super admin
- * que se bajara a operador podría dejar el panel sin nadie que administre
- * — y como quien llama ya es super y no se puede tocar, siempre queda uno.
+ * que se bajara a operador podría dejar el panel sin nadie que administre.
+ * Y como dos super admins sí podrían bajarse uno al otro a la vez,
+ * `asegurarOtroSuper` revisa que quede al menos uno.
  *
  * El claim nuevo llega al token de esa persona cuando se refresca (el
  * panel lo fuerza al abrirse; si ya lo tenía abierto, al recargar).
@@ -189,6 +206,7 @@ export const adminSetAdminRol = onCall<SetRolRequest>(
     if (!entry || entry.revokedAt !== null) {
       throw new HttpsError("not-found", "Esa cuenta no está en la lista de administradores.");
     }
+    if (rol === "operador") await asegurarOtroSuper(entry);
 
     const auth = getAuth();
     const user = await auth.getUser(uid);

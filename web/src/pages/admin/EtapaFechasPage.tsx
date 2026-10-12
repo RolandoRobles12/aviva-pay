@@ -4,6 +4,8 @@ import {
   adminSetStageDatePropertiesCallable,
 } from "../../lib/firebase";
 import type { StageDateProperties } from "../../types/admin";
+import { Cargando, MensajeInline, Notice } from "../../components/admin/ui";
+import { EncabezadoHubspot } from "./DiccionarioPage";
 
 /** Human labels for the five milestone dates, matching DiccionarioPage's style. */
 const ETIQUETAS: Record<string, string> = {
@@ -12,6 +14,7 @@ const ETIQUETAS: Record<string, string> = {
   creditoLiberadoFecha: "Crédito liberado",
   disposicionCreditoFecha: "Disposición del crédito",
   desembolsoFecha: "Desembolso del crédito",
+  canceladoFecha: "Fecha de cancelación",
 };
 
 function mismaLista(a: string[], b: string[]): boolean {
@@ -97,30 +100,31 @@ export function EtapaFechasPage() {
   }
 
   if (error && !propiedades) {
-    return <p className="page-message page-message--error">{error}</p>;
+    return (
+      <>
+        <EncabezadoHubspot />
+        <Notice tono="error">{error}</Notice>
+      </>
+    );
   }
 
   if (!propiedades) {
-    return <p className="page-message">Cargando configuración...</p>;
+    return (
+      <>
+        <EncabezadoHubspot />
+        <Cargando />
+      </>
+    );
   }
 
   return (
     <section>
-      <h1 className="admin-title">Fechas de etapa</h1>
-      <p className="admin-subtitle">
-        Además de la propiedad de cada fecha en el diccionario de campos,
-        aquí puedes listar otras propiedades de HubSpot donde esa misma
-        fecha pudiera vivir — por ejemplo, si un deal puede llegar a una
-        etapa por más de un camino. Se revisan en el orden de la lista; la
-        primera que tenga valor es la que se usa.
+      <EncabezadoHubspot />
+      <p className="adm-field__ayuda" style={{ marginTop: 0 }}>
+        Si un crédito puede llegar a una etapa por más de un camino en HubSpot (por
+        ejemplo, en el pipeline viejo), aquí se listan las otras propiedades donde puede
+        estar esa fecha. Se revisan en orden y se usa la primera que tenga valor.
       </p>
-
-      <div className="callout callout--warn">
-        Un nombre mal capturado no rompe la sincronización — esa propiedad
-        simplemente nunca tendrá valor — pero tampoco sirve de nada.
-        Verifica cada propiedad en HubSpot antes de guardar. Los cambios
-        aplican en pocos minutos, conforme se reinician las funciones.
-      </div>
 
       <form className="dictionary-form" onSubmit={handleSubmit}>
         {Object.keys(defaults).map((key) => {
@@ -130,7 +134,6 @@ export function EtapaFechasPage() {
             <div className="dictionary-row dictionary-row--stack" key={key}>
               <label>
                 {ETIQUETAS[key] ?? key}
-                <span className="dictionary-row__key">{key}</span>
               </label>
               <div className="stage-date-list">
                 {lista.length === 0 && (
@@ -148,7 +151,7 @@ export function EtapaFechasPage() {
                     />
                     <button
                       type="button"
-                      className="link-button"
+                      className="adm-btn adm-btn--texto adm-btn--chico"
                       onClick={() => quitarPropiedad(key, i)}
                     >
                       Quitar
@@ -158,7 +161,7 @@ export function EtapaFechasPage() {
                 <div className="stage-date-list__actions">
                   <button
                     type="button"
-                    className="link-button"
+                    className="adm-btn adm-btn--texto adm-btn--chico"
                     onClick={() => agregarPropiedad(key)}
                   >
                     + Agregar propiedad
@@ -166,7 +169,7 @@ export function EtapaFechasPage() {
                   {!esDefault && (
                     <button
                       type="button"
-                      className="link-button"
+                      className="adm-btn adm-btn--texto adm-btn--chico"
                       onClick={() => restaurar(key)}
                     >
                       Restaurar
@@ -178,12 +181,11 @@ export function EtapaFechasPage() {
           );
         })}
 
-        {error && <p className="form-error">{error}</p>}
-        {guardado && <p className="form-success">Configuración guardada.</p>}
-
-        <div className="dictionary-form__actions">
-          <button type="submit" disabled={submitting}>
-            {submitting ? "Guardando..." : "Guardar"}
+        <div className="adm-card__pie">
+          {error && <MensajeInline ok={false}>{error}</MensajeInline>}
+          {guardado && <MensajeInline ok>Guardado.</MensajeInline>}
+          <button type="submit" className="adm-btn adm-btn--primario" disabled={submitting}>
+            {submitting ? "Guardando..." : "Guardar cambios"}
           </button>
         </div>
       </form>

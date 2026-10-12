@@ -7,33 +7,44 @@ import {
   type EventoNotificacion,
   type NotificacionesConfig,
 } from "../../lib/firebase";
+import {
+  BarraGuardar,
+  Card,
+  Cargando,
+  Detalles,
+  EmptyState,
+  Field,
+  MensajeInline,
+  Notice,
+  PageHeader,
+  Switch,
+} from "../../components/admin/ui";
 
 const EVENTOS: { valor: EventoNotificacion; titulo: string; descripcion: string }[] = [
   {
     valor: "documento_en_revision",
-    titulo: "Documento en revisión",
-    descripcion: "La verificación dejó una cotización o comprobante esperando a un administrador.",
-  },
-  {
-    valor: "documento_rechazado",
-    titulo: "Documento rechazado al subir",
-    descripcion: "Se rechazó al momento por ilegible o por no ser el tipo de documento.",
-  },
-  {
-    valor: "revision_resuelta",
-    titulo: "Revisión resuelta",
-    descripcion: "Un administrador aprobó o rechazó un documento en revisión.",
+    titulo: "Documento por revisar",
+    descripcion: "Un documento quedó esperando a un administrador.",
   },
   {
     valor: "revision_atrasada",
     titulo: "Revisión atrasada",
-    descripcion: "Un documento lleva más de las horas configuradas en revisión sin atenderse.",
+    descripcion: "Un documento lleva demasiado tiempo esperando.",
+  },
+  {
+    valor: "revision_resuelta",
+    titulo: "Revisión resuelta",
+    descripcion: "Alguien aprobó o rechazó un documento.",
+  },
+  {
+    valor: "documento_rechazado",
+    titulo: "Documento rechazado al subir",
+    descripcion: "Era ilegible o no era el tipo de documento correcto.",
   },
   {
     valor: "error_sistema",
     titulo: "Errores del sistema",
-    descripcion:
-      "La verificación, HubSpot o la sincronización fallaron, o hay campos sin mapear. Se agrupan para no inundar el canal.",
+    descripcion: "Algo falló: verificación, HubSpot o sincronización. Se agrupan para no llenar el canal.",
   },
 ];
 
@@ -74,51 +85,57 @@ function Destino({
   }
 
   return (
-    <div className="dictionary-row dictionary-row--stack">
-      <div className="stage-date-list__row">
+    <div className="adm-fila">
+      <div className="adm-fila__principal">
         <select
+          aria-label="Tipo de destino"
           value={destino.tipo}
-          onChange={(e) =>
-            onChange({ ...destino, tipo: e.target.value as DestinoNotificacion["tipo"] })
-          }
+          onChange={(e) => onChange({ ...destino, tipo: e.target.value as DestinoNotificacion["tipo"] })}
         >
-          <option value="canal">Canal</option>
-          <option value="usuario">Usuario</option>
+          <option value="canal">Canal de Slack</option>
+          <option value="usuario">Persona (mensaje directo)</option>
         </select>
         <input
           type="text"
+          aria-label={destino.tipo === "canal" ? "Nombre del canal" : "Correo de la persona"}
           value={destino.valor}
           onChange={(e) => onChange({ ...destino, valor: e.target.value })}
-          placeholder={destino.tipo === "canal" ? "#paydesk-revisiones o C0123ABC" : "correo@avivacredito.com o U0123ABC"}
+          placeholder={destino.tipo === "canal" ? "#paydesk-revisiones" : "nombre@avivacredito.com"}
         />
+        <span className="adm-fila__acciones">
+          <button
+            type="button"
+            className="adm-btn adm-btn--secundario adm-btn--chico"
+            onClick={probar}
+            disabled={probando || !destino.valor.trim()}
+          >
+            {probando ? "Enviando..." : "Enviar prueba"}
+          </button>
+          <button type="button" className="adm-btn adm-btn--texto adm-btn--chico" onClick={onQuitar}>
+            Quitar
+          </button>
+        </span>
       </div>
-      <div className="notif-eventos">
-        {EVENTOS.map((e) => (
-          <label key={e.valor} className="notif-evento" title={e.descripcion}>
-            <input
-              type="checkbox"
-              checked={destino.eventos.includes(e.valor)}
-              onChange={() => alternarEvento(e.valor)}
-            />{" "}
-            {e.titulo}
-          </label>
-        ))}
-      </div>
-      <div className="stage-date-list__actions">
-        <button
-          type="button"
-          className="link-button"
-          onClick={probar}
-          disabled={probando || !destino.valor.trim()}
-        >
-          {probando ? "Enviando..." : "Enviar prueba"}
-        </button>
-        <button type="button" className="link-button" onClick={onQuitar}>
-          Quitar
-        </button>
-        {prueba && (
-          <span className={prueba.ok ? "form-success" : "form-error"}>{prueba.mensaje}</span>
-        )}
+      {prueba && (
+        <div className="adm-fila__extra">
+          <MensajeInline ok={prueba.ok}>{prueba.mensaje}</MensajeInline>
+        </div>
+      )}
+      <div className="adm-fila__extra">
+        <div className="adm-field__ayuda" style={{ marginBottom: "0.4rem" }}>
+          Qué le avisamos:
+        </div>
+        <div className="adm-checks">
+          {EVENTOS.map((e) => {
+            const on = destino.eventos.includes(e.valor);
+            return (
+              <label key={e.valor} className={`adm-check${on ? " adm-check--on" : ""}`} title={e.descripcion}>
+                <input type="checkbox" checked={on} onChange={() => alternarEvento(e.valor)} />
+                {e.titulo}
+              </label>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -132,129 +149,142 @@ function Destino({
  */
 export function NotificacionesPage() {
   const [config, setConfig] = useState<NotificacionesConfig | null>(null);
+  const [original, setOriginal] = useState<NotificacionesConfig | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [guardado, setGuardado] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+  const [guardando, setGuardando] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      try {
-        setConfig((await adminGetNotificacionesCallable()).data.config);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "No se pudo cargar la configuración.");
-      }
-    })();
+    adminGetNotificacionesCallable()
+      .then(({ data }) => {
+        setConfig(data.config);
+        setOriginal(data.config);
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : "No se pudo cargar la configuración."));
   }, []);
 
   function actualizarDestino(i: number, d: DestinoNotificacion) {
     setConfig((c) => c && { ...c, destinos: c.destinos.map((x, j) => (j === i ? d : x)) });
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function guardar() {
     if (!config) return;
-    setSubmitting(true);
-    setError(null);
-    setGuardado(false);
+    setGuardando(true);
+    setMsg(null);
     try {
       const limpio: NotificacionesConfig = {
         ...config,
-        destinos: config.destinos
-          .map((d) => ({ ...d, valor: d.valor.trim() }))
-          .filter((d) => d.valor),
+        destinos: config.destinos.map((d) => ({ ...d, valor: d.valor.trim() })).filter((d) => d.valor),
       };
       await adminSetNotificacionesCallable({ config: limpio });
       setConfig(limpio);
-      setGuardado(true);
+      setOriginal(limpio);
+      setMsg({ ok: true, texto: "Guardado." });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo guardar.");
+      setMsg({ ok: false, texto: err instanceof Error ? err.message : "No se pudo guardar." });
     } finally {
-      setSubmitting(false);
+      setGuardando(false);
     }
   }
 
-  if (error && !config) return <p className="page-message page-message--error">{error}</p>;
-  if (!config) return <p className="page-message">Cargando configuración...</p>;
+  const hayCambios = Boolean(config && JSON.stringify(config) !== JSON.stringify(original));
 
   return (
     <section>
-      <h1 className="admin-title">Notificaciones</h1>
-      <p className="admin-subtitle">
-        Avisos de Paydesk en Slack. Agrega canales o personas y elige qué
-        eventos recibe cada uno. Los mensajes llevan a la bandeja de revisión,
-        nunca al archivo: la liga del documento no se comparte en Slack.
-      </p>
+      <PageHeader
+        titulo="Avisos en Slack"
+        descripcion="A quién le avisa Paydesk y de qué: documentos por revisar, revisiones atrasadas y errores. Los avisos llevan a la bandeja de revisión, nunca al archivo."
+      />
+      {error && <Notice tono="error">{error}</Notice>}
+      {!config && !error && <Cargando />}
 
-      <div className="callout callout--warn">
-        Para un canal privado, primero invita al bot de Paydesk al canal
-        (<code>/invite @Paydesk</code>). Un usuario se escribe con su correo de
-        Slack y recibe los avisos por mensaje directo del bot. Usa “Enviar
-        prueba” para confirmar cada destino.
-      </div>
+      {config && (
+        <>
+          <Card>
+            <Switch checked={config.activo} onChange={(activo) => setConfig({ ...config, activo })}>
+              {config.activo ? "Los avisos están encendidos" : "Los avisos están apagados"}
+            </Switch>
+            {!config.activo && (
+              <p className="adm-field__ayuda" style={{ margin: "0.5rem 0 0" }}>
+                Mientras estén apagados, nadie se entera de documentos por revisar ni de errores.
+              </p>
+            )}
+          </Card>
 
-      <form className="dictionary-form" onSubmit={handleSubmit}>
-        <label className="notif-evento">
-          <input
-            type="checkbox"
-            checked={config.activo}
-            onChange={(e) => setConfig({ ...config, activo: e.target.checked })}
-          />{" "}
-          <strong>Enviar notificaciones</strong>
-        </label>
-
-        <label>
-          Avisar una revisión atrasada después de (horas)
-          <input
-            type="number"
-            min={0}
-            max={168}
-            value={config.recordatorioHoras}
-            onChange={(e) => setConfig({ ...config, recordatorioHoras: Number(e.target.value) })}
-          />
-        </label>
-        <p className="form-note">0 apaga el recordatorio. Se avisa una sola vez por documento.</p>
-
-        {config.destinos.length === 0 && (
-          <p className="stage-date-list__empty">Todavía no hay destinos.</p>
-        )}
-        {config.destinos.map((d, i) => (
-          <Destino
-            key={d.id}
-            destino={d}
-            onChange={(nuevo) => actualizarDestino(i, nuevo)}
-            onQuitar={() =>
-              setConfig({ ...config, destinos: config.destinos.filter((_, j) => j !== i) })
-            }
-          />
-        ))}
-
-        <div className="stage-date-list__actions">
-          <button
-            type="button"
-            className="link-button"
-            onClick={() =>
-              setConfig({
-                ...config,
-                destinos: [
-                  ...config.destinos,
-                  { id: nuevoId(), tipo: "canal", valor: "", eventos: ["documento_en_revision"] },
-                ],
-              })
+          <Card
+            titulo="¿A quién avisar?"
+            descripcion="Agrega canales de Slack o personas, y elige qué le llega a cada uno."
+            acciones={
+              <button
+                type="button"
+                className="adm-btn adm-btn--secundario"
+                onClick={() =>
+                  setConfig({
+                    ...config,
+                    destinos: [
+                      ...config.destinos,
+                      { id: nuevoId(), tipo: "canal", valor: "", eventos: ["documento_en_revision", "revision_atrasada"] },
+                    ],
+                  })
+                }
+              >
+                + Agregar
+              </button>
             }
           >
-            + Agregar canal o usuario
-          </button>
-        </div>
+            {config.destinos.length === 0 ? (
+              <EmptyState icono="✉" titulo="Todavía no hay a quién avisar">
+                Agrega el canal del equipo, por ejemplo #paydesk-revisiones.
+              </EmptyState>
+            ) : (
+              config.destinos.map((d, i) => (
+                <Destino
+                  key={d.id}
+                  destino={d}
+                  onChange={(nuevo) => actualizarDestino(i, nuevo)}
+                  onQuitar={() => setConfig({ ...config, destinos: config.destinos.filter((_, j) => j !== i) })}
+                />
+              ))
+            )}
+            <Detalles resumen="¿Cómo conecto un canal privado o una persona?">
+              <p>
+                Para un canal privado, primero invita al bot de Paydesk desde Slack con{" "}
+                <span className="adm-mono">/invite @Paydesk</span>. A una persona se le escribe con
+                su correo de Slack y recibe los avisos por mensaje directo. Usa “Enviar prueba” para
+                confirmar que cada destino funciona.
+              </p>
+            </Detalles>
+          </Card>
 
-        {error && <p className="form-error">{error}</p>}
-        {guardado && <p className="form-success">Configuración guardada.</p>}
+          <Card
+            titulo="Recordatorio de revisiones atrasadas"
+            descripcion="Si un documento lleva este tiempo esperando, se avisa una sola vez (a quien tenga marcado “Revisión atrasada”)."
+          >
+            <Field label="Avisar después de (horas)" htmlFor="recordatorio" ayuda="0 apaga el recordatorio.">
+              <input
+                id="recordatorio"
+                type="number"
+                min={0}
+                max={168}
+                value={config.recordatorioHoras}
+                onChange={(e) => setConfig({ ...config, recordatorioHoras: Number(e.target.value) })}
+                style={{ maxWidth: "8rem" }}
+              />
+            </Field>
+          </Card>
 
-        <div className="dictionary-form__actions">
-          <button type="submit" disabled={submitting}>
-            {submitting ? "Guardando..." : "Guardar"}
-          </button>
-        </div>
-      </form>
+          <BarraGuardar
+            hayCambios={hayCambios}
+            guardando={guardando}
+            mensaje={msg}
+            onGuardar={guardar}
+            onDescartar={() => {
+              setConfig(original);
+              setMsg(null);
+            }}
+          />
+        </>
+      )}
     </section>
   );
 }

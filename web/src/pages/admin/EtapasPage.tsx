@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { adminGetEtapasCallable, adminSetEtapasCallable } from "../../lib/firebase";
 import type { EtapaConfig } from "../../types/admin";
+import { Badge, BarraGuardar, Card, Cargando, Field, Notice, PageHeader } from "../../components/admin/ui";
 
 function nuevoId(): string {
   return `custom_${Math.random().toString(36).slice(2, 10)}`;
@@ -20,7 +21,8 @@ export function EtapasPage() {
   const [etapas, setEtapas] = useState<EtapaConfig[] | null>(null);
   const [defaults, setDefaults] = useState<EtapaConfig[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [guardado, setGuardado] = useState(false);
+  const [original, setOriginal] = useState<EtapaConfig[] | null>(null);
+  const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -28,6 +30,7 @@ export function EtapasPage() {
       try {
         const result = await adminGetEtapasCallable();
         setEtapas(result.data.etapas);
+        setOriginal(result.data.etapas);
         setDefaults(result.data.defaults);
       } catch (err) {
         setError(err instanceof Error ? err.message : "No se pudo cargar la configuración.");
@@ -66,12 +69,10 @@ export function EtapasPage() {
     (d) => !(etapas ?? []).some((e) => e.id === d.id),
   );
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function guardar() {
     if (!etapas) return;
     setSubmitting(true);
-    setError(null);
-    setGuardado(false);
+    setMsg(null);
     try {
       const limpio = etapas.map((et) => ({
         ...et,
@@ -85,103 +86,148 @@ export function EtapasPage() {
       }
       await adminSetEtapasCallable({ etapas: limpio });
       setEtapas(limpio);
-      setGuardado(true);
+      setOriginal(limpio);
+      setMsg({ ok: true, texto: "Guardado." });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo guardar.");
+      setMsg({ ok: false, texto: err instanceof Error ? err.message : "No se pudo guardar." });
     } finally {
       setSubmitting(false);
     }
   }
 
-  if (error && !etapas) return <p className="page-message page-message--error">{error}</p>;
-  if (!etapas) return <p className="page-message">Cargando configuración...</p>;
+  const encabezado = (
+    <PageHeader
+      titulo="Etapas del crédito"
+      descripcion="Los pasos que forman el avance de cada crédito: la barra de progreso que ve la tienda y el embudo del reporte. Se muestran en este orden."
+    />
+  );
+
+  if (error && !etapas) {
+    return (
+      <>
+        {encabezado}
+        <Notice tono="error">{error}</Notice>
+      </>
+    );
+  }
+  if (!etapas) {
+    return (
+      <>
+        {encabezado}
+        <Cargando />
+      </>
+    );
+  }
+
+  const hayCambios = JSON.stringify(etapas) !== JSON.stringify(original);
 
   return (
     <section>
-      <h1 className="admin-title">Etapas</h1>
-      <p className="admin-subtitle">
-        Las etapas que forman el avance de cada crédito: la barra de progreso,
-        el embudo del reporte y el filtro de completadas. El orden de aquí es
-        el orden en que se muestran.
-      </p>
+      {encabezado}
 
-      <div className="callout callout--warn">
-        Una etapa nueva se marca como alcanzada cuando su propiedad de fecha en
-        HubSpot (por ejemplo <code>hs_v2_date_entered_123456</code>) tiene valor,
-        y agrega una columna a la tabla. Verifica el nombre interno en HubSpot:
-        uno mal escrito nunca se marcará. Las fechas se leen en la siguiente
-        sincronización de cada crédito (o con la sincronización completa).
-      </div>
-
-      <form className="dictionary-form" onSubmit={handleSubmit}>
-        {etapas.map((et, i) => (
-          <div className="dictionary-row dictionary-row--stack" key={et.id}>
-            <label>
-              {et.tipo === "base" ? "Etapa base" : "Etapa personalizada"}
-              <span className="dictionary-row__key">{et.id}</span>
-            </label>
-            <div className="stage-date-list">
-              <div className="stage-date-list__row">
+      <Card
+        acciones={
+          <button type="button" className="adm-btn adm-btn--secundario" onClick={agregar}>
+            + Agregar etapa
+          </button>
+        }
+        titulo={`${etapas.length} etapas`}
+        descripcion="Las etapas de Paydesk se calculan solas. Una etapa nueva se marca como cumplida cuando su propiedad de fecha en HubSpot tiene valor, y agrega una columna a la tabla de la tienda."
+      >
+        <ol className="adm-etapas">
+          {etapas.map((et, i) => (
+            <li key={et.id} className="adm-fila">
+              <div className="adm-fila__principal">
+                <span className="adm-etapas__num" aria-hidden>
+                  {i + 1}
+                </span>
                 <input
                   type="text"
+                  aria-label={`Nombre de la etapa ${i + 1}`}
                   value={et.label}
                   onChange={(e) => cambiar(i, { label: e.target.value })}
                   placeholder="Nombre de la etapa"
                 />
-                {et.tipo === "personalizada" && (
-                  <input
-                    type="text"
-                    value={et.propiedad ?? ""}
-                    onChange={(e) => cambiar(i, { propiedad: e.target.value })}
-                    placeholder="propiedad_de_fecha_en_hubspot"
-                  />
+                {et.tipo === "base" ? (
+                  <Badge tono="neutro">De Paydesk</Badge>
+                ) : (
+                  <Badge tono="ok">Nueva</Badge>
                 )}
+                <span className="adm-fila__acciones">
+                  <button
+                    type="button"
+                    className="adm-btn adm-btn--texto adm-btn--chico"
+                    disabled={i === 0}
+                    onClick={() => mover(i, -1)}
+                    aria-label={`Subir ${et.label}`}
+                    title="Subir"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    className="adm-btn adm-btn--texto adm-btn--chico"
+                    disabled={i === etapas.length - 1}
+                    onClick={() => mover(i, 1)}
+                    aria-label={`Bajar ${et.label}`}
+                    title="Bajar"
+                  >
+                    ↓
+                  </button>
+                  <button type="button" className="adm-btn adm-btn--texto adm-btn--chico" onClick={() => quitar(i)}>
+                    Quitar
+                  </button>
+                </span>
               </div>
-              <div className="stage-date-list__actions">
-                <button type="button" className="link-button" disabled={i === 0} onClick={() => mover(i, -1)}>
-                  Subir
-                </button>
-                <button
-                  type="button"
-                  className="link-button"
-                  disabled={i === etapas.length - 1}
-                  onClick={() => mover(i, 1)}
-                >
-                  Bajar
-                </button>
-                <button type="button" className="link-button" onClick={() => quitar(i)}>
-                  Quitar
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-
-        <div className="stage-date-list__actions">
-          <button type="button" className="link-button" onClick={agregar}>
-            + Agregar etapa
-          </button>
-          {baseFaltantes.map((b) => (
-            <button
-              key={b.id}
-              type="button"
-              className="link-button"
-              onClick={() => setEtapas((lista) => [...(lista ?? []), b])}
-            >
-              Restaurar “{b.label}”
-            </button>
+              {et.tipo === "personalizada" && (
+                <div className="adm-fila__extra">
+                  <Field
+                    label="Propiedad de fecha en HubSpot"
+                    htmlFor={`prop-${et.id}`}
+                    ayuda="El nombre interno de la propiedad, por ejemplo hs_v2_date_entered_123456. Si está mal escrito, la etapa nunca se marcará."
+                  >
+                    <input
+                      id={`prop-${et.id}`}
+                      type="text"
+                      className="adm-mono"
+                      value={et.propiedad ?? ""}
+                      onChange={(e) => cambiar(i, { propiedad: e.target.value })}
+                      placeholder="hs_v2_date_entered_..."
+                    />
+                  </Field>
+                </div>
+              )}
+            </li>
           ))}
-        </div>
+        </ol>
 
-        {error && <p className="form-error">{error}</p>}
-        {guardado && <p className="form-success">Configuración guardada.</p>}
+        {baseFaltantes.length > 0 && (
+          <div className="adm-fila__extra">
+            <span className="adm-field__ayuda">Etapas de Paydesk que quitaste: </span>
+            {baseFaltantes.map((b) => (
+              <button
+                key={b.id}
+                type="button"
+                className="adm-btn adm-btn--texto adm-btn--chico"
+                onClick={() => setEtapas((lista) => [...(lista ?? []), b])}
+              >
+                + {b.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </Card>
 
-        <div className="dictionary-form__actions">
-          <button type="submit" disabled={submitting}>
-            {submitting ? "Guardando..." : "Guardar"}
-          </button>
-        </div>
-      </form>
+      <BarraGuardar
+        hayCambios={hayCambios}
+        guardando={submitting}
+        mensaje={msg}
+        onGuardar={guardar}
+        onDescartar={() => {
+          setEtapas(original);
+          setMsg(null);
+        }}
+      />
     </section>
   );
 }

@@ -1,12 +1,10 @@
 import { onRequest } from "firebase-functions/v2/https";
-import { logger } from "firebase-functions/v2";
 import { parseMultipart } from "./multipart";
 import { getDeal } from "../firestore/dealsRepository";
 import { writeComprobante } from "../hubspot/uploads";
-import { OcrRechazadoError } from "../ocr/validarDocumento";
-import { AppCheckError, exigirAppCheckHttp } from "../auth/appCheck";
-import { esLimiteExcedido, limitar, MENSAJE_LIMITE } from "../auth/rateLimit";
-import { alertar } from "../notificaciones/alertas";
+import { responderErrorSubida } from "./erroresSubida";
+import { exigirAppCheckHttp } from "../auth/appCheck";
+import { limitar } from "../auth/rateLimit";
 import { verifyBearerToken } from "../auth/requestAuth";
 
 /**
@@ -20,8 +18,9 @@ export const uploadComprobante = onRequest(
     region: "us-central1",
     secrets: ["HUBSPOT_PRIVATE_APP_TOKEN", "ANTHROPIC_API_KEY", "SLACK_BOT_TOKEN"],
     cors: true,
-    // La verificación del documento con Claude se suma a las dos subidas (HubSpot y Storage).
-    timeoutSeconds: 120,
+    // La verificación con Claude (hasta ~100 s en el peor caso, ver
+    // ocr/analizar.ts) se suma a Storage, HubSpot y los avisos.
+    timeoutSeconds: 300,
   },
   async (req, res) => {
     if (req.method !== "POST") {
@@ -73,26 +72,10 @@ export const uploadComprobante = onRequest(
       // detectó: eso se queda para el equipo de Aviva (ver ocr/validate.ts).
       res.status(200).json({ ok: true, enRevision });
     } catch (err) {
-      if (err instanceof AppCheckError) {
-        res.status(403).json({ error: err.message });
-        return;
-      }
-      if (esLimiteExcedido(err)) {
-        res.status(429).json({ error: MENSAJE_LIMITE });
-        return;
-      }
-      if (err instanceof OcrRechazadoError) {
-        res.status(422).json({ error: err.message });
-        return;
-      }
-      // Full detail (HubSpot's raw API error, stack, etc.) goes to the
-      // Cloud Functions log for debugging — a concesionario gets a plain
-      // Spanish message instead of a wall of JSON they can't act on.
-      logger.error("uploadComprobante: failed", err);
-      await alertar("subida", "Falló la subida de un comprobante", err);
-      res.status(500).json({
-        error:
-          "No se pudo guardar el comprobante de entrega. Intenta de nuevo en unos minutos; si el problema sigue, contacta a soporte.",
+      await responderErrorSubida(res, err, {
+        funcion: "uploadComprobante",
+        etiqueta: "un comprobante",
+        mensaje500: "No se pudo guardar el comprobante de entrega. Intenta de nuevo en unos minutos; si el problema sigue, contacta a soporte.",
       });
     }
   },

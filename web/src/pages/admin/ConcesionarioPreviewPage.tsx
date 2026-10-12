@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { adminGetConcesionarioDealsCallable } from "../../lib/firebase";
 import { adminUploadCotizacion, adminUploadComprobante } from "../../lib/uploads";
 import type { PayDeskConcesionario, PayDeskDeal } from "../../types/deal";
 import type { FieldLabels } from "../../types/admin";
 import { setEtapas } from "../../lib/dealScope";
+import { Cargando, Notice, PageHeader } from "../../components/admin/ui";
 import { DealsTable } from "../../components/DealsTable";
 import { Paginacion, POR_PAGINA } from "../../components/Paginacion";
 import { Modal } from "../../components/Modal";
@@ -98,30 +99,32 @@ export function ConcesionarioPreviewPage() {
   }, [concesionarioId]);
 
   if (state.status === "loading") {
-    return <p className="page-message">Cargando solicitudes...</p>;
+    return (
+      <>
+        <PageHeader titulo="Tienda" volver={{ to: "/admin/tiendas", label: "Tiendas" }} />
+        <Cargando texto="Cargando solicitudes..." />
+      </>
+    );
   }
 
   if (state.status === "error") {
-    return <p className="page-message page-message--error">{state.message}</p>;
+    return (
+      <>
+        <PageHeader titulo="Tienda" volver={{ to: "/admin/tiendas", label: "Tiendas" }} />
+        <Notice tono="error">{state.message}</Notice>
+      </>
+    );
   }
 
   const deals = state.deals;
 
   return (
     <section>
-      <div className="admin-page-head">
-        <div>
-          <Link to="/admin/tiendas" className="link-button">
-            ← Tiendas
-          </Link>
-          <h1 className="admin-title">{state.concesionario.nombre}</h1>
-          <p className="admin-subtitle">
-            Así es como esta tienda ve sus solicitudes. Puedes ver los
-            archivos subidos y reemplazarlos si hace falta — todo lo demás
-            se sube desde la sesión de la propia tienda.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        volver={{ to: "/admin/tiendas", label: "Tiendas" }}
+        titulo={state.concesionario.nombre}
+        descripcion="Así ve esta tienda sus solicitudes. Puedes abrir sus documentos y reemplazar uno si la tienda subió el equivocado. La etiqueta bajo cada documento dice qué encontró la verificación automática."
+      />
 
       <DealsTable
         mostrarVerificacion

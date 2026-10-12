@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { adminListBitacoraCallable, type EntradaBitacora } from "../../lib/firebase";
 import { llavesCambiadas } from "../../lib/bitacora";
+import { Cargando, EmptyState, Notice } from "../../components/admin/ui";
+import { EncabezadoSistema } from "./EstadoPage";
 
 /** Nombre legible de cada documento de configuración. */
 const DOCUMENTOS: Record<string, string> = {
@@ -12,7 +14,7 @@ const DOCUMENTOS: Record<string, string> = {
   rollout: "Fecha de arranque",
   vale: "Vigencia de vales",
   ocr: "Verificación de documentos",
-  notificaciones: "Notificaciones",
+  notificaciones: "Avisos en Slack",
 };
 
 function Valor({ v }: { v: unknown }) {
@@ -30,17 +32,31 @@ export function BitacoraPage() {
       .catch((err) => setError(err instanceof Error ? err.message : "No se pudo cargar la bitácora."));
   }, []);
 
-  if (error) return <p className="page-message page-message--error">{error}</p>;
-  if (!entradas) return <p className="page-message">Cargando bitácora...</p>;
+  if (error) {
+    return (
+      <>
+        <EncabezadoSistema />
+        <Notice tono="error">{error}</Notice>
+      </>
+    );
+  }
+  if (!entradas) {
+    return (
+      <>
+        <EncabezadoSistema />
+        <Cargando />
+      </>
+    );
+  }
 
   return (
     <section>
-      <h1 className="admin-title">Bitácora de configuración</h1>
-      <p className="admin-subtitle">
-        Los últimos 100 cambios a la configuración, con su valor anterior. Para
-        deshacer uno, vuelve a capturar el valor anterior en su pantalla.
+      <EncabezadoSistema />
+      <p className="adm-field__ayuda" style={{ marginTop: 0 }}>
+        Los últimos 100 cambios a la configuración, con su valor anterior. Para deshacer uno,
+        vuelve a capturar el valor anterior en su pantalla.
       </p>
-      {entradas.length === 0 && <p className="page-message">Sin cambios registrados todavía.</p>}
+      {entradas.length === 0 && <EmptyState titulo="Sin cambios registrados todavía" />}
       {entradas.map((e, i) => {
         const cambios = llavesCambiadas(e.antes, e.despues);
         return (

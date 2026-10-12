@@ -1,13 +1,12 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { assertAdmin } from "../../auth/adminGuard";
-import { dealsCollection } from "../../firestore/dealsRepository";
+import { getDealsConRevisionPendiente } from "../../firestore/dealsRepository";
 import { getConcesionariosByIds } from "../../firestore/concesionariosRepository";
 import {
   resolverRevision,
   RevisionNoPendienteError,
   type TipoDocumento,
 } from "../../hubspot/uploads";
-import type { PayDeskDeal } from "../../types/deal";
 import { getVerificacionesDeDeals } from "../../firestore/verificacionesRepository";
 
 /**
@@ -17,15 +16,14 @@ import { getVerificacionesDeDeals } from "../../firestore/verificacionesReposito
 export const adminListRevisiones = onCall({ region: "us-central1" }, async (request) => {
   assertAdmin(request);
 
-  const [cotizaciones, comprobantes] = await Promise.all(
-    (["cotizacion", "comprobante"] as const).map((tipo) =>
-      dealsCollection().where(`${tipo}Revision.estado`, "==", "pendiente").get(),
-    ),
-  );
+  const [cotizaciones, comprobantes] = await Promise.all([
+    getDealsConRevisionPendiente("cotizacion"),
+    getDealsConRevisionPendiente("comprobante"),
+  ]);
 
   const items = [
-    ...cotizaciones.docs.map((d) => ({ tipo: "cotizacion" as const, deal: d.data() as PayDeskDeal })),
-    ...comprobantes.docs.map((d) => ({ tipo: "comprobante" as const, deal: d.data() as PayDeskDeal })),
+    ...cotizaciones.map((deal) => ({ tipo: "cotizacion" as const, deal })),
+    ...comprobantes.map((deal) => ({ tipo: "comprobante" as const, deal })),
   ];
 
   const ids = [...new Set(items.map((i) => i.deal.concesionarioId).filter((v): v is string => !!v))];

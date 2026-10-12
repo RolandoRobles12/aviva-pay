@@ -19,7 +19,8 @@ export interface VerificacionDocumento {
 
 /** Documento en espera de un administrador, o rechazado por uno. Ver functions/src/hubspot/uploads.ts. */
 export interface RevisionDocumento {
-  estado: "pendiente" | "rechazado";
+  /** `aprobando`: un administrador la está aprobando; para la tienda sigue "En revisión". */
+  estado: "pendiente" | "aprobando" | "rechazado";
   fileName: string;
   capturado: Record<string, string>;
   subidoEn: string;

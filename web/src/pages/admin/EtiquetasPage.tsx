@@ -4,6 +4,8 @@ import {
   adminSetFieldLabelsCallable,
 } from "../../lib/firebase";
 import type { FieldLabels } from "../../types/admin";
+import { Cargando, MensajeInline, Notice } from "../../components/admin/ui";
+import { EncabezadoHubspot } from "./DiccionarioPage";
 
 /** Where each label shows up, so editing it here isn't a guessing game. */
 const CONTEXTO: Record<string, string> = {
@@ -64,20 +66,29 @@ export function EtiquetasPage() {
   }
 
   if (error && !etiquetas) {
-    return <p className="page-message page-message--error">{error}</p>;
+    return (
+      <>
+        <EncabezadoHubspot />
+        <Notice tono="error">{error}</Notice>
+      </>
+    );
   }
 
   if (!etiquetas) {
-    return <p className="page-message">Cargando etiquetas...</p>;
+    return (
+      <>
+        <EncabezadoHubspot />
+        <Cargando />
+      </>
+    );
   }
 
   return (
     <section>
-      <h1 className="admin-title">Etiquetas</h1>
-      <p className="admin-subtitle">
-        El texto que ve la tienda en la tabla de solicitudes y en los
-        formularios de subida. Cambiar esto no toca la lógica ni el
-        mapeo con HubSpot — solo el texto en pantalla.
+      <EncabezadoHubspot />
+      <p className="adm-field__ayuda" style={{ marginTop: 0 }}>
+        El texto que ve la tienda en su tabla y en los formularios para subir documentos.
+        Solo cambia lo que se lee en pantalla; no cambia de dónde sale el dato.
       </p>
 
       <form className="dictionary-form" onSubmit={handleSubmit}>
@@ -101,7 +112,7 @@ export function EtiquetasPage() {
                 {!esDefault && (
                   <button
                     type="button"
-                    className="link-button"
+                    className="adm-btn adm-btn--texto adm-btn--chico"
                     onClick={() => setEtiquetas({ ...etiquetas, [key]: defaults[key] })}
                   >
                     Restaurar
@@ -112,12 +123,11 @@ export function EtiquetasPage() {
           );
         })}
 
-        {error && <p className="form-error">{error}</p>}
-        {guardado && <p className="form-success">Etiquetas guardadas.</p>}
-
-        <div className="dictionary-form__actions">
-          <button type="submit" disabled={submitting}>
-            {submitting ? "Guardando..." : "Guardar etiquetas"}
+        <div className="adm-card__pie">
+          {error && <MensajeInline ok={false}>{error}</MensajeInline>}
+          {guardado && <MensajeInline ok>Guardado.</MensajeInline>}
+          <button type="submit" className="adm-btn adm-btn--primario" disabled={submitting}>
+            {submitting ? "Guardando..." : "Guardar cambios"}
           </button>
         </div>
       </form>

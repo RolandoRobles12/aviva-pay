@@ -75,7 +75,7 @@ export async function upsertDealFromHubspot(
   const existingDeal = await dealRef.get();
   const existing = existingDeal.exists ? (existingDeal.data() as PayDeskDeal) : null;
 
-  const { cotizacionUrl, comprobanteUrl, ...syncedFromHubspot } = data;
+  const { cotizacionUrl, comprobanteUrl, etapasExtra, ...syncedFromHubspot } = data;
 
   // Se resuelve aquí, en el único punto por donde pasan tanto el webhook
   // como el backfill, para que las dos rutas coincidan siempre.
@@ -88,13 +88,22 @@ export async function upsertDealFromHubspot(
     {
       ...syncedFromHubspot,
       cancelado,
-      cotizacionUrl: existing?.cotizacionUrl ?? cotizacionUrl,
-      comprobanteUrl: existing?.comprobanteUrl ?? comprobanteUrl,
+      // Un deal con archivo en Storage (`*Path`) ya no guarda URL: "Ver
+      // archivo" pide una liga temporal. Sin esta condición, el `?? ` de
+      // abajo volvería a escribir la URL de HubSpot en cada sincronización.
+      cotizacionUrl: existing?.cotizacionPath ? null : (existing?.cotizacionUrl ?? cotizacionUrl),
+      comprobanteUrl: existing?.comprobantePath ? null : (existing?.comprobanteUrl ?? comprobanteUrl),
       actualizadoEn: FieldValue.serverTimestamp(),
       ...(existing ? {} : { creadoEn: FieldValue.serverTimestamp() }),
     },
     { merge: true },
   );
+  // Las fechas de etapas personalizadas se reemplazan completas: con
+  // `merge` se mezclarían y las de etapas que el admin ya quitó se
+  // quedarían para siempre. `update` reemplaza el mapa entero.
+  if (etapasExtra !== undefined) {
+    await dealRef.update({ etapasExtra });
+  }
 
   if (!data.concesionarioId || !data.kiosco) {
     return { isNewConcesionario: false };
@@ -121,4 +130,99 @@ export async function patchDealFields(
       { ...fields, actualizadoEn: FieldValue.serverTimestamp() },
       { merge: true },
     );
+}
+
+type TipoDocumento = "cotizacion" | "comprobante";
+
+/**
+ * Una aprobación que lleva más que esto en "aprobando" se da por muerta
+ * (la función se cayó a medio camino) y la revisión vuelve a estar
+ * disponible. Holgado respecto al timeout de adminResolverRevision (120 s).
+ */
+export const APROBACION_ABANDONADA_MS = 10 * 60_000;
+
+/** ¿La revisión espera a un administrador? Incluye aprobaciones abandonadas. */
+export function revisionDisponible(
+  revision: PayDeskDeal["cotizacionRevision"],
+  ahora = Date.now(),
+): boolean {
+  if (revision?.estado === "pendiente") return true;
+  return (
+    revision?.estado === "aprobando" &&
+    (!revision.resueltoEn || ahora - Date.parse(revision.resueltoEn) > APROBACION_ABANDONADA_MS)
+  );
+}
+
+/** Las revisiones que esperan a un administrador, de un tipo de documento, de todas las tiendas. */
+export async function getDealsConRevisionPendiente(tipo: TipoDocumento): Promise<PayDeskDeal[]> {
+  const snap = await dealsCollection()
+    .where(`${tipo}Revision.estado`, "in", ["pendiente", "aprobando"])
+    .get();
+  const campo = `${tipo}Revision` as const;
+  return snap.docs
+    .map((d) => d.data() as PayDeskDeal)
+    .filter((d) => revisionDisponible(d[campo]));
+}
+
+/**
+ * Quita la revisión del deal, pero solo si sigue siendo la de `storagePath`.
+ * Si mientras tanto la tienda subió otro documento (otra revisión), esa se
+ * respeta: borrarla perdería el documento nuevo.
+ */
+export async function limpiarRevisionSi(
+  dealId: string,
+  tipo: TipoDocumento,
+  storagePath: string,
+): Promise<void> {
+  const ref = dealsCollection().doc(dealId);
+  const campo = `${tipo}Revision` as const;
+  await getFirestore().runTransaction(async (t) => {
+    const deal = (await t.get(ref)).data() as PayDeskDeal | undefined;
+    if (deal?.[campo]?.storagePath === storagePath) t.update(ref, { [campo]: null });
+  });
+}
+
+/**
+ * Toma una revisión pendiente para resolverla, de forma atómica: si dos
+ * administradores la resuelven a la vez, solo uno la obtiene. Devuelve la
+ * revisión tomada, o null si ya no estaba pendiente.
+ */
+export async function tomarRevision(
+  dealId: string,
+  tipo: TipoDocumento,
+  nuevoEstado: Partial<NonNullable<PayDeskDeal["cotizacionRevision"]>>,
+): Promise<NonNullable<PayDeskDeal["cotizacionRevision"]> | null> {
+  const ref = dealsCollection().doc(dealId);
+  const campo = `${tipo}Revision` as const;
+  return getFirestore().runTransaction(async (t) => {
+    const revision = ((await t.get(ref)).data() as PayDeskDeal | undefined)?.[campo];
+    if (!revision || !revisionDisponible(revision)) return null;
+    t.update(ref, { [campo]: { ...revision, ...nuevoEstado } });
+    return revision;
+  });
+}
+
+/** Regresa a "pendiente" una revisión que se estaba aprobando y falló a medio camino. */
+export async function devolverRevision(
+  dealId: string,
+  tipo: TipoDocumento,
+  storagePath: string,
+): Promise<void> {
+  const ref = dealsCollection().doc(dealId);
+  const campo = `${tipo}Revision` as const;
+  await getFirestore().runTransaction(async (t) => {
+    const revision = ((await t.get(ref)).data() as PayDeskDeal | undefined)?.[campo];
+    if (revision?.estado === "aprobando" && revision.storagePath === storagePath) {
+      t.update(ref, { [campo]: { ...revision, estado: "pendiente" } });
+    }
+  });
+}
+
+/**
+ * Borra del deal el resultado de verificación que una versión anterior
+ * guardaba ahí (`cotizacionOcr` / `comprobanteOcr`). Ahora vive en
+ * paydesk_verificaciones, fuera del alcance de la tienda.
+ */
+export function camposOcrViejos(tipo: TipoDocumento): Record<string, FieldValue> {
+  return { [`${tipo}Ocr`]: FieldValue.delete() };
 }

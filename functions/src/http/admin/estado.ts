@@ -4,9 +4,8 @@ import { getFieldDictionaryFresh } from "../../firestore/fieldDictionaryReposito
 import { getSyncEstado } from "../../firestore/syncEstadoRepository";
 import { getNotificacionesConfigFresh } from "../../firestore/notificacionesRepository";
 import { getOcrConfigFresh } from "../../firestore/ocrConfigRepository";
-import { dealsCollection } from "../../firestore/dealsRepository";
+import { getDealsConRevisionPendiente } from "../../firestore/dealsRepository";
 import { camposSinMapear } from "../../programadas/revisionDiaria";
-import type { PayDeskDeal } from "../../types/deal";
 
 /**
  * Lo que un super admin necesita para saber si Paydesk está sano, en un
@@ -21,13 +20,13 @@ export const adminEstadoSistema = onCall({ region: "us-central1" }, async (reque
     getSyncEstado(),
     getNotificacionesConfigFresh(),
     getOcrConfigFresh(),
-    dealsCollection().where("cotizacionRevision.estado", "==", "pendiente").get(),
-    dealsCollection().where("comprobanteRevision.estado", "==", "pendiente").get(),
+    getDealsConRevisionPendiente("cotizacion"),
+    getDealsConRevisionPendiente("comprobante"),
   ]);
 
   const subidas = [
-    ...cot.docs.map((d) => (d.data() as PayDeskDeal).cotizacionRevision?.subidoEn),
-    ...comp.docs.map((d) => (d.data() as PayDeskDeal).comprobanteRevision?.subidoEn),
+    ...cot.map((d) => d.cotizacionRevision?.subidoEn),
+    ...comp.map((d) => d.comprobanteRevision?.subidoEn),
   ].filter((v): v is string => Boolean(v));
   const masAntigua = subidas.length ? Math.min(...subidas.map((s) => Date.parse(s))) : null;
 

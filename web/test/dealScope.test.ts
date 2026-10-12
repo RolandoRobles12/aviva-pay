@@ -53,6 +53,14 @@ describe("requiereAccion", () => {
     expect(requiereAccion(d, rollout)).toBe(false);
   });
 
+  it("un documento que Aviva está aprobando tampoco", () => {
+    const d = deal({
+      comprobanteEntregaEstatus: "completado",
+      cotizacionRevision: { estado: "aprobando", fileName: "c.pdf", capturado: {}, subidoEn: "2026-05-03" },
+    });
+    expect(requiereAccion(d, rollout)).toBe(false);
+  });
+
   it("un documento rechazado por Aviva vuelve a ser de la tienda", () => {
     const d = deal({
       comprobanteEntregaEstatus: "completado",

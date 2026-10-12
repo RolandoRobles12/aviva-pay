@@ -14,6 +14,8 @@ import { SoloSuperAdmin } from "./lib/adminRol";
 import { AdminLayout } from "./pages/admin/AdminLayout";
 import { TiendasPage } from "./pages/admin/TiendasPage";
 import { DiccionarioPage } from "./pages/admin/DiccionarioPage";
+import { InicioPage } from "./pages/admin/InicioPage";
+import { CancelacionPage } from "./pages/admin/CancelacionPage";
 import { MetricasPage } from "./pages/admin/MetricasPage";
 import { RevisionPage } from "./pages/admin/RevisionPage";
 import { BitacoraPage } from "./pages/admin/BitacoraPage";
@@ -27,6 +29,10 @@ import { ConcesionarioPreviewPage } from "./pages/admin/ConcesionarioPreviewPage
 import { EtiquetasPage } from "./pages/admin/EtiquetasPage";
 import { ValesPage } from "./pages/admin/ValesPage";
 import { ReporteValesPage } from "./pages/admin/ReporteValesPage";
+
+function soloSuper(pagina: React.ReactNode) {
+  return <SoloSuperAdmin>{pagina}</SoloSuperAdmin>;
+}
 
 export function App() {
   return (
@@ -62,84 +68,27 @@ export function App() {
           </RequireAuth>
         }
       >
+        <Route path="inicio" element={<InicioPage />} />
+
+        {/* Día a día: cualquier administrador */}
+        <Route path="revision" element={<RevisionPage />} />
         <Route path="tiendas" element={<TiendasPage />} />
         <Route path="tiendas/:concesionarioId" element={<ConcesionarioPreviewPage />} />
-        <Route
-          path="diccionario"
-          element={
-            <SoloSuperAdmin>
-              <DiccionarioPage />
-            </SoloSuperAdmin>
-          }
-        />
-        <Route
-          path="etapas"
-          element={
-            <SoloSuperAdmin>
-              <EtapasPage />
-            </SoloSuperAdmin>
-          }
-        />
-        <Route
-          path="etapas-fecha"
-          element={
-            <SoloSuperAdmin>
-              <EtapaFechasPage />
-            </SoloSuperAdmin>
-          }
-        />
-        <Route path="revision" element={<RevisionPage />} />
-        <Route path="metricas" element={<MetricasPage />} />
-        <Route
-          path="bitacora"
-          element={
-            <SoloSuperAdmin>
-              <BitacoraPage />
-            </SoloSuperAdmin>
-          }
-        />
-        <Route
-          path="estado"
-          element={
-            <SoloSuperAdmin>
-              <EstadoPage />
-            </SoloSuperAdmin>
-          }
-        />
-        <Route
-          path="notificaciones"
-          element={
-            <SoloSuperAdmin>
-              <NotificacionesPage />
-            </SoloSuperAdmin>
-          }
-        />
-        <Route
-          path="ocr"
-          element={
-            <SoloSuperAdmin>
-              <OcrPage />
-            </SoloSuperAdmin>
-          }
-        />
-        <Route
-          path="etiquetas"
-          element={
-            <SoloSuperAdmin>
-              <EtiquetasPage />
-            </SoloSuperAdmin>
-          }
-        />
         <Route path="vales" element={<ValesPage />} />
         <Route path="reporte-vales" element={<ReporteValesPage />} />
-        <Route
-          path="administradores"
-          element={
-            <SoloSuperAdmin>
-              <AdminsPage />
-            </SoloSuperAdmin>
-          }
-        />
+        <Route path="metricas" element={<MetricasPage />} />
+
+        {/* Configuración: solo super admins */}
+        <Route path="ocr" element={soloSuper(<OcrPage />)} />
+        <Route path="notificaciones" element={soloSuper(<NotificacionesPage />)} />
+        <Route path="etapas" element={soloSuper(<EtapasPage />)} />
+        <Route path="diccionario" element={soloSuper(<DiccionarioPage />)} />
+        <Route path="etapas-fecha" element={soloSuper(<EtapaFechasPage />)} />
+        <Route path="etiquetas" element={soloSuper(<EtiquetasPage />)} />
+        <Route path="etapas-cancelacion" element={soloSuper(<CancelacionPage />)} />
+        <Route path="administradores" element={soloSuper(<AdminsPage />)} />
+        <Route path="estado" element={soloSuper(<EstadoPage />)} />
+        <Route path="bitacora" element={soloSuper(<BitacoraPage />)} />
       </Route>
 
       <Route path="*" element={<NotFoundPage />} />

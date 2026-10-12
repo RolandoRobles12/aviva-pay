@@ -51,7 +51,11 @@ Rutas:
 - `/` — login de la tienda (correo y contraseña)
 - `/solicitudes` — clientes de la tienda; `/solicitudes/validar` valida el vale en caja; `/solicitudes/canceladas` y `/solicitudes/reporte`
 - `/vale/:token` — el vale del cliente final, sin sesión (le llega por WhatsApp)
-- `/admin` — panel de Aviva. Operación (todos los admins): tiendas, revisión de documentos, vales, reporte de vales, métricas. Configuración (solo super admin): estado del sistema, diccionario, etapas, fechas de etapa, etiquetas, notificaciones, verificación de documentos, administradores y bitácora.
+- `/admin` — panel de Aviva, con menú lateral (en celular, botón "Menú"). Empieza en **Inicio** (`/admin/inicio`), que resume lo que hay que atender.
+  - Día a día (todos los admins): Revisión de documentos, Tiendas, Vales (buscar un vale / reporte) y Métricas.
+  - Configuración (solo super admin): Verificación de documentos, Avisos en Slack, Etapas del crédito, Conexión con HubSpot (campos, fechas de etapa, cancelaciones y nombres de columnas), Administradores y Estado del sistema (estado e historial de cambios).
+
+Los componentes y estilos del panel están en `web/src/components/admin/ui.tsx` y `web/src/styles/admin.css`; las pantallas nuevas deben armarse con ellos.
 
 Para probar en local hace falta una cuenta de admin con el claim `admin` (ver "Alta de administradores" en `docs/ARCHITECTURE.md`) y una tienda con al menos un correo invitado.
 

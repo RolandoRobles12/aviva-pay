@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { adminMetricasCallable, type MetricasTienda } from "../../lib/firebase";
+import { Badge, Cargando, Notice, PageHeader } from "../../components/admin/ui";
 
 const PERIODOS = [30, 90, 180, 365];
 
@@ -21,13 +22,13 @@ type Fila = Omit<MetricasTienda, "concesionarioId" | "nombre" | "alertas">;
 function Celdas({ m }: { m: Fila }) {
   return (
     <>
-      <td className="col-num">{m.solicitudes}</td>
-      <td className="col-num">{m.desembolsadas}</td>
-      <td className="col-num">{dias(m.diasADesembolso)}</td>
-      <td className="col-num">{m.documentos}</td>
-      <td className="col-num">{pct(m.tasaRevision)}</td>
-      <td className="col-num">{pct(m.tasaRechazo)}</td>
-      <td className="col-num">{atencion(m.minutosAtencion)}</td>
+      <td className="num">{m.solicitudes}</td>
+      <td className="num">{m.desembolsadas}</td>
+      <td className="num">{dias(m.diasADesembolso)}</td>
+      <td className="num">{m.documentos}</td>
+      <td className="num">{pct(m.tasaRevision)}</td>
+      <td className="num">{pct(m.tasaRechazo)}</td>
+      <td className="num">{atencion(m.minutosAtencion)}</td>
     </>
   );
 }
@@ -51,73 +52,72 @@ export function MetricasPage() {
 
   return (
     <section>
-      <div className="admin-page-head">
-        <div>
-          <h1 className="admin-title">Métricas por tienda</h1>
-          <p className="admin-subtitle">
-            Solicitudes aprobadas y desembolsos en el periodo, y qué pasó con
-            los documentos que subió cada tienda. Las métricas de documentos
-            cuentan desde que existe la verificación automática.
-          </p>
-        </div>
-        <div className="admin-page-head__actions">
-          <select value={periodo} onChange={(e) => setPeriodo(Number(e.target.value))}>
+      <PageHeader
+        titulo="Métricas por tienda"
+        descripcion="Cómo le va a cada tienda: cuánto tarda en desembolsar y qué pasa con los documentos que sube. Las que se salen de lo normal aparecen primero."
+        acciones={
+          <select aria-label="Periodo" value={periodo} onChange={(e) => setPeriodo(Number(e.target.value))}>
             {PERIODOS.map((p) => (
               <option key={p} value={p}>
                 Últimos {p} días
               </option>
             ))}
           </select>
-        </div>
-      </div>
+        }
+      />
 
-      {error && <p className="page-message page-message--error">{error}</p>}
-      {!datos && !error && <p className="page-message">Calculando...</p>}
+      {error && <Notice tono="error">{error}</Notice>}
+      {!datos && !error && <Cargando texto="Calculando..." />}
       {datos && (
-        <div className="deals-table-wrapper">
-          <table className="deals-table">
+        <div className="adm-tabla-wrap">
+          <table className="adm-tabla">
             <thead>
               <tr>
-                <th className="col-sticky">Tienda</th>
-                <th className="col-num">Solicitudes</th>
-                <th className="col-num">Desembolsos</th>
-                <th className="col-num" title="Mediana, de aprobación a desembolso">
+                <th>Tienda</th>
+                <th className="num">Solicitudes</th>
+                <th className="num">Desembolsos</th>
+                <th className="num" title="Mediana, de aprobación a desembolso">
                   Días a desembolso
                 </th>
-                <th className="col-num">Documentos</th>
-                <th className="col-num">En revisión</th>
-                <th className="col-num" title="Rechazados al subir o por un administrador">
+                <th className="num">Documentos</th>
+                <th className="num" title="Documentos que cayeron en revisión">
+                  En revisión
+                </th>
+                <th className="num" title="Rechazados al subir o por un administrador">
                   Rechazados
                 </th>
-                <th className="col-num" title="Mediana de lo que tarda Aviva en atender una revisión">
-                  Atención
+                <th className="num" title="Mediana de lo que tarda Aviva en resolver una revisión">
+                  Atención de Aviva
                 </th>
-                <th>Para revisar</th>
               </tr>
             </thead>
             <tbody>
               <tr className="metricas__global">
-                <td className="col-sticky">
-                  <strong>Todas</strong>
+                <td>
+                  <strong>Todas las tiendas</strong>
                 </td>
                 <Celdas m={datos.global} />
-                <td></td>
               </tr>
               {datos.tiendas.map((t) => (
                 <tr key={t.concesionarioId}>
-                  <td className="col-sticky">{t.nombre}</td>
-                  <Celdas m={t} />
-                  <td>
-                    {t.alertas.length > 0 && (
-                      <span className="cell-rejected">{t.alertas.join(" · ")}</span>
-                    )}
+                  <td style={{ minWidth: "14rem" }}>
+                    {t.nombre}
+                    {t.alertas.map((a) => (
+                      <div key={a} style={{ marginTop: "0.3rem" }}>
+                        <Badge tono="warn">{a}</Badge>
+                      </div>
+                    ))}
                   </td>
+                  <Celdas m={t} />
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
+      <p className="adm-field__ayuda" style={{ marginTop: "0.75rem" }}>
+        Los datos de documentos cuentan desde que existe la verificación automática.
+      </p>
     </section>
   );
 }

@@ -8,6 +8,7 @@ import {
 } from "../../lib/firebase";
 import type { AdminAuditEntry, AdminRol, AdminUser } from "../../types/admin";
 import { Modal } from "../../components/Modal";
+import { Badge, Card, Cargando, Detalles, Field, MensajeInline, Notice, OpcionesTarjeta, PageHeader } from "../../components/admin/ui";
 
 function formatFechaHora(millis: number): string {
   return new Date(millis).toLocaleString("es-MX", {
@@ -20,8 +21,8 @@ function formatFechaHora(millis: number): string {
 }
 
 const AUDIT_LABEL: Record<AdminAuditEntry["action"], string> = {
-  granted: "Acceso otorgado",
-  revoked: "Acceso revocado",
+  granted: "Recibió acceso",
+  revoked: "Se le quitó el acceso",
   role_changed: "Rol cambiado",
 };
 
@@ -103,159 +104,172 @@ export function AdminsPage() {
     }
   }
 
+  const encabezado = (
+    <PageHeader
+      titulo="Administradores"
+      descripcion="Quién puede entrar a este panel y qué puede hacer. Las personas entran con “Continuar con Google” usando su correo de Aviva."
+    />
+  );
+
   if (error && !admins) {
-    return <p className="page-message page-message--error">{error}</p>;
+    return (
+      <>
+        {encabezado}
+        <Notice tono="error">{error}</Notice>
+      </>
+    );
   }
 
   if (!admins) {
-    return <p className="page-message">Cargando administradores...</p>;
+    return (
+      <>
+        {encabezado}
+        <Cargando />
+      </>
+    );
   }
 
   return (
     <section>
-      <div className="admin-page-head">
-        <div>
-          <h1 className="admin-title">Administradores</h1>
-          <p className="admin-subtitle">
-            Quién tiene acceso al panel de Aviva y con qué rol. La persona
-            agregada entra con "Continuar con Google" usando el mismo correo.
-            Un cambio de rol se aplica la próxima vez que esa persona abra o
-            recargue el panel.
-          </p>
-        </div>
-      </div>
+      {encabezado}
+      {error && <Notice tono="error">{error}</Notice>}
 
-      {error && <p className="form-error">{error}</p>}
+      <Card titulo="Dar acceso a alguien">
+        <form onSubmit={handleCreate}>
+          <Field label="Correo" htmlFor="nuevo-admin">
+            <input
+              id="nuevo-admin"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="nombre@avivacredito.com"
+              required
+            />
+          </Field>
+          <div className="adm-field">
+            <span className="adm-field__label">¿Qué podrá hacer?</span>
+            <OpcionesTarjeta
+              nombre="rol-nuevo"
+              valor={rol}
+              onChange={setRol}
+              opciones={[
+                { valor: "operador", titulo: ROL_LABEL.operador, descripcion: ROL_DESCRIPCION.operador },
+                { valor: "super", titulo: ROL_LABEL.super, descripcion: ROL_DESCRIPCION.super },
+              ]}
+            />
+          </div>
+          <div className="adm-card__pie">
+            {formError && <MensajeInline ok={false}>{formError}</MensajeInline>}
+            <button type="submit" className="adm-btn adm-btn--primario" disabled={submitting}>
+              {submitting ? "Dando acceso..." : "Dar acceso"}
+            </button>
+          </div>
+        </form>
+      </Card>
 
-      <form className="upload-form" onSubmit={handleCreate}>
-        <label>
-          Correo del nuevo administrador
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="nombre@avivacredito.com"
-            required
-          />
-        </label>
-        <label>
-          Rol
-          <select value={rol} onChange={(e) => setRol(e.target.value as AdminRol)}>
-            <option value="operador">{ROL_LABEL.operador}</option>
-            <option value="super">{ROL_LABEL.super}</option>
-          </select>
-        </label>
-        <p className="form-note">{ROL_DESCRIPCION[rol]}</p>
-        {formError && <p className="form-error">{formError}</p>}
-        <div className="upload-form__actions">
-          <button type="submit" disabled={submitting}>
-            {submitting ? "Otorgando..." : "Otorgar acceso"}
-          </button>
-        </div>
-      </form>
-
-      <div className="deals-table-wrapper">
-        <table className="deals-table">
-          <thead>
-            <tr>
-              <th>Correo</th>
-              <th>Nombre</th>
-              <th>Rol</th>
-              <th>Otorgado por</th>
-              <th>Desde</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {admins.map((a) => (
-              <tr key={a.uid}>
-                <td className="cell-mono">{a.email}</td>
-                <td>{a.displayName ?? "—"}</td>
-                <td>
-                  {a.uid === currentUid ? (
-                    ROL_LABEL[a.rol]
-                  ) : (
-                    <select
-                      value={a.rol}
-                      onChange={(e) => handleRol(a, e.target.value as AdminRol)}
-                      title={ROL_DESCRIPCION[a.rol]}
-                    >
-                      <option value="operador">{ROL_LABEL.operador}</option>
-                      <option value="super">{ROL_LABEL.super}</option>
-                    </select>
-                  )}
-                </td>
-                <td>{a.grantedByEmail ?? "—"}</td>
-                <td>{formatFechaHora(a.grantedAt)}</td>
-                <td className="cell-actions">
-                  {a.uid === currentUid ? (
-                    <span className="form-note">Eres tú</span>
-                  ) : (
-                    <button
-                      type="button"
-                      className="link-button"
-                      onClick={() => setRevoking(a)}
-                    >
-                      Revocar
-                    </button>
-                  )}
-                </td>
+      <Card
+        titulo="Quién tiene acceso"
+        descripcion="Si cambias el rol de alguien, se aplica la próxima vez que abra o recargue el panel."
+      >
+        <div className="adm-tabla-wrap">
+          <table className="adm-tabla">
+            <thead>
+              <tr>
+                <th>Persona</th>
+                <th>Rol</th>
+                <th>Desde</th>
+                <th></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {admins.map((a) => (
+                <tr key={a.uid}>
+                  <td>
+                    <strong>{a.displayName ?? a.email}</strong>
+                    {a.displayName && <div className="adm-field__ayuda">{a.email}</div>}
+                  </td>
+                  <td>
+                    {a.uid === currentUid ? (
+                      <Badge tono="neutro">{ROL_LABEL[a.rol]} · tú</Badge>
+                    ) : (
+                      <select
+                        aria-label={`Rol de ${a.email}`}
+                        value={a.rol}
+                        onChange={(e) => handleRol(a, e.target.value as AdminRol)}
+                      >
+                        <option value="operador">{ROL_LABEL.operador}</option>
+                        <option value="super">{ROL_LABEL.super}</option>
+                      </select>
+                    )}
+                  </td>
+                  <td>
+                    {formatFechaHora(a.grantedAt)}
+                    {a.grantedByEmail && <div className="adm-field__ayuda">por {a.grantedByEmail}</div>}
+                  </td>
+                  <td>
+                    {a.uid !== currentUid && (
+                      <button
+                        type="button"
+                        className="adm-btn adm-btn--peligro adm-btn--chico"
+                        onClick={() => setRevoking(a)}
+                      >
+                        Quitar acceso
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-      <h2 className="admin-title admin-title--secondary">Historial</h2>
-      <div className="deals-table-wrapper">
-        <table className="deals-table">
-          <thead>
-            <tr>
-              <th>Cuándo</th>
-              <th>Acción</th>
-              <th>Cuenta</th>
-              <th>Realizado por</th>
-            </tr>
-          </thead>
-          <tbody>
-            {auditLog.map((entry, i) => (
-              <tr key={i}>
-                <td>{formatFechaHora(entry.at)}</td>
-                <td>
-                  {AUDIT_LABEL[entry.action]}
-                  {entry.rol ? ` · ${ROL_LABEL[entry.rol]}` : ""}
-                </td>
-                <td className="cell-mono">{entry.email}</td>
-                <td>{entry.performedByEmail ?? "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {auditLog.length === 0 && (
-        <p className="page-message">Sin movimientos todavía.</p>
-      )}
+        <Detalles resumen="Historial de accesos">
+          {auditLog.length === 0 ? (
+            <p>Sin movimientos todavía.</p>
+          ) : (
+            <div className="adm-tabla-wrap">
+              <table className="adm-tabla">
+                <thead>
+                  <tr>
+                    <th>Cuándo</th>
+                    <th>Qué pasó</th>
+                    <th>Cuenta</th>
+                    <th>Quién lo hizo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {auditLog.map((entry, i) => (
+                    <tr key={i}>
+                      <td>{formatFechaHora(entry.at)}</td>
+                      <td>
+                        {AUDIT_LABEL[entry.action]}
+                        {entry.rol ? ` · ${ROL_LABEL[entry.rol]}` : ""}
+                      </td>
+                      <td>{entry.email}</td>
+                      <td>{entry.performedByEmail ?? "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Detalles>
+      </Card>
 
       {revoking && (
         <Modal onClose={() => setRevoking(null)}>
           <div className="upload-form">
-            <h3>Revocar acceso</h3>
+            <h3>¿Quitar el acceso?</h3>
             <p className="form-note">
-              {revoking.email} ya no podrá entrar al panel de
-              administración. Puedes otorgarle acceso de nuevo después si
-              hace falta.
+              {revoking.email} ya no podrá entrar al panel de administración. Puedes darle
+              acceso de nuevo después si hace falta.
             </p>
             <div className="upload-form__actions">
-              <button
-                type="button"
-                className="button-secondary"
-                onClick={() => setRevoking(null)}
-              >
+              <button type="button" className="adm-btn adm-btn--secundario" onClick={() => setRevoking(null)}>
                 Cancelar
               </button>
-              <button type="button" onClick={() => handleRevoke(revoking)}>
-                Revocar
+              <button type="button" className="adm-btn adm-btn--peligro" onClick={() => handleRevoke(revoking)}>
+                Quitar acceso
               </button>
             </div>
           </div>

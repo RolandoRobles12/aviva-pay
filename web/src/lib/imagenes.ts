@@ -10,7 +10,12 @@
  * PDF y XML pasan intactos.
  */
 export const LADO_MAXIMO = 2400;
-export const BYTES_MAXIMO = 4 * 1024 * 1024;
+/**
+ * 3.5 MB crudos: la API acepta imágenes de hasta 5 MB y, por si ese límite
+ * se mide sobre la versión en base64 (que crece ~4/3), así se queda debajo
+ * en cualquier caso. El backend aplica el mismo tope (ocr/analizar.ts).
+ */
+export const BYTES_MAXIMO = 3.5 * 1024 * 1024;
 
 export function esHeic(file: { name: string; type: string }): boolean {
   return /image\/hei[cf]/i.test(file.type) || /\.hei[cf]$/i.test(file.name);
@@ -36,24 +41,33 @@ export function nombreJpg(nombre: string): string {
 
 async function aJpeg(blob: Blob, nombre: string): Promise<File> {
   const bitmap = await createImageBitmap(blob);
-  const { ancho, alto } = dimensionesObjetivo(bitmap.width, bitmap.height);
-  const canvas = document.createElement("canvas");
-  canvas.width = ancho;
-  canvas.height = alto;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("No se pudo procesar la imagen.");
-  ctx.fillStyle = "#fff"; // un PNG transparente no debe quedar negro
-  ctx.fillRect(0, 0, ancho, alto);
-  ctx.drawImage(bitmap, 0, 0, ancho, alto);
-  bitmap.close();
-
-  for (const calidad of [0.85, 0.75, 0.6]) {
-    const salida = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/jpeg", calidad));
-    if (salida && (salida.size <= BYTES_MAXIMO || calidad === 0.6)) {
-      return new File([salida], nombreJpg(nombre), { type: "image/jpeg" });
+  let ultima: Blob | null = null;
+  try {
+    // Si a la calidad más baja todavía pesa demasiado, se reduce el tamaño
+    // y se intenta de nuevo; así nunca sale un archivo que la verificación
+    // no pueda leer.
+    for (const lado of [LADO_MAXIMO, 1800, 1400]) {
+      const { ancho, alto } = dimensionesObjetivo(bitmap.width, bitmap.height, lado);
+      const canvas = document.createElement("canvas");
+      canvas.width = ancho;
+      canvas.height = alto;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("No se pudo procesar la imagen.");
+      ctx.fillStyle = "#fff"; // un PNG transparente no debe quedar negro
+      ctx.fillRect(0, 0, ancho, alto);
+      ctx.drawImage(bitmap, 0, 0, ancho, alto);
+      for (const calidad of [0.85, 0.75, 0.6]) {
+        ultima = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/jpeg", calidad));
+        if (ultima && ultima.size <= BYTES_MAXIMO) {
+          return new File([ultima], nombreJpg(nombre), { type: "image/jpeg" });
+        }
+      }
     }
+  } finally {
+    bitmap.close();
   }
-  throw new Error("No se pudo procesar la imagen.");
+  if (!ultima) throw new Error("No se pudo procesar la imagen.");
+  return new File([ultima], nombreJpg(nombre), { type: "image/jpeg" });
 }
 
 export async function prepararArchivo(file: File): Promise<File> {

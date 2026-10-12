@@ -8,33 +8,43 @@ import {
   type ModoOcr,
   type OcrConfig,
 } from "../../lib/firebase";
+import {
+  BarraGuardar,
+  Card,
+  Cargando,
+  MensajeInline,
+  Notice,
+  OpcionesTarjeta,
+  PageHeader,
+  type Opcion,
+} from "../../components/admin/ui";
 
-const MODOS: { valor: ModoOcr; titulo: string; descripcion: string }[] = [
+const MODOS: Opcion<ModoOcr>[] = [
   {
     valor: "automatico",
-    titulo: "Automático",
+    titulo: "Automática",
+    etiqueta: "Recomendado",
     descripcion:
-      "Cada documento se verifica al subirlo. Si todo cuadra, se acepta solo. Si no se puede leer o no es el tipo de documento correcto, se rechaza y la tienda sube otro. Si algo no cuadra (monto, fecha, cliente, firma, archivo repetido o señales de alteración), queda en revisión hasta que un administrador lo apruebe.",
+      "Lo que cuadra se acepta solo, lo ilegible o del tipo equivocado se rechaza, y lo sospechoso se manda a Revisión de documentos.",
   },
   {
     valor: "apagado",
-    titulo: "Apagado",
-    descripcion:
-      "Interruptor de emergencia: los documentos se aceptan sin verificar. Úsalo solo si la verificación está fallando.",
+    titulo: "Apagada",
+    descripcion: "Solo para emergencias: todos los documentos se aceptan sin revisar.",
   },
 ];
 
-const MODELOS: { valor: ModeloOcr; titulo: string; descripcion: string }[] = [
+const MODELOS: Opcion<ModeloOcr>[] = [
   {
     valor: "sonnet",
     titulo: "Claude Sonnet",
-    descripcion: "El de uso normal: lee mejor fotos difíciles y detecta mejor alteraciones.",
+    etiqueta: "Recomendado",
+    descripcion: "Lee mejor fotos difíciles y detecta mejor documentos alterados.",
   },
   {
     valor: "haiku",
     titulo: "Claude Haiku",
-    descripcion:
-      "Más barato y rápido. Alternativa si Sonnet da errores; puede pasar por alto detalles finos.",
+    descripcion: "Más barato y rápido, pero puede pasar por alto detalles finos.",
   },
 ];
 
@@ -45,11 +55,21 @@ const MODELOS: { valor: ModeloOcr; titulo: string; descripcion: string }[] = [
  */
 export function OcrPage() {
   const [config, setConfig] = useState<OcrConfig | null>(null);
+  const [original, setOriginal] = useState<OcrConfig | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [guardado, setGuardado] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [prueba, setPrueba] = useState<{ ok: boolean; mensaje: string } | null>(null);
   const [probando, setProbando] = useState(false);
+
+  useEffect(() => {
+    adminGetOcrCallable()
+      .then(({ data }) => {
+        setConfig(data);
+        setOriginal(data);
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : "No se pudo cargar la configuración."));
+  }, []);
 
   async function probar() {
     setProbando(true);
@@ -63,103 +83,82 @@ export function OcrPage() {
     }
   }
 
-  useEffect(() => {
-    (async () => {
-      try {
-        setConfig((await adminGetOcrCallable()).data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "No se pudo cargar la configuración.");
-      }
-    })();
-  }, []);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function guardar() {
     if (!config) return;
     setSubmitting(true);
-    setError(null);
-    setGuardado(false);
+    setMsg(null);
     try {
       await adminSetOcrCallable(config);
-      setGuardado(true);
+      setOriginal(config);
+      setMsg({ ok: true, texto: "Guardado. Aplica en pocos minutos." });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo guardar.");
+      setMsg({ ok: false, texto: err instanceof Error ? err.message : "No se pudo guardar." });
     } finally {
       setSubmitting(false);
     }
   }
 
-  if (error && !config) return <p className="page-message page-message--error">{error}</p>;
-  if (!config) return <p className="page-message">Cargando configuración...</p>;
+  const cambio = config && original && (config.modo !== original.modo || config.modelo !== original.modelo);
 
   return (
     <section>
-      <h1 className="admin-title">Verificación de documentos</h1>
-      <p className="admin-subtitle">
-        Al subir una cotización o un comprobante de entrega, Claude lee el
-        documento y reporta qué es, a quién va dirigido, sus importes, fechas,
-        si trae firma y si muestra señales de alteración. Paydesk lo contrasta
-        con la solicitud y con los archivos ya subidos. Lo sospechoso llega a{" "}
-        <Link to="/admin/revision">Revisión de documentos</Link>.
-      </p>
+      <PageHeader
+        titulo="Verificación de documentos"
+        descripcion={
+          <>
+            Cuando una tienda sube una cotización o un comprobante, Claude lo lee y lo compara
+            con la solicitud. Lo sospechoso llega a{" "}
+            <Link to="/admin/revision">Revisión de documentos</Link>.
+          </>
+        }
+      />
+      {error && <Notice tono="error">{error}</Notice>}
+      {!config && !error && <Cargando />}
 
-      <div className="callout callout--warn">
-        Si Claude no responde o el formato no se puede analizar (por ejemplo,
-        una foto HEIC o mayor a 5 MB), el documento se guarda y queda en
-        revisión: una caída no frena a las tiendas, pero tampoco deja pasar
-        nada sin que alguien lo vea. Los cambios aplican en pocos minutos.
-      </div>
+      {config && (
+        <>
+          <Card
+            titulo="Conexión con Claude"
+            descripcion="Si la conexión falla, los documentos no se pierden: se guardan y pasan a revisión manual."
+          >
+            <div className="adm-page-head__acciones">
+              <button type="button" className="adm-btn adm-btn--secundario" onClick={probar} disabled={probando}>
+                {probando ? "Probando..." : "Probar conexión"}
+              </button>
+              {prueba && <MensajeInline ok={prueba.ok}>{prueba.mensaje}</MensajeInline>}
+            </div>
+          </Card>
 
-      <div className="stage-date-list__actions">
-        <button type="button" className="link-button" onClick={probar} disabled={probando}>
-          {probando ? "Probando..." : "Probar conexión con Claude"}
-        </button>
-        {prueba && (
-          <span className={prueba.ok ? "form-success" : "form-error"}>{prueba.mensaje}</span>
-        )}
-      </div>
+          <Card titulo="¿Verificar los documentos?">
+            <OpcionesTarjeta
+              nombre="modo"
+              valor={config.modo}
+              opciones={MODOS}
+              onChange={(modo) => setConfig({ ...config, modo })}
+            />
+          </Card>
 
-      <form className="dictionary-form" onSubmit={handleSubmit}>
-        {MODOS.map((m) => (
-          <label className="dictionary-row dictionary-row--stack" key={m.valor}>
-            <span>
-              <input
-                type="radio"
-                name="modo"
-                checked={config.modo === m.valor}
-                onChange={() => setConfig({ ...config, modo: m.valor })}
-              />{" "}
-              <strong>{m.titulo}</strong>
-            </span>
-            <span className="dictionary-row__key">{m.descripcion}</span>
-          </label>
-        ))}
+          <Card titulo="Modelo" descripcion="Con qué versión de Claude se leen los documentos.">
+            <OpcionesTarjeta
+              nombre="modelo"
+              valor={config.modelo}
+              opciones={MODELOS}
+              onChange={(modelo) => setConfig({ ...config, modelo })}
+            />
+          </Card>
 
-        <h2 className="admin-title">Modelo</h2>
-        {MODELOS.map((m) => (
-          <label className="dictionary-row dictionary-row--stack" key={m.valor}>
-            <span>
-              <input
-                type="radio"
-                name="modelo"
-                checked={config.modelo === m.valor}
-                onChange={() => setConfig({ ...config, modelo: m.valor })}
-              />{" "}
-              <strong>{m.titulo}</strong>
-            </span>
-            <span className="dictionary-row__key">{m.descripcion}</span>
-          </label>
-        ))}
-
-        {error && <p className="form-error">{error}</p>}
-        {guardado && <p className="form-success">Configuración guardada.</p>}
-
-        <div className="dictionary-form__actions">
-          <button type="submit" disabled={submitting}>
-            {submitting ? "Guardando..." : "Guardar"}
-          </button>
-        </div>
-      </form>
+          <BarraGuardar
+            hayCambios={Boolean(cambio)}
+            guardando={submitting}
+            mensaje={msg}
+            onGuardar={guardar}
+            onDescartar={() => {
+              setConfig(original);
+              setMsg(null);
+            }}
+          />
+        </>
+      )}
     </section>
   );
 }

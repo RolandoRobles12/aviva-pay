@@ -20,6 +20,13 @@ export function useEsSuperAdmin(): boolean {
   return useAdminRol() === "super";
 }
 
+/** Igual que en el backend (auth/adminGuard.ts): sin rol = super (cuentas viejas); cualquier valor raro = operador. */
+export function rolDeClaims(claims: Record<string, unknown> | undefined): AdminRol {
+  const rol = claims?.adminRol;
+  if (rol === undefined || rol === null) return "super";
+  return rol === "super" ? "super" : "operador";
+}
+
 /**
  * Lee el rol forzando un token fresco: si un super admin le cambió el rol
  * a esta persona, el token en caché (hasta una hora) todavía traería el
@@ -32,7 +39,7 @@ export function AdminRolProvider({ children }: { children: ReactNode }) {
     let cancelado = false;
     (async () => {
       const token = await auth.currentUser?.getIdTokenResult(true);
-      if (!cancelado) setRol(token?.claims.adminRol === "operador" ? "operador" : "super");
+      if (!cancelado) setRol(rolDeClaims(token?.claims));
     })().catch(() => {
       // Sin token fresco, lo más restrictivo: el backend rechazaría igual.
       if (!cancelado) setRol("operador");

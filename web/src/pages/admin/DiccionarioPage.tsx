@@ -4,6 +4,34 @@ import {
   adminSetFieldDictionaryCallable,
 } from "../../lib/firebase";
 import type { FieldDictionary } from "../../types/admin";
+import { Badge, Cargando, MensajeInline, Notice, PageHeader, Tabs } from "../../components/admin/ui";
+
+/** Las pestañas del apartado "Conexión con HubSpot". */
+export function TabsHubspot() {
+  return (
+    <Tabs
+      items={[
+        { to: "/admin/diccionario", label: "Campos" },
+        { to: "/admin/etapas-fecha", label: "Fechas de etapa" },
+        { to: "/admin/etapas-cancelacion", label: "Cancelaciones" },
+        { to: "/admin/etiquetas", label: "Nombres de columnas" },
+      ]}
+    />
+  );
+}
+
+/** Encabezado común de las cuatro pestañas de HubSpot. */
+export function EncabezadoHubspot() {
+  return (
+    <>
+      <PageHeader
+        titulo="Conexión con HubSpot"
+        descripcion="Cómo lee Paydesk la información de HubSpot. Cambia esto solo si sabes qué propiedad o etapa corresponde en HubSpot."
+      />
+      <TabsHubspot />
+    </>
+  );
+}
 
 /** Human labels for the logical field names, so the screen doesn't read like source code. */
 const ETIQUETAS: Record<string, string> = {
@@ -73,28 +101,44 @@ export function DiccionarioPage() {
   }
 
   if (error && !campos) {
-    return <p className="page-message page-message--error">{error}</p>;
+    return (
+      <>
+        <EncabezadoHubspot />
+        <Notice tono="error">{error}</Notice>
+      </>
+    );
   }
 
   if (!campos) {
-    return <p className="page-message">Cargando diccionario...</p>;
+    return (
+      <>
+        <EncabezadoHubspot />
+        <Cargando />
+      </>
+    );
   }
+
+  const pendientes = Object.keys(defaults).filter((k) => (campos[k] ?? "").startsWith("TODO_")).length;
 
   return (
     <section>
-      <h1 className="admin-title">Diccionario de campos</h1>
-      <p className="admin-subtitle">
-        Nombre interno de la propiedad en HubSpot para cada dato que muestra
-        Paydesk. Los valores que empiezan con <code>TODO_</code> siguen
-        pendientes de mapear.
+      <EncabezadoHubspot />
+
+      <p className="adm-field__ayuda" style={{ marginTop: 0 }}>
+        Para cada dato que muestra Paydesk, el nombre interno de su propiedad en HubSpot
+        (en HubSpot: Configuración → Propiedades → la propiedad → “Nombre interno”).
       </p>
 
-      <div className="callout callout--warn">
-        Un nombre mal capturado rompe la sincronización de todas las tiendas.
-        Verifica cada propiedad en HubSpot antes de guardar. Lo que guardes se
-        ve aquí de inmediato; la sincronización lo toma dentro del siguiente
-        minuto.
-      </div>
+      {pendientes > 0 && (
+        <Notice tono="warn" titulo={`${pendientes} campos sin definir`}>
+          Esos datos nunca tendrán valor en Paydesk hasta que captures su propiedad.
+          Están marcados abajo.
+        </Notice>
+      )}
+      <Notice tono="info">
+        Un nombre mal escrito deja ese dato vacío en todas las tiendas. Revísalo en
+        HubSpot antes de guardar; el cambio aplica en el siguiente minuto.
+      </Notice>
 
       <form className="dictionary-form" onSubmit={handleSubmit}>
         {Object.keys(defaults).map((key) => {
@@ -104,15 +148,16 @@ export function DiccionarioPage() {
           return (
             <div className="dictionary-row" key={key}>
               <label htmlFor={`campo-${key}`}>
-                {ETIQUETAS[key] ?? key}
-                <span className="dictionary-row__key">{key}</span>
+                <span>
+                  {ETIQUETAS[key] ?? key} {pendiente && <Badge tono="warn">Sin definir</Badge>}
+                </span>
               </label>
               <div className="dictionary-row__input">
                 <input
                   id={`campo-${key}`}
                   type="text"
                   value={valor}
-                  className={pendiente ? "input--pendiente" : undefined}
+                  className={`adm-mono${pendiente ? " input--pendiente" : ""}`}
                   onChange={(e) =>
                     setCampos({ ...campos, [key]: e.target.value })
                   }
@@ -121,7 +166,7 @@ export function DiccionarioPage() {
                 {!esDefault && (
                   <button
                     type="button"
-                    className="link-button"
+                    className="adm-btn adm-btn--texto adm-btn--chico"
                     onClick={() =>
                       setCampos({ ...campos, [key]: defaults[key] })
                     }
@@ -134,12 +179,11 @@ export function DiccionarioPage() {
           );
         })}
 
-        {error && <p className="form-error">{error}</p>}
-        {guardado && <p className="form-success">Diccionario guardado.</p>}
-
-        <div className="dictionary-form__actions">
-          <button type="submit" disabled={submitting}>
-            {submitting ? "Guardando..." : "Guardar diccionario"}
+        <div className="adm-card__pie">
+          {error && <MensajeInline ok={false}>{error}</MensajeInline>}
+          {guardado && <MensajeInline ok>Guardado.</MensajeInline>}
+          <button type="submit" className="adm-btn adm-btn--primario" disabled={submitting}>
+            {submitting ? "Guardando..." : "Guardar cambios"}
           </button>
         </div>
       </form>

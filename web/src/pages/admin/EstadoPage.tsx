@@ -5,23 +5,57 @@ import {
   adminMigrarLigasArchivosCallable,
   type EstadoSistema,
 } from "../../lib/firebase";
+import { Badge, Card, Cargando, Detalles, MensajeInline, Notice, PageHeader, Tabs } from "../../components/admin/ui";
+
+/** Las pestañas del apartado "Estado del sistema". */
+export function EncabezadoSistema() {
+  return (
+    <>
+      <PageHeader
+        titulo="Estado del sistema"
+        descripcion="Si Paydesk está funcionando bien, y quién cambió la configuración."
+      />
+      <Tabs
+        items={[
+          { to: "/admin/estado", label: "Estado" },
+          { to: "/admin/bitacora", label: "Historial de cambios" },
+        ]}
+      />
+    </>
+  );
+}
 
 function haceCuanto(iso: string | null): string {
   if (!iso) return "nunca";
   const min = Math.round((Date.now() - Date.parse(iso)) / 60_000);
-  if (min < 60) return `hace ${min} min`;
+  if (min < 60) return `hace ${Math.max(min, 1)} min`;
   const h = Math.round(min / 60);
   return h < 48 ? `hace ${h} h` : `hace ${Math.round(h / 24)} días`;
 }
 
-function Fila({ ok, titulo, children }: { ok: boolean; titulo: string; children: React.ReactNode }) {
+function Renglon({
+  ok,
+  titulo,
+  children,
+  accion,
+}: {
+  ok: boolean;
+  titulo: string;
+  children: React.ReactNode;
+  accion?: { to: string; label: string };
+}) {
   return (
-    <div className={`estado-fila ${ok ? "estado-fila--ok" : "estado-fila--alerta"}`}>
-      <span aria-hidden>{ok ? "✓" : "!"}</span>
-      <div>
+    <div className="adm-estado">
+      <Badge tono={ok ? "ok" : "warn"}>{ok ? "Bien" : "Revisar"}</Badge>
+      <div className="adm-estado__texto">
         <strong>{titulo}</strong>
-        <div>{children}</div>
+        <div className="adm-field__ayuda">{children}</div>
       </div>
+      {accion && (
+        <Link to={accion.to} className="adm-btn adm-btn--secundario adm-btn--chico">
+          {accion.label}
+        </Link>
+      )}
     </div>
   );
 }
@@ -31,7 +65,7 @@ export function EstadoPage() {
   const [estado, setEstado] = useState<EstadoSistema | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [migrando, setMigrando] = useState(false);
-  const [migracion, setMigracion] = useState<string | null>(null);
+  const [migracion, setMigracion] = useState<{ ok: boolean; texto: string } | null>(null);
 
   useEffect(() => {
     adminEstadoSistemaCallable()
@@ -44,89 +78,111 @@ export function EstadoPage() {
     setMigracion(null);
     try {
       const { data } = await adminMigrarLigasArchivosCallable();
-      setMigracion(`Listo: ${data.migrados} de ${data.revisados} solicitudes actualizadas.`);
+      setMigracion({ ok: true, texto: `Listo: ${data.migrados} de ${data.revisados} solicitudes actualizadas.` });
     } catch (err) {
-      setMigracion(err instanceof Error ? err.message : "No se pudo migrar.");
+      setMigracion({ ok: false, texto: err instanceof Error ? err.message : "No se pudo migrar." });
     } finally {
       setMigrando(false);
     }
   }
 
-  if (error) return <p className="page-message page-message--error">{error}</p>;
-  if (!estado) return <p className="page-message">Cargando estado...</p>;
+  if (error) {
+    return (
+      <>
+        <EncabezadoSistema />
+        <Notice tono="error">{error}</Notice>
+      </>
+    );
+  }
+  if (!estado) {
+    return (
+      <>
+        <EncabezadoSistema />
+        <Cargando />
+      </>
+    );
+  }
 
   const syncReciente =
     estado.sync.ultimaExito !== null && Date.now() - Date.parse(estado.sync.ultimaExito) < 2 * 3_600_000;
+  const revisionesOk =
+    estado.revisiones.pendientes === 0 ||
+    (estado.revisiones.masAntiguaHoras ?? 0) < (estado.notificaciones.recordatorioHoras || 24);
 
   return (
     <section>
-      <h1 className="admin-title">Estado del sistema</h1>
+      <EncabezadoSistema />
 
-      <div className="estado-lista">
-        <Fila ok={estado.camposSinMapear.length === 0} titulo="Diccionario de campos">
-          {estado.camposSinMapear.length === 0 ? (
-            "Todos los campos tienen su propiedad de HubSpot."
-          ) : (
-            <>
-              Sin propiedad de HubSpot (nunca tendrán valor):{" "}
-              <code>{estado.camposSinMapear.join(", ")}</code>.{" "}
-              <Link to="/admin/diccionario">Capturarlos</Link>
-            </>
-          )}
-        </Fila>
-
-        <Fila ok={syncReciente && !estado.sync.ultimoError} titulo="Sincronización periódica con HubSpot">
-          Última exitosa {haceCuanto(estado.sync.ultimaExito)}.
-          {estado.sync.ultimoResultado && <> {estado.sync.ultimoResultado}.</>}
-          {estado.sync.ultimoError && <> Último error: {estado.sync.ultimoError}</>}
-        </Fila>
-
-        <Fila
-          ok={
-            estado.revisiones.pendientes === 0 ||
-            (estado.revisiones.masAntiguaHoras ?? 0) < (estado.notificaciones.recordatorioHoras || 24)
-          }
-          titulo="Revisión de documentos"
+      <Card>
+        <Renglon
+          ok={estado.camposSinMapear.length === 0}
+          titulo="Campos de HubSpot"
+          accion={estado.camposSinMapear.length ? { to: "/admin/diccionario", label: "Definirlos" } : undefined}
         >
-          {estado.revisiones.pendientes === 0 ? (
-            "Nada pendiente."
-          ) : (
-            <>
-              {estado.revisiones.pendientes} pendientes; el más antiguo lleva{" "}
-              {estado.revisiones.masAntiguaHoras} h. <Link to="/admin/revision">Ir a la bandeja</Link>
-            </>
-          )}
-        </Fila>
+          {estado.camposSinMapear.length === 0
+            ? "Todos los datos tienen su propiedad de HubSpot."
+            : `${estado.camposSinMapear.length} datos sin propiedad de HubSpot: nunca tendrán valor en Paydesk.`}
+        </Renglon>
 
-        <Fila
+        <Renglon ok={syncReciente && !estado.sync.ultimoError} titulo="Sincronización con HubSpot">
+          Última vez que funcionó: {haceCuanto(estado.sync.ultimaExito)}.
+          {estado.sync.ultimoError && <> Último error: {estado.sync.ultimoError}</>}
+        </Renglon>
+
+        <Renglon
+          ok={revisionesOk}
+          titulo="Revisión de documentos"
+          accion={estado.revisiones.pendientes ? { to: "/admin/revision", label: "Ir a revisar" } : undefined}
+        >
+          {estado.revisiones.pendientes === 0
+            ? "Nada pendiente."
+            : `${estado.revisiones.pendientes} pendientes; el más antiguo lleva ${estado.revisiones.masAntiguaHoras} h.`}
+        </Renglon>
+
+        <Renglon
           ok={estado.notificaciones.activo && estado.notificaciones.destinos > 0}
-          titulo="Notificaciones de Slack"
+          titulo="Avisos en Slack"
+          accion={{ to: "/admin/notificaciones", label: "Configurar" }}
         >
           {estado.notificaciones.activo
-            ? `Activas, ${estado.notificaciones.destinos} destinos.`
-            : "Apagadas: los errores y las revisiones no le llegan a nadie."}{" "}
-          <Link to="/admin/notificaciones">Configurar</Link>
-        </Fila>
+            ? `Encendidos, a ${estado.notificaciones.destinos} ${estado.notificaciones.destinos === 1 ? "destino" : "destinos"}.`
+            : "Apagados: nadie se entera de errores ni de documentos por revisar."}
+        </Renglon>
 
-        <Fila ok={estado.verificacion.modo === "automatico"} titulo="Verificación de documentos">
+        <Renglon
+          ok={estado.verificacion.modo === "automatico"}
+          titulo="Verificación de documentos"
+          accion={{ to: "/admin/ocr", label: "Configurar" }}
+        >
           {estado.verificacion.modo === "automatico"
             ? `Automática, con Claude ${estado.verificacion.modelo === "sonnet" ? "Sonnet" : "Haiku"}.`
-            : "Apagada: los documentos se aceptan sin verificar."}{" "}
-          <Link to="/admin/ocr">Configurar y probar conexión</Link>
-        </Fila>
-      </div>
+            : "Apagada: los documentos se aceptan sin revisar."}
+        </Renglon>
 
-      <h2 className="admin-title admin-title--secondary">Ligas de archivos</h2>
-      <p className="admin-subtitle">
-        Las solicitudes de antes guardan ligas a sus archivos que no caducan. Esta
-        migración las cambia por el esquema nuevo (ligas de 15 minutos) y saca de
-        la solicitud los datos de verificación que la tienda no debe ver. Es
-        segura de repetir.
-      </p>
-      <button type="button" className="upload-button" onClick={migrar} disabled={migrando}>
-        {migrando ? "Migrando..." : "Migrar ligas y verificaciones"}
-      </button>
-      {migracion && <p className="form-note">{migracion}</p>}
+        {estado.sync.ultimoResultado && (
+          <Detalles>
+            <p>Última sincronización: {estado.sync.ultimoResultado}.</p>
+            {estado.camposSinMapear.length > 0 && (
+              <p>
+                Campos sin definir: <span className="adm-mono">{estado.camposSinMapear.join(", ")}</span>
+              </p>
+            )}
+          </Detalles>
+        )}
+      </Card>
+
+      <Card
+        titulo="Actualizar ligas de archivos"
+        descripcion="Las solicitudes anteriores a esta versión guardan ligas a sus archivos que no caducan. Esto las cambia por ligas temporales y quita datos que la tienda no debe ver. Se corre una vez después de actualizar; repetirlo no hace daño."
+        pie={
+          <>
+            {migracion && <MensajeInline ok={migracion.ok}>{migracion.texto}</MensajeInline>}
+            <button type="button" className="adm-btn adm-btn--secundario" onClick={migrar} disabled={migrando}>
+              {migrando ? "Actualizando..." : "Actualizar ligas"}
+            </button>
+          </>
+        }
+      />
     </section>
   );
 }
