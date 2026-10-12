@@ -12,6 +12,7 @@ import { useEsSuperAdmin } from "../../lib/adminRol";
 import type { AdminConcesionario } from "../../types/admin";
 import { Modal } from "../../components/Modal";
 import { StatTiles } from "../../components/StatTiles";
+import { Badge, Card, Cargando, EmptyState, Notice, PageHeader } from "../../components/admin/ui";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -27,6 +28,7 @@ export function TiendasPage() {
   const esSuper = useEsSuperAdmin();
   const [tiendas, setTiendas] = useState<AdminConcesionario[] | null>(null);
   const [busqueda, setBusqueda] = useState("");
+  const [soloSinUsuarios, setSoloSinUsuarios] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editando, setEditando] = useState<AdminConcesionario | null>(null);
   const [sincronizando, setSincronizando] = useState(false);
@@ -69,6 +71,8 @@ export function TiendasPage() {
     );
   }, [tiendas, busqueda]);
 
+  const visibles = soloSinUsuarios ? filtradas.filter((t) => t.usuarios.length === 0) : filtradas;
+
   const resumen = useMemo(() => {
     const lista = tiendas ?? [];
     return {
@@ -98,115 +102,124 @@ export function TiendasPage() {
     }
   }
 
+  const encabezado = (
+    <PageHeader
+      titulo="Tiendas"
+      descripcion="Las tiendas aparecen solas conforme llegan solicitudes de HubSpot. Aquí les das nombre y decides quién de cada tienda puede entrar a Paydesk."
+    />
+  );
+
   if (error && !tiendas) {
-    return <p className="page-message page-message--error">{error}</p>;
+    return (
+      <>
+        {encabezado}
+        <Notice tono="error">{error}</Notice>
+      </>
+    );
   }
 
   if (!tiendas) {
-    return <p className="page-message">Cargando tiendas...</p>;
+    return (
+      <>
+        {encabezado}
+        <Cargando texto="Cargando tiendas..." />
+      </>
+    );
   }
 
   return (
     <section>
-      <div className="admin-page-head">
-        <div>
-          <h1 className="admin-title">Tiendas</h1>
-          <p className="admin-subtitle">
-            Las tiendas aparecen aquí automáticamente conforme llegan
-            solicitudes desde HubSpot. {tiendas.length} registradas.
-          </p>
-        </div>
-        <div className="admin-page-head__actions">
-          {esSuper && (
-            <button
-              type="button"
-              className="upload-button"
-              onClick={sincronizar}
-              disabled={sincronizando}
-            >
-              {sincronizando ? "Sincronizando..." : "Sincronizar ahora"}
-            </button>
-          )}
-          <input
-            type="search"
-            className="admin-search"
-            placeholder="Buscar por nombre, kiosco o correo"
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-          />
-        </div>
-      </div>
+      {encabezado}
 
-      {sincronizando && (
-        <p className="page-message">
-          Trayendo los deals de Construrama desde HubSpot — puede tardar varios minutos, no cierres esta pantalla.
-        </p>
-      )}
-      {resultadoSync && <p className="form-success">{resultadoSync}</p>}
-      {resultadoGuardado && <p className="form-success">{resultadoGuardado}</p>}
-      {error && <p className="form-error">{error}</p>}
-
-      <RolloutCard
-        editable={esSuper}
-        fecha={fechaRollout}
-        onSaved={setFechaRollout}
-        onError={setError}
-      />
+      {resultadoSync && <Notice tono="ok">{resultadoSync}</Notice>}
+      {resultadoGuardado && <Notice tono="ok">{resultadoGuardado}</Notice>}
+      {error && <Notice tono="error">{error}</Notice>}
 
       <StatTiles
         stats={[
           { label: "Tiendas", value: resumen.total.toLocaleString("es-MX") },
           {
-            label: "Sin usuarios invitados",
+            label: "Sin nadie con acceso",
             value: resumen.sinUsuarios.toLocaleString("es-MX"),
             tone: resumen.sinUsuarios > 0 ? "accion" : "neutral",
           },
           {
-            label: "Con más de un usuario",
+            label: "Con más de una persona",
             value: resumen.conVarios.toLocaleString("es-MX"),
           },
         ]}
       />
 
-      <div className="deals-table-wrapper">
-        <table className="deals-table">
+      <div className="adm-filtros">
+        <input
+          type="search"
+          aria-label="Buscar tienda"
+          placeholder="Buscar por nombre, número o correo"
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+        />
+        <label className={`adm-check${soloSinUsuarios ? " adm-check--on" : ""}`}>
+          <input
+            type="checkbox"
+            checked={soloSinUsuarios}
+            onChange={(e) => setSoloSinUsuarios(e.target.checked)}
+          />
+          Solo sin nadie con acceso
+        </label>
+      </div>
+
+      <div className="adm-tabla-wrap">
+        <table className="adm-tabla">
           <thead>
             <tr>
-              <th>Nombre visible</th>
-              <th>Kiosco (HubSpot)</th>
-              <th>Usuarios</th>
+              <th>Tienda</th>
+              <th>Quién tiene acceso</th>
               <th>Arranque</th>
-              <th></th>
+              <th className="adm-oculto-movil"></th>
             </tr>
           </thead>
           <tbody>
-            {filtradas.map((t) => (
+            {visibles.map((t) => (
               <tr key={t.concesionarioId}>
-                <td>{t.nombre}</td>
-                <td className="cell-mono">{t.kiosco}</td>
+                <td>
+                  <strong>{t.nombre}</strong>
+                  <div className="adm-field__ayuda adm-mono">{t.kiosco}</div>
+                  <span className="adm-solo-movil adm-fila__acciones" style={{ marginLeft: 0, marginTop: "0.4rem" }}>
+                    <button
+                      type="button"
+                      className="adm-btn adm-btn--secundario adm-btn--chico"
+                      onClick={() => setEditando(t)}
+                    >
+                      {t.usuarios.length === 0 ? "Invitar" : "Editar"}
+                    </button>
+                    <Link to={`/admin/tiendas/${t.concesionarioId}`} className="adm-btn adm-btn--texto adm-btn--chico">
+                      Ver solicitudes
+                    </Link>
+                  </span>
+                </td>
                 <td>
                   {t.usuarios.length === 0 ? (
-                    <span className="cell-pending">Sin invitar</span>
+                    <Badge tono="warn">Nadie todavía</Badge>
                   ) : (
-                    <span className="cell-done" title={t.usuarios.join(", ")}>
-                      {t.usuarios.length === 1
-                        ? t.usuarios[0]
-                        : `${t.usuarios.length} correos`}
+                    <span title={t.usuarios.join(", ")}>
+                      {t.usuarios.length === 1 ? t.usuarios[0] : `${t.usuarios.length} personas`}
                     </span>
                   )}
                 </td>
-                <td>{t.rolloutDesde ?? "—"}</td>
-                <td className="cell-actions">
-                  <Link to={`/admin/tiendas/${t.concesionarioId}`} className="link-button">
-                    Ver solicitudes
-                  </Link>
-                  <button
-                    type="button"
-                    className="link-button"
-                    onClick={() => setEditando(t)}
-                  >
-                    Editar
-                  </button>
+                <td>{t.rolloutDesde ?? <span className="adm-field__ayuda">General</span>}</td>
+                <td className="adm-oculto-movil">
+                  <span className="adm-fila__acciones">
+                    <button
+                      type="button"
+                      className="adm-btn adm-btn--secundario adm-btn--chico"
+                      onClick={() => setEditando(t)}
+                    >
+                      {t.usuarios.length === 0 ? "Invitar" : "Editar"}
+                    </button>
+                    <Link to={`/admin/tiendas/${t.concesionarioId}`} className="adm-btn adm-btn--texto adm-btn--chico">
+                      Ver solicitudes
+                    </Link>
+                  </span>
                 </td>
               </tr>
             ))}
@@ -214,8 +227,35 @@ export function TiendasPage() {
         </table>
       </div>
 
-      {filtradas.length === 0 && (
-        <p className="page-message">Ninguna tienda coincide con la búsqueda.</p>
+      {visibles.length === 0 && (
+        <EmptyState icono="⌕" titulo="Ninguna tienda coincide">
+          Prueba con otra búsqueda.
+        </EmptyState>
+      )}
+
+      <h2 className="admin-title admin-title--secondary">Ajustes de todas las tiendas</h2>
+      <RolloutCard
+        editable={esSuper}
+        fecha={fechaRollout}
+        onSaved={setFechaRollout}
+        onError={setError}
+      />
+
+      {esSuper && (
+        <Card
+          titulo="Traer todo de HubSpot"
+          descripcion="Normalmente no hace falta: Paydesk se actualiza solo. Úsalo la primera vez o si sospechas que faltan solicitudes. Puede tardar varios minutos."
+          pie={
+            <button
+              type="button"
+              className="adm-btn adm-btn--secundario"
+              onClick={sincronizar}
+              disabled={sincronizando}
+            >
+              {sincronizando ? "Trayendo de HubSpot... no cierres esta pantalla" : "Sincronizar todo ahora"}
+            </button>
+          }
+        />
       )}
 
       {editando && (

@@ -6,6 +6,19 @@ import {
   adminSetValeConfigCallable,
 } from "../../lib/firebase";
 import { useEsSuperAdmin } from "../../lib/adminRol";
+import { Badge, Card, Field, MensajeInline, Notice, PageHeader, Tabs } from "../../components/admin/ui";
+
+/** Las dos pestañas del apartado Vales. */
+export function TabsVales() {
+  return (
+    <Tabs
+      items={[
+        { to: "/admin/vales", label: "Buscar un vale" },
+        { to: "/admin/reporte-vales", label: "Reporte" },
+      ]}
+    />
+  );
+}
 import type { ValeAdmin } from "../../types/vale";
 
 const moneda = new Intl.NumberFormat("es-MX", {
@@ -50,6 +63,8 @@ export function ValesPage() {
 
   const [vigencia, setVigencia] = useState("");
   const [guardandoVigencia, setGuardandoVigencia] = useState(false);
+  const [vigenciaMsg, setVigenciaMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+  const [confirmando, setConfirmando] = useState(false);
 
   useEffect(() => {
     adminGetValeConfigCallable()
@@ -76,6 +91,7 @@ export function ValesPage() {
   }
 
   async function reemitir() {
+    setConfirmando(false);
     setError(null);
     setAviso(null);
     try {
@@ -92,154 +108,155 @@ export function ValesPage() {
   async function guardarVigencia(e: React.FormEvent) {
     e.preventDefault();
     setGuardandoVigencia(true);
-    setError(null);
-    setAviso(null);
+    setVigenciaMsg(null);
     try {
       await adminSetValeConfigCallable({ vigenciaHoras: Number(vigencia) });
-      setAviso("Vigencia guardada. Aplica a los vales que se emitan a partir de ahora.");
+      setVigenciaMsg({ ok: true, texto: "Guardado. Aplica a los vales nuevos." });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo guardar la vigencia.");
+      setVigenciaMsg({ ok: false, texto: err instanceof Error ? err.message : "No se pudo guardar." });
     } finally {
       setGuardandoVigencia(false);
     }
   }
 
+  const accionReemitir = (texto: string) =>
+    confirmando ? (
+      <Notice tono="warn" titulo="¿Reemitir el vale?">
+        <p>El vale actual dejará de servir de inmediato en cualquier caja y el cliente recibirá uno nuevo.</p>
+        <div className="adm-page-head__acciones">
+          <button type="button" className="adm-btn adm-btn--primario" onClick={reemitir}>
+            Sí, reemitir
+          </button>
+          <button type="button" className="adm-btn adm-btn--secundario" onClick={() => setConfirmando(false)}>
+            Cancelar
+          </button>
+        </div>
+      </Notice>
+    ) : (
+      <button type="button" className="adm-btn adm-btn--secundario" onClick={() => setConfirmando(true)}>
+        {texto}
+      </button>
+    );
+
   return (
     <section>
-      <h1 className="admin-title">Vales</h1>
-      <p className="admin-subtitle">
-        El código de un solo uso que el cliente presenta en la caja. Se emite
-        solo cuando el crédito se libera en HubSpot.
-      </p>
+      <PageHeader
+        titulo="Vales"
+        descripcion="El código de un solo uso que el cliente presenta en la caja. Se crea solo cuando el crédito se libera en HubSpot."
+      />
+      <TabsVales />
 
-      {error && <p className="page-message page-message--error">{error}</p>}
-      {aviso && <p className="form-success">{aviso}</p>}
+      {error && <Notice tono="error">{error}</Notice>}
+      {aviso && <Notice tono="ok">{aviso}</Notice>}
 
-      <form className="vales-card" onSubmit={buscar}>
-        <label htmlFor="deal-id">Id de la solicitud en HubSpot</label>
-        <div className="vales-fila">
-          <input
-            id="deal-id"
-            value={dealId}
-            onChange={(e) => setDealId(e.target.value)}
-            placeholder="18447203"
-            inputMode="numeric"
-          />
-          <button type="submit" disabled={buscando || !dealId.trim()}>
-            {buscando ? "Buscando..." : "Buscar"}
-          </button>
-        </div>
-      </form>
+      <Card
+        titulo="Buscar el vale de una solicitud"
+        descripcion="Úsalo cuando un cliente perdió su vale o la tienda reporta un problema con él."
+      >
+        <form onSubmit={buscar}>
+          <Field
+            label="Número de la solicitud"
+            htmlFor="deal-id"
+            ayuda="Es el ID del deal en HubSpot (Record ID)."
+          >
+            <div className="adm-fila__principal">
+              <input
+                id="deal-id"
+                type="text"
+                value={dealId}
+                onChange={(e) => setDealId(e.target.value)}
+                placeholder="Ej. 18447203"
+                inputMode="numeric"
+              />
+              <button type="submit" className="adm-btn adm-btn--primario" disabled={buscando || !dealId.trim()}>
+                {buscando ? "Buscando..." : "Buscar"}
+              </button>
+            </div>
+          </Field>
+        </form>
+      </Card>
 
       {buscado && !vale && (
-        <div className="vales-card">
-          <p>
-            Esta solicitud todavía no tiene vale. Se emite solo cuando el deal
-            trae fecha de crédito liberado.
+        <Card titulo="Esta solicitud todavía no tiene vale">
+          <p className="adm-field__ayuda">
+            Se crea solo cuando el crédito se libera en HubSpot. Si ya está liberado y
+            no se creó, puedes emitirlo aquí.
           </p>
-          <button type="button" onClick={reemitir}>
+          <button type="button" className="adm-btn adm-btn--primario" onClick={reemitir}>
             Emitir vale ahora
           </button>
-        </div>
+        </Card>
       )}
 
       {vale && (
-        <div className="vales-card">
-          <div className="vales-fila vales-fila--entre">
-            <h2>{vale.codigoFormateado}</h2>
-            <span
-              className={`vale-chip vale-chip--${
-                vale.estado === "emitido" ? "verde" : "ambar"
-              }`}
-            >
+        <Card
+          titulo={<span className="adm-mono">{vale.codigoFormateado}</span>}
+          acciones={
+            <Badge tono={vale.estado === "emitido" ? "ok" : vale.estado === "utilizado" ? "neutro" : "warn"}>
               {ETIQUETA_ESTADO[vale.estado]}
-            </span>
-          </div>
-
-          <dl className="vales-datos">
-            <div>
-              <dt>Cliente</dt>
-              <dd>{vale.cliente ?? "—"}</dd>
-            </div>
-            <div>
-              <dt>Tienda</dt>
-              <dd>{vale.tienda}</dd>
-            </div>
-            <div>
-              <dt>Autorizado</dt>
-              <dd>
-                {vale.montoAutorizado === null
-                  ? "—"
-                  : moneda.format(vale.montoAutorizado)}
-              </dd>
-            </div>
-            <div>
-              <dt>Emitido</dt>
-              <dd>{fecha(vale.emitidoEn)}</dd>
-            </div>
-            <div>
-              <dt>Vence</dt>
-              <dd>{fecha(vale.venceEn)}</dd>
-            </div>
-            <div>
-              <dt>Lecturas</dt>
-              <dd>
-                {vale.lecturasTotal}
-                {vale.ultimaLecturaEn ? ` · última ${fecha(vale.ultimaLecturaEn)}` : ""}
-              </dd>
-            </div>
+            </Badge>
+          }
+          pie={vale.estado !== "utilizado" ? accionReemitir("Reemitir vale") : undefined}
+        >
+          <dl className="adm-datos">
+            <dt>Cliente</dt>
+            <dd>{vale.cliente ?? "—"}</dd>
+            <dt>Tienda</dt>
+            <dd>{vale.tienda}</dd>
+            <dt>Monto autorizado</dt>
+            <dd>{vale.montoAutorizado === null ? "—" : moneda.format(vale.montoAutorizado)}</dd>
+            <dt>Emitido</dt>
+            <dd>{fecha(vale.emitidoEn)}</dd>
+            <dt>Vence</dt>
+            <dd>{fecha(vale.venceEn)}</dd>
+            <dt>Veces que se consultó en caja</dt>
+            <dd>
+              {vale.lecturasTotal}
+              {vale.ultimaLecturaEn ? ` · la última ${fecha(vale.ultimaLecturaEn)}` : ""}
+            </dd>
             {vale.consumidoEn && (
-              <div>
-                <dt>Disposición</dt>
+              <>
+                <dt>Usado</dt>
                 <dd>
-                  {vale.montoDispuesto !== null
-                    ? moneda.format(vale.montoDispuesto)
-                    : "—"}{" "}
-                  · {fecha(vale.consumidoEn)}
+                  {vale.montoDispuesto !== null ? moneda.format(vale.montoDispuesto) : "—"} ·{" "}
+                  {fecha(vale.consumidoEn)}
                 </dd>
-              </div>
+              </>
             )}
-            <div>
-              <dt>Liga del cliente</dt>
-              <dd className="vales-datos__url">{vale.url}</dd>
-            </div>
+            <dt>Liga del cliente</dt>
+            <dd className="vales-datos__url">{vale.url}</dd>
           </dl>
-
-          {vale.estado !== "utilizado" && (
-            <>
-              <button type="button" onClick={reemitir}>
-                Reemitir vale
-              </button>
-              <p className="form-note">
-                Emite uno nuevo y cancela este en el mismo paso, así que el
-                anterior deja de servir de inmediato.
-              </p>
-            </>
-          )}
-        </div>
+        </Card>
       )}
 
       {esSuper && (
-      <form className="vales-card" onSubmit={guardarVigencia}>
-        <h2>Vigencia</h2>
-        <label htmlFor="vigencia-horas">Horas que dura un vale desde que se emite</label>
-        <div className="vales-fila">
-          <input
-            id="vigencia-horas"
-            value={vigencia}
-            onChange={(e) => setVigencia(e.target.value)}
-            inputMode="numeric"
-          />
-          <button type="submit" disabled={guardandoVigencia || !vigencia}>
-            {guardandoVigencia ? "Guardando..." : "Guardar"}
-          </button>
-        </div>
-        <p className="form-note">
-          Un vale sin caducidad es un vale que alguien guarda: la ventana corta
-          obliga a que la compra ocurra cerca de la autorización. Aplica a los
-          vales nuevos, no a los ya emitidos.
-        </p>
-      </form>
+        <Card
+          titulo="Cuánto dura un vale"
+          descripcion="Una ventana corta obliga a que la compra ocurra cerca de la autorización. Aplica a los vales nuevos, no a los ya emitidos."
+        >
+          <form onSubmit={guardarVigencia}>
+            <Field label="Horas de vigencia" htmlFor="vigencia-horas">
+              <div className="adm-fila__principal">
+                <input
+                  id="vigencia-horas"
+                  type="number"
+                  min={1}
+                  value={vigencia}
+                  onChange={(e) => setVigencia(e.target.value)}
+                  style={{ maxWidth: "8rem" }}
+                />
+                <button
+                  type="submit"
+                  className="adm-btn adm-btn--primario"
+                  disabled={guardandoVigencia || !vigencia}
+                >
+                  {guardandoVigencia ? "Guardando..." : "Guardar"}
+                </button>
+                {vigenciaMsg && <MensajeInline ok={vigenciaMsg.ok}>{vigenciaMsg.texto}</MensajeInline>}
+              </div>
+            </Field>
+          </form>
+        </Card>
       )}
     </section>
   );

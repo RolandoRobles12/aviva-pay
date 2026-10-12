@@ -1,12 +1,8 @@
 import { useEffect, useState } from "react";
-import {
-  adminGetCancelStagesCallable,
-  adminSetCancelStagesCallable,
-  adminValeIntentosCallable,
-  adminValeReporteCallable,
-} from "../../lib/firebase";
-import { useEsSuperAdmin } from "../../lib/adminRol";
+import { adminValeIntentosCallable, adminValeReporteCallable } from "../../lib/firebase";
 import { StatTiles } from "../../components/StatTiles";
+import { Cargando, EmptyState, Notice, PageHeader } from "../../components/admin/ui";
+import { TabsVales } from "./ValesPage";
 import type { ValeIntento, ValeReporte } from "../../types/vale";
 
 const moneda = new Intl.NumberFormat("es-MX", {
@@ -39,25 +35,16 @@ const MOTIVO: Record<ValeIntento["motivo"], string> = {
  * para que estas cifras se lean igual que las del portal de la tienda.
  */
 export function ReporteValesPage() {
-  const esSuper = useEsSuperAdmin();
   const [reporte, setReporte] = useState<ValeReporte | null>(null);
   const [intentos, setIntentos] = useState<ValeIntento[]>([]);
-  const [etapas, setEtapas] = useState("");
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [aviso, setAviso] = useState<string | null>(null);
-  const [guardando, setGuardando] = useState(false);
 
   useEffect(() => {
-    Promise.all([
-      adminValeReporteCallable(),
-      adminValeIntentosCallable({ limite: 100 }),
-      adminGetCancelStagesCallable(),
-    ])
-      .then(([r, i, e]) => {
+    Promise.all([adminValeReporteCallable(), adminValeIntentosCallable({ limite: 100 })])
+      .then(([r, i]) => {
         setReporte(r.data);
         setIntentos(i.data.intentos);
-        setEtapas(e.data.etapas.join(", "));
       })
       .catch((err) =>
         setError(err instanceof Error ? err.message : "No se pudo cargar el reporte."),
@@ -65,35 +52,29 @@ export function ReporteValesPage() {
       .finally(() => setCargando(false));
   }, []);
 
-  async function guardarEtapas(e: React.FormEvent) {
-    e.preventDefault();
-    setGuardando(true);
-    setError(null);
-    setAviso(null);
-    try {
-      await adminSetCancelStagesCallable({
-        etapas: etapas.split(",").map((x) => x.trim()).filter(Boolean),
-      });
-      setAviso("Etapas guardadas. Aplican dentro del siguiente minuto.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudieron guardar.");
-    } finally {
-      setGuardando(false);
-    }
-  }
+  const encabezado = (
+    <>
+      <PageHeader
+        titulo="Vales"
+        descripcion="Cuánto del crédito liberado se está usando en las tiendas, y cuánto se está quedando sin usar."
+      />
+      <TabsVales />
+    </>
+  );
 
-  if (cargando) return <p className="page-message">Cargando reporte...</p>;
+  if (cargando) {
+    return (
+      <>
+        {encabezado}
+        <Cargando texto="Cargando reporte..." />
+      </>
+    );
+  }
 
   return (
     <section>
-      <h1 className="admin-title">Reporte de vales</h1>
-      <p className="admin-subtitle">
-        Cuánto del crédito liberado se está ejerciendo, y cuánto se está quedando
-        en el aire.
-      </p>
-
-      {error && <p className="page-message page-message--error">{error}</p>}
-      {aviso && <p className="form-success">{aviso}</p>}
+      {encabezado}
+      {error && <Notice tono="error">{error}</Notice>}
 
       {reporte && (
         <>
@@ -153,29 +134,29 @@ export function ReporteValesPage() {
           />
 
           <h2 className="admin-title admin-title--secondary">Por tienda</h2>
-          <div className="deals-table-wrapper">
-            <table className="deals-table">
+          <div className="adm-tabla-wrap">
+            <table className="adm-tabla">
               <thead>
                 <tr>
                   <th>Tienda</th>
-                  <th className="col-num">Vigentes</th>
-                  <th className="col-num">Utilizados</th>
-                  <th className="col-num">Vencidos</th>
-                  <th className="col-num">Cancelados</th>
-                  <th className="col-num">Dispuesto</th>
-                  <th className="col-num">Nunca gastado</th>
+                  <th className="num">Vigentes</th>
+                  <th className="num">Utilizados</th>
+                  <th className="num">Vencidos</th>
+                  <th className="num">Cancelados</th>
+                  <th className="num">Dispuesto</th>
+                  <th className="num">Nunca gastado</th>
                 </tr>
               </thead>
               <tbody>
                 {reporte.porTienda.map((t) => (
                   <tr key={t.concesionarioId}>
                     <td>{t.tienda}</td>
-                    <td className="col-num">{t.vigente}</td>
-                    <td className="col-num">{t.utilizado}</td>
-                    <td className="col-num">{t.vencido}</td>
-                    <td className="col-num">{t.cancelado}</td>
-                    <td className="col-num">{moneda.format(t.montoDispuesto)}</td>
-                    <td className="col-num">{moneda.format(t.montoNuncaGastado)}</td>
+                    <td className="num">{t.vigente}</td>
+                    <td className="num">{t.utilizado}</td>
+                    <td className="num">{t.vencido}</td>
+                    <td className="num">{t.cancelado}</td>
+                    <td className="num">{moneda.format(t.montoDispuesto)}</td>
+                    <td className="num">{moneda.format(t.montoNuncaGastado)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -186,15 +167,15 @@ export function ReporteValesPage() {
 
       <h2 className="admin-title admin-title--secondary">Intentos sospechosos</h2>
       <p className="admin-subtitle">
-        Un código que no existe puede ser un dedazo. Un vale de otra tienda no:
-        significa que esa tienda tuvo enfrente un vale que no le tocaba.
+        Un código que no existe puede ser un error al teclearlo. Un vale de otra
+        tienda no: significa que esa tienda tuvo enfrente un vale que no le tocaba.
       </p>
 
       {intentos.length === 0 ? (
-        <p className="page-message">Ningún intento fallido registrado.</p>
+        <EmptyState titulo="Sin intentos sospechosos">Nadie ha probado códigos inexistentes ni vales de otra tienda.</EmptyState>
       ) : (
-        <div className="deals-table-wrapper">
-          <table className="deals-table">
+        <div className="adm-tabla-wrap">
+          <table className="adm-tabla">
             <thead>
               <tr>
                 <th>Cuándo</th>
@@ -234,32 +215,6 @@ export function ReporteValesPage() {
         </div>
       )}
 
-      {esSuper && (
-      <>
-      <h2 className="admin-title admin-title--secondary">Etapas de cancelación</h2>
-      <form className="vales-card" onSubmit={guardarEtapas}>
-        <label htmlFor="etapas-cancelacion">
-          Ids de etapa de HubSpot que significan "este crédito ya no existe"
-        </label>
-        <input
-          id="etapas-cancelacion"
-          value={etapas}
-          onChange={(e) => setEtapas(e.target.value)}
-          placeholder="1341580191, 1341580192"
-        />
-        <button type="submit" disabled={guardando || !etapas.trim()}>
-          {guardando ? "Guardando..." : "Guardar etapas"}
-        </button>
-        <p className="form-note">
-          Separadas por coma. En cuanto un deal entra a una de estas etapas, su
-          vale se apaga y deja de servir en cualquier caja, y la solicitud sale
-          de la lista de la tienda. Precancelación entra a propósito: matar un
-          vale de más se arregla reemitiéndolo; dejarlo vivo de más significa
-          entregar material contra un crédito que ya se está retirando.
-        </p>
-      </form>
-      </>
-      )}
     </section>
   );
 }

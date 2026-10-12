@@ -14,7 +14,7 @@ export function AdminLoginPage() {
     setError(null);
     try {
       await loginAdminWithGoogle();
-      navigate("/admin/tiendas", { replace: true });
+      navigate("/admin/inicio", { replace: true });
     } catch (err) {
       if (err instanceof Error && err.message.includes("panel")) {
         setError(err.message);

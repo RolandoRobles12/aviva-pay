@@ -819,8 +819,7 @@ h3 {
 /* On the brand surfaces the default green is unreadable — but .link-button
    is used all over the light parts of the app (tables, forms, empty
    states), so this flips it only where it sits on green. */
-.app-bar .link-button,
-.admin-shell__header .link-button {
+.app-bar .link-button {
   color: var(--blanco);
 }
 
@@ -875,47 +874,6 @@ h3 {
 }
 
 /* --- Admin shell --- */
-
-.admin-shell__header {
-  display: flex;
-  align-items: center;
-  gap: 2rem;
-  padding: 1rem var(--gutter);
-  /* Brand surface, same as the concesionario app bar — see --verde-marca. */
-  background: var(--verde-marca);
-}
-
-.admin-nav {
-  display: flex;
-  gap: 1.25rem;
-  flex: 1;
-}
-
-/* On the green header: the inactive links are held back with opacity
-   rather than a lighter green, so the active one is the only fully-white
-   item and stays the obvious "you are here". */
-.admin-nav a {
-  color: rgba(255, 255, 255, 0.72);
-  text-decoration: none;
-  font-weight: 500;
-  font-size: 0.92rem;
-  padding: 0.35rem 0;
-  border-bottom: 2px solid transparent;
-}
-
-.admin-nav a:hover {
-  color: var(--blanco);
-}
-
-.admin-nav a.active {
-  color: var(--blanco);
-  font-weight: 700;
-  border-bottom-color: var(--verde-esmeralda);
-}
-
-.admin-shell__body {
-  padding: 1.5rem var(--gutter) 4rem;
-}
 
 .admin-page-head {
   display: flex;
@@ -2275,12 +2233,6 @@ h3 {
 }
 
 
-/* Las dos filas de cifras del reporte necesitan aire entre ellas y con la
-   tabla que sigue; el StatTiles del portal siempre va solo. */
-.admin-shell__body .stat-tiles {
-  margin-bottom: 1.25rem;
-}
-
 /* --- Canceladas y expiradas ---------------------------------------------
    Pestaña propia, no un filtro: una solicitud muerta no comparte columnas
    con la lista viva. */
@@ -2380,48 +2332,11 @@ h3 {
   }
 }
 
-/* Notificaciones (admin): eventos por destino. */
-.notif-eventos {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 16px;
-}
-.notif-evento {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-weight: normal;
-}
 
-/* Estado del sistema (admin). */
-.estado-lista {
-  display: grid;
-  gap: 8px;
-  margin-bottom: 24px;
-}
-.estado-fila {
-  display: grid;
-  grid-template-columns: 24px 1fr;
-  gap: 8px;
-  padding: 12px;
-  border-radius: 10px;
-  border: 1px solid var(--border, #e5e7eb);
-}
-.estado-fila > span {
-  font-weight: 700;
-}
-.estado-fila--ok > span {
-  color: #1f7a3d;
-}
-.estado-fila--alerta {
-  border-color: #b4231866;
-}
-.estado-fila--alerta > span {
-  color: #b42318;
-}
 
 /* Bitácora de configuración (admin). */
 .bitacora {
+  background: var(--blanco);
   border: 1px solid var(--border, #e5e7eb);
   border-radius: 10px;
   padding: 10px 12px;
