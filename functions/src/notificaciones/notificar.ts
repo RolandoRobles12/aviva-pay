@@ -7,7 +7,7 @@ import {
   type DestinoNotificacion,
   type EventoNotificacion,
 } from "../firestore/notificacionesRepository";
-import { publicar, resolverCanal } from "./slack";
+import { publicar } from "./slack";
 
 type TipoDocumento = "cotizacion" | "comprobante";
 
@@ -120,8 +120,7 @@ export function construirMensaje(
 }
 
 async function enviarA(destino: DestinoNotificacion, mensaje: { texto: string; blocks: unknown[] }) {
-  const channel = await resolverCanal(destino);
-  await publicar(channel, mensaje.texto, mensaje.blocks);
+  await publicar(destino.valor, mensaje.texto, mensaje.blocks);
 }
 
 /**
@@ -165,8 +164,7 @@ export async function enviarPrueba(
   destino: Pick<DestinoNotificacion, "tipo" | "valor">,
   enviadoPor: string,
 ): Promise<void> {
-  const channel = await resolverCanal(destino);
-  await publicar(channel, "Prueba de notificaciones de Aviva Paydesk", [
+  await publicar(destino.valor, "Prueba de notificaciones de Aviva Paydesk", [
     {
       type: "section",
       text: {

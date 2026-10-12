@@ -17,11 +17,14 @@ export const adminGetNotificaciones = onCall({ region: "us-central1" }, async (r
   return { config: await getNotificacionesConfigFresh(), eventos: EVENTOS_NOTIFICACION };
 });
 
-const CANAL_RE = /^(#[a-z0-9_-]{1,80}|[CG][A-Z0-9]{6,})$/;
-const USUARIO_RE = /^([^\s@]+@[^\s@]+\.[^\s@]+|[UW][A-Z0-9]{6,})$/;
+/** IDs de Slack: canal público `C…`, privado `G…`; persona `U…` o `W…` (Enterprise). */
+const CANAL_RE = /^[CG][A-Z0-9]{6,}$/;
+const USUARIO_RE = /^[UW][A-Z0-9]{6,}$/;
 
 export function validarDestino(d: Partial<DestinoNotificacion>): DestinoNotificacion {
-  const valor = typeof d.valor === "string" ? d.valor.trim() : "";
+  // Los IDs de Slack van siempre en mayúsculas; si alguien los pega en
+  // minúsculas, se corrigen en vez de rechazarlos.
+  const valor = typeof d.valor === "string" ? d.valor.trim().toUpperCase() : "";
   if (typeof d.id !== "string" || !d.id) {
     throw new HttpsError("invalid-argument", "Destino sin id.");
   }
@@ -29,24 +32,21 @@ export function validarDestino(d: Partial<DestinoNotificacion>): DestinoNotifica
     if (!CANAL_RE.test(valor)) {
       throw new HttpsError(
         "invalid-argument",
-        `"${valor}" no es un canal válido. Usa #nombre-del-canal o su ID (C0123ABC).`,
+        `"${valor}" no es un ID de canal. Debe empezar con C o G, por ejemplo C0123ABCD.`,
       );
     }
   } else if (d.tipo === "usuario") {
     if (!USUARIO_RE.test(valor)) {
       throw new HttpsError(
         "invalid-argument",
-        `"${valor}" no es un usuario válido. Usa su correo de Slack o su ID (U0123ABC).`,
+        `"${valor}" no es un ID de persona. Debe empezar con U o W, por ejemplo U0123ABCD.`,
       );
     }
   } else {
     throw new HttpsError("invalid-argument", "Tipo de destino inválido.");
   }
   const eventos = Array.isArray(d.eventos) ? [...new Set(d.eventos.filter(esEvento))] : [];
-  // Solo el correo se normaliza: los IDs de Slack (U0123ABC) distinguen
-  // mayúsculas y en minúsculas ya no existen.
-  const normalizado = d.tipo === "usuario" && valor.includes("@") ? valor.toLowerCase() : valor;
-  return { id: d.id, tipo: d.tipo, valor: normalizado, eventos };
+  return { id: d.id, tipo: d.tipo, valor, eventos };
 }
 
 export const adminSetNotificaciones = onCall<{ config?: Partial<NotificacionesConfig> }>(
@@ -81,11 +81,10 @@ const ERRORES_SLACK: Record<string, string> = {
   invalid_auth: "El token del bot de Slack no es válido.",
   account_inactive: "El token del bot de Slack fue revocado.",
   channel_not_found:
-    "No se encontró el canal. Si es privado, invita al bot al canal; si no, revisa el nombre o usa su ID.",
+    "Slack no encontró ese ID. Revisa que esté bien copiado; si es un canal privado, invita al bot al canal.",
   not_in_channel: "El bot no está en el canal. Invítalo con /invite.",
-  users_not_found: "No hay ningún usuario de Slack con ese correo.",
   missing_scope:
-    "Al bot le faltan permisos. Necesita chat:write, chat:write.public, im:write y users:read.email.",
+    "Al bot le faltan permisos. Necesita chat:write, chat:write.public e im:write.",
 };
 
 export const adminProbarNotificacion = onCall<{ destino?: Partial<DestinoNotificacion> }>(

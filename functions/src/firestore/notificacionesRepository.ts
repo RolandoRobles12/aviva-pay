@@ -31,9 +31,11 @@ export const EVENTOS_NOTIFICACION = [
 export type EventoNotificacion = (typeof EVENTOS_NOTIFICACION)[number];
 
 /**
- * A dónde avisar. `valor` es, para un canal, su ID (`C0123ABC`) o su
- * nombre (`#paydesk-revisiones`); para un usuario, su correo de Slack o su
- * ID (`U0123ABC`). El correo se resuelve al ID al momento de enviar.
+ * A dónde avisar. `valor` es siempre un ID de Slack: de canal (`C0123ABCD`,
+ * o `G…` si es privado) o de persona (`U0123ABCD`), a quien se le escribe
+ * por mensaje directo. Un destino guardado antes por nombre o correo se
+ * conserva para que el admin lo vea y lo corrija; no se puede volver a
+ * guardar así.
  */
 export interface DestinoNotificacion {
   id: string;

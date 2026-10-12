@@ -99,14 +99,23 @@ describe("sincronización periódica", () => {
 });
 
 describe("destinos de Slack", () => {
-  it("normaliza el correo pero respeta las mayúsculas de un ID de usuario", () => {
-    expect(validarDestino({ id: "1", tipo: "usuario", valor: "Ana@Aviva.com", eventos: [] }).valor).toBe(
-      "ana@aviva.com",
+  it("acepta IDs de canal y de persona, y corrige minúsculas", () => {
+    expect(validarDestino({ id: "1", tipo: "canal", valor: " C0123ABCD ", eventos: [] }).valor).toBe("C0123ABCD");
+    expect(validarDestino({ id: "1", tipo: "canal", valor: "g0123abcd", eventos: [] }).valor).toBe("G0123ABCD");
+    expect(validarDestino({ id: "1", tipo: "usuario", valor: "u0123abc", eventos: [] }).valor).toBe(
+      "U0123ABC",
     );
     expect(validarDestino({ id: "1", tipo: "usuario", valor: "U0123ABC", eventos: [] }).valor).toBe("U0123ABC");
   });
   it("rechaza un canal o usuario con formato inválido", () => {
     expect(() => validarDestino({ id: "1", tipo: "canal", valor: "no es canal", eventos: [] })).toThrow();
     expect(() => validarDestino({ id: "1", tipo: "usuario", valor: "ana", eventos: [] })).toThrow();
+  });
+  it("ya no acepta nombres de canal ni correos", () => {
+    expect(() => validarDestino({ id: "1", tipo: "canal", valor: "#paydesk", eventos: [] })).toThrow();
+    expect(() => validarDestino({ id: "1", tipo: "usuario", valor: "ana@aviva.com", eventos: [] })).toThrow();
+    // Un ID de persona no sirve como canal ni al revés.
+    expect(() => validarDestino({ id: "1", tipo: "canal", valor: "U0123ABCD", eventos: [] })).toThrow();
+    expect(() => validarDestino({ id: "1", tipo: "usuario", valor: "C0123ABCD", eventos: [] })).toThrow();
   });
 });

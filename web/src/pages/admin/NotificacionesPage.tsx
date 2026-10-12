@@ -48,6 +48,24 @@ const EVENTOS: { valor: EventoNotificacion; titulo: string; descripcion: string 
   },
 ];
 
+/** IDs de Slack: canal `C…` (o `G…` si es privado); persona `U…` o `W…`. */
+const FORMATO: Record<DestinoNotificacion["tipo"], { re: RegExp; ejemplo: string; error: string }> = {
+  canal: {
+    re: /^[CG][A-Z0-9]{6,}$/,
+    ejemplo: "C0123ABCD",
+    error: "Debe ser el ID del canal: empieza con C (o G si es privado), por ejemplo C0123ABCD.",
+  },
+  usuario: {
+    re: /^[UW][A-Z0-9]{6,}$/,
+    ejemplo: "U0123ABCD",
+    error: "Debe ser el ID de la persona: empieza con U, por ejemplo U0123ABCD.",
+  },
+};
+
+function idValido(d: DestinoNotificacion): boolean {
+  return FORMATO[d.tipo].re.test(d.valor.trim());
+}
+
 function nuevoId(): string {
   return `d_${Math.random().toString(36).slice(2, 10)}`;
 }
@@ -77,6 +95,9 @@ function Destino({
     }
   }
 
+  const formato = FORMATO[destino.tipo];
+  const invalido = destino.valor.trim() !== "" && !idValido(destino);
+
   function alternarEvento(e: EventoNotificacion) {
     const eventos = destino.eventos.includes(e)
       ? destino.eventos.filter((x) => x !== e)
@@ -97,17 +118,22 @@ function Destino({
         </select>
         <input
           type="text"
-          aria-label={destino.tipo === "canal" ? "Nombre del canal" : "Correo de la persona"}
+          className="adm-mono"
+          aria-label={destino.tipo === "canal" ? "ID del canal" : "ID de la persona"}
+          aria-invalid={invalido || undefined}
           value={destino.valor}
-          onChange={(e) => onChange({ ...destino, valor: e.target.value })}
-          placeholder={destino.tipo === "canal" ? "#paydesk-revisiones" : "nombre@avivacredito.com"}
+          // Los IDs de Slack van siempre en mayúsculas y sin espacios.
+          onChange={(e) => onChange({ ...destino, valor: e.target.value.replace(/\s/g, "").toUpperCase() })}
+          placeholder={formato.ejemplo}
+          spellCheck={false}
+          autoComplete="off"
         />
         <span className="adm-fila__acciones">
           <button
             type="button"
             className="adm-btn adm-btn--secundario adm-btn--chico"
             onClick={probar}
-            disabled={probando || !destino.valor.trim()}
+            disabled={probando || !idValido(destino)}
           >
             {probando ? "Enviando..." : "Enviar prueba"}
           </button>
@@ -116,6 +142,11 @@ function Destino({
           </button>
         </span>
       </div>
+      {invalido && (
+        <div className="adm-fila__extra">
+          <MensajeInline ok={false}>{formato.error}</MensajeInline>
+        </div>
+      )}
       {prueba && (
         <div className="adm-fila__extra">
           <MensajeInline ok={prueba.ok}>{prueba.mensaje}</MensajeInline>
@@ -169,6 +200,10 @@ export function NotificacionesPage() {
 
   async function guardar() {
     if (!config) return;
+    if (config.destinos.some((d) => d.valor.trim() && !idValido(d))) {
+      setMsg({ ok: false, texto: "Hay destinos con un ID que no es válido. Corrígelos antes de guardar." });
+      return;
+    }
     setGuardando(true);
     setMsg(null);
     try {
@@ -211,6 +246,13 @@ export function NotificacionesPage() {
             )}
           </Card>
 
+          {original?.destinos.some((d) => !idValido(d)) && (
+            <Notice tono="warn">
+              Hay destinos guardados por nombre o correo. Ahora Slack se configura por ID: cámbialos
+              por el ID del canal o de la persona y guarda.
+            </Notice>
+          )}
+
           <Card
             titulo="¿A quién avisar?"
             descripcion="Agrega canales de Slack o personas, y elige qué le llega a cada uno."
@@ -234,7 +276,7 @@ export function NotificacionesPage() {
           >
             {config.destinos.length === 0 ? (
               <EmptyState icono="✉" titulo="Todavía no hay a quién avisar">
-                Agrega el canal del equipo, por ejemplo #paydesk-revisiones.
+                Agrega el canal del equipo con su ID de Slack.
               </EmptyState>
             ) : (
               config.destinos.map((d, i) => (
@@ -246,13 +288,17 @@ export function NotificacionesPage() {
                 />
               ))
             )}
-            <Detalles resumen="¿Cómo conecto un canal privado o una persona?">
+            <Detalles resumen="¿Dónde encuentro el ID en Slack?">
               <p>
-                Para un canal privado, primero invita al bot de Paydesk desde Slack con{" "}
-                <span className="adm-mono">/invite @Paydesk</span>. A una persona se le escribe con
-                su correo de Slack y recibe los avisos por mensaje directo. Usa “Enviar prueba” para
-                confirmar que cada destino funciona.
+                <strong>Canal:</strong> abre el canal, haz clic en su nombre arriba y, al final de la
+                ventana, copia el “ID del canal” (empieza con C). Si el canal es privado, invita primero
+                al bot con <span className="adm-mono">/invite @Paydesk</span>.
               </p>
+              <p>
+                <strong>Persona:</strong> abre su perfil, haz clic en los tres puntos (⋮) y elige
+                “Copiar ID de miembro” (empieza con U). Le llegan los avisos por mensaje directo.
+              </p>
+              <p>Usa “Enviar prueba” para confirmar que cada destino funciona.</p>
             </Detalles>
           </Card>
 
