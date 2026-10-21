@@ -1,4 +1,5 @@
 import { logger } from "firebase-functions/v2";
+import { FieldValue } from "firebase-admin/firestore";
 import { uploadDealFile } from "./files";
 import { descargar, storeDealFile } from "../storage/dealFiles";
 import { updateDealProperties, toHubspotDateProperty } from "./deals";
@@ -31,6 +32,41 @@ interface UploadedFile {
 }
 
 export type TipoDocumento = "cotizacion" | "comprobante";
+
+/**
+ * Cuántos rechazos automáticos seguidos del mismo documento tiene que
+ * llevar una solicitud para que la tienda pueda pedir que una persona lo
+ * revise. Con uno solo, el botón le ganaría a volver a subir el archivo
+ * bien, que es lo que casi siempre resuelve el rechazo; con dos ya es
+ * razonable pensar que la verificación se está equivocando.
+ *
+ * El portal repite este número (web/src/lib/uploads.ts) para ofrecer el
+ * botón desde que se abre la ventana; quien decide es este.
+ */
+export const RECHAZOS_PARA_REVISION_MANUAL = 2;
+
+/** La tienda pidió verificación manual sin haber llegado a los rechazos necesarios. */
+export class RevisionManualNoDisponibleError extends Error {}
+
+function campoRechazos(tipo: TipoDocumento) {
+  return tipo === "cotizacion" ? "cotizacionRechazosAuto" : "comprobanteRechazosAuto";
+}
+
+/** Suma un rechazo automático y devuelve cuántos lleva. Nunca tapa el rechazo en sí. */
+async function sumarRechazo(
+  dealId: string,
+  tipo: TipoDocumento,
+  previos: number,
+): Promise<number> {
+  try {
+    await dealsCollection()
+      .doc(dealId)
+      .update({ [campoRechazos(tipo)]: FieldValue.increment(1) });
+  } catch (err) {
+    logger.error(`sumarRechazo: no se pudo contar el rechazo del deal ${dealId}`, err);
+  }
+  return previos + 1;
+}
 
 export interface ResultadoSubida {
   verificacion: ResultadoOcr | null;
@@ -144,10 +180,21 @@ async function subirDocumento(
   file: UploadedFile,
   capturado: Capturado,
   esAdmin: boolean,
+  solicitudManual: boolean,
 ): Promise<ResultadoSubida> {
   // Se lee una sola vez y se pasa a todo lo que lo necesita.
   const deal = await getDeal(dealId);
   const concesionarioId = deal?.concesionarioId ?? null;
+  const rechazosPrevios = deal?.[campoRechazos(capturado.tipo)] ?? 0;
+
+  // La verificación manual es la salida cuando la automática insiste en
+  // rechazar un documento que la tienda cree bueno; no es un atajo para
+  // saltársela desde el primer intento.
+  if (solicitudManual && !esAdmin && rechazosPrevios < RECHAZOS_PARA_REVISION_MANUAL) {
+    throw new RevisionManualNoDisponibleError(
+      "Todavía no se puede pedir la verificación manual de este documento. Vuelve a subirlo.",
+    );
+  }
 
   let verificacion: ResultadoOcr | null;
   try {
@@ -160,9 +207,14 @@ async function subirDocumento(
         ? { montoDeclarado: capturado.montoTotalCompra ? Number(capturado.montoTotalCompra) : null }
         : { fechaDeclarada: capturado.fechaEntrega || null }),
       esAdmin,
+      // Se verifica igual, para que el administrador vea qué encontró
+      // Claude, pero el resultado ya no lo rebota: lo decide una persona.
+      noRechazar: solicitudManual,
     });
   } catch (err) {
     if (err instanceof OcrRechazadoError) {
+      const rechazos = await sumarRechazo(dealId, capturado.tipo, rechazosPrevios);
+      err.revisionManualDisponible = rechazos >= RECHAZOS_PARA_REVISION_MANUAL;
       await notificar({
         evento: "documento_rechazado",
         dealId,
@@ -188,6 +240,8 @@ async function subirDocumento(
     capturado.tipo === "cotizacion" ? "cotizacionRevision" : "comprobanteRevision";
 
   const enRevision = !esAdmin && verificacion !== null && verificacion.estado !== "aprobado";
+  // Aceptado o en revisión, la racha de rechazos se cortó.
+  const sinRechazos = { [campoRechazos(capturado.tipo)]: 0 };
 
   if (enRevision) {
     const revision: RevisionDocumento = {
@@ -197,16 +251,28 @@ async function subirDocumento(
       mimeType: file.mimeType ?? null,
       capturado,
       subidoEn: new Date().toISOString(),
+      ...(solicitudManual ? { solicitudManual: true } : {}),
     };
     await dealsCollection()
       .doc(dealId)
-      .update({ [campoRevision]: revision, ...camposOcrViejos(capturado.tipo) });
-    logger.info(`subirDocumento: ${capturado.tipo} del deal ${dealId} quedó en revisión`);
+      .update({ [campoRevision]: revision, ...sinRechazos, ...camposOcrViejos(capturado.tipo) });
+    logger.info(
+      `subirDocumento: ${capturado.tipo} del deal ${dealId} quedó en revisión` +
+        (solicitudManual ? " (verificación manual pedida por la tienda)" : ""),
+    );
     await notificar({
       evento: "documento_en_revision",
       dealId,
       tipo: capturado.tipo,
-      motivos: verificacion?.motivos ?? [],
+      motivos: [
+        ...(solicitudManual
+          ? [
+              `La tienda pidió verificación manual después de ${rechazosPrevios} rechazos ` +
+                "automáticos: cree que el documento es correcto.",
+            ]
+          : []),
+        ...(verificacion?.motivos ?? []),
+      ],
     });
     await registrarEvento(dealId, concesionarioId, capturado.tipo, "en_revision");
     return { verificacion, enRevision: true };
@@ -220,7 +286,7 @@ async function subirDocumento(
   // Un documento nuevo aplicado reemplaza cualquier revisión anterior.
   await dealsCollection()
     .doc(dealId)
-    .update({ [campoRevision]: null, ...camposOcrViejos(capturado.tipo) });
+    .update({ [campoRevision]: null, ...sinRechazos, ...camposOcrViejos(capturado.tipo) });
   // Las subidas del admin no cuentan para las métricas de la tienda.
   if (!esAdmin) await registrarEvento(dealId, concesionarioId, capturado.tipo, "aceptado");
 
@@ -236,6 +302,8 @@ export function writeCotizacion(
     montoTotalCompra: string;
     /** Admin: se verifica y se registra, pero se aplica directo. */
     esAdmin?: boolean;
+    /** La tienda pidió que una persona lo revise (ver RECHAZOS_PARA_REVISION_MANUAL). */
+    solicitudManual?: boolean;
   },
 ): Promise<ResultadoSubida> {
   return subirDocumento(
@@ -247,6 +315,7 @@ export function writeCotizacion(
       montoTotalCompra: params.montoTotalCompra,
     },
     params.esAdmin ?? false,
+    params.solicitudManual ?? false,
   );
 }
 
@@ -258,6 +327,8 @@ export function writeComprobante(
     firmaClienteConfirmada: string;
     /** Admin: se verifica y se registra, pero se aplica directo. */
     esAdmin?: boolean;
+    /** La tienda pidió que una persona lo revise (ver RECHAZOS_PARA_REVISION_MANUAL). */
+    solicitudManual?: boolean;
   },
 ): Promise<ResultadoSubida> {
   return subirDocumento(
@@ -269,6 +340,7 @@ export function writeComprobante(
       firmaClienteConfirmada: params.firmaClienteConfirmada,
     },
     params.esAdmin ?? false,
+    params.solicitudManual ?? false,
   );
 }
 

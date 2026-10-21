@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { VerificacionAviso } from "./VerificacionAviso";
 import { ArchivoLink } from "./ArchivoLink";
+import { SolicitarRevisionManual } from "./SolicitarRevisionManual";
 import { prepararArchivo } from "../lib/imagenes";
 import type { Verificacion } from "../lib/uploads";
-import { uploadCotizacion } from "../lib/uploads";
+import { RECHAZOS_PARA_REVISION_MANUAL, SubidaError, uploadCotizacion } from "../lib/uploads";
 import { CurrencyInput } from "./CurrencyInput";
 import type { FieldLabels } from "../types/admin";
 
@@ -12,6 +13,7 @@ export function CotizacionUploadForm({
   dealId,
   labels,
   reemplazo = false,
+  rechazosAuto = 0,
   onUploaded,
   onCancel,
   onUpload = uploadCotizacion,
@@ -20,6 +22,8 @@ export function CotizacionUploadForm({
   labels?: FieldLabels;
   /** Ya hay un documento: muestra el aviso de reemplazo y la liga al actual. */
   reemplazo?: boolean;
+  /** Rechazos automáticos seguidos que ya lleva este documento (del deal). */
+  rechazosAuto?: number;
   onUploaded: () => void;
   onCancel: () => void;
   /** Defaults to the concesionario endpoint; the admin preview passes adminUploadCotizacion instead. */
@@ -30,17 +34,24 @@ export function CotizacionUploadForm({
   const [montoTotalCompra, setMontoTotalCompra] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [aviso, setAviso] = useState<{ verificacion: Verificacion | null; enRevision: boolean } | null>(
-    null,
+  const [aviso, setAviso] = useState<{
+    verificacion: Verificacion | null;
+    enRevision: boolean;
+    solicitudManual: boolean;
+  } | null>(null);
+  const [manualDisponible, setManualDisponible] = useState(
+    rechazosAuto >= RECHAZOS_PARA_REVISION_MANUAL,
   );
+  const [enviandoManual, setEnviandoManual] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function enviar(solicitudManual: boolean) {
     if (!file) {
       setError("Selecciona un archivo (PDF, imagen o XML).");
       return;
     }
     setSubmitting(true);
+    setEnviandoManual(solicitudManual);
     setError(null);
     try {
       // Fotos de iPhone (HEIC) y fotos muy pesadas se convierten aquí,
@@ -51,17 +62,36 @@ export function CotizacionUploadForm({
         file: archivo,
         fechaEntregaAcordada,
         montoTotalCompra,
+        ...(solicitudManual ? { solicitudManual } : {}),
       });
       if (enRevision || (verificacion && verificacion.estado !== "aprobado")) {
-        setAviso({ verificacion: verificacion ?? null, enRevision: Boolean(enRevision) });
+        setAviso({
+          verificacion: verificacion ?? null,
+          enRevision: Boolean(enRevision),
+          solicitudManual,
+        });
         return;
       }
       onUploaded();
     } catch (err) {
+      if (err instanceof SubidaError && err.revisionManualDisponible) setManualDisponible(true);
       setError(err instanceof Error ? err.message : "Error al subir la cotización");
     } finally {
       setSubmitting(false);
+      setEnviandoManual(false);
     }
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    void enviar(false);
+  }
+
+  function solicitarManual() {
+    // Mismos campos obligatorios que una subida normal: si se aprueba, se
+    // aplica tal cual lo capturó la tienda.
+    if (file && !formRef.current?.reportValidity()) return;
+    void enviar(true);
   }
 
   if (aviso) {
@@ -69,13 +99,14 @@ export function CotizacionUploadForm({
       <VerificacionAviso
         verificacion={aviso.verificacion}
         enRevision={aviso.enRevision}
+        solicitudManual={aviso.solicitudManual}
         onCerrar={onUploaded}
       />
     );
   }
 
   return (
-    <form className="upload-form" onSubmit={handleSubmit}>
+    <form className="upload-form" onSubmit={handleSubmit} ref={formRef}>
       <h3>{reemplazo ? "Reemplazar cotización" : "Nueva cotización"}</h3>
 
       {reemplazo && (
@@ -123,12 +154,19 @@ export function CotizacionUploadForm({
         />
       </div>
       {error && <p className="form-error">{error}</p>}
+      {manualDisponible && (
+        <SolicitarRevisionManual
+          enviando={enviandoManual}
+          deshabilitado={submitting}
+          onSolicitar={solicitarManual}
+        />
+      )}
       <div className="upload-form__actions">
         <button type="button" className="button-secondary" onClick={onCancel} disabled={submitting}>
           Cancelar
         </button>
         <button type="submit" disabled={submitting}>
-          {submitting
+          {submitting && !enviandoManual
             ? "Subiendo..."
             : reemplazo
               ? "Reemplazar cotización"

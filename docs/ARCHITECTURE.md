@@ -155,8 +155,22 @@ Los valores del desplegable viven en `VALE_ESTADO_HUBSPOT` y tienen que coincidi
 
 Dos cosas que Paydesk **no** escribe, y por qué:
 
-- **La fecha de disposición.** Ya la estampa HubSpot solo cuando el deal entra a la etapa de disposición (`disposicionCreditoFecha` → `hs_v2_date_entered_1341580183`). Esas propiedades son calculadas y rechazan escrituras; intentarlo no solo fallaría, tumbaría la llamada entera — `updateDealProperties` manda todas las propiedades de una confirmación en un solo `update`. El camino es al revés: Paydesk escribe `Utilizado`, un workflow reacciona y mueve la etapa, y HubSpot pone la fecha.
+- **La fecha de disposición.** En HubSpot la estampa la etapa de disposición (`disposicionCreditoFecha` → `hs_v2_date_entered_1341580183`). Esas propiedades son calculadas y rechazan escrituras; intentarlo no solo fallaría, tumbaría la llamada entera — `updateDealProperties` manda todas las propiedades de una confirmación en un solo `update`. El camino es al revés: Paydesk escribe `Utilizado`, un workflow reacciona y mueve la etapa, y HubSpot pone la fecha. Lo que ve la tienda en Paydesk ya no depende de eso: ver "Fecha de disposición" abajo.
 - **El monto dispuesto.** El monto de la compra ya vive en `monto_de_compra_construrama`, que la tienda captura con la cotización, y **no es el mismo número**: la cotización puede ser mayor que el crédito. Escribir encima lo corrompería. El monto realmente dispuesto se guarda en el vale y se ve en `/admin/vales`; si algún día hace falta en el CRM, va en una propiedad nueva y dedicada.
+
+### Fecha de disposición: la confirmación en caja, no la etapa
+
+La disposición es posterior a la validación del código, por definición: es el momento en que la caja confirma la venta (`confirmarDisposicion`). Antes la columna "Disposición del crédito" salía de la etapa de HubSpot, y eso dejaba ver créditos "dispuestos" el mismo día en que se liberaron sin que el cliente hubiera pasado nunca a la caja — basta con que alguien mueva la etapa.
+
+Ahora el deal guarda las dos fechas crudas y una resuelta:
+
+| Campo | Qué es |
+|---|---|
+| `disposicionPaydeskFecha` | Cuándo la tienda confirmó la venta con el código. La escribe `confirmarDisposicion`; la sincronización no la toca. |
+| `disposicionHubspotFecha` | Cuándo el deal entró a la etapa de disposición en HubSpot (la de siempre, con sus propiedades de respaldo de `/admin/etapas-fecha`). |
+| `disposicionCreditoFecha` | La que muestra la tabla y marca la etapa "Disposición" del avance, según el origen configurado. |
+
+El origen se elige en `/admin/etapas` → "Fecha de disposición del crédito" (`paydesk_config/disposicion`, solo super admin): **Paydesk** (por defecto; sin confirmación en caja la disposición sigue pendiente, diga lo que diga la etapa) o **HubSpot** (como era antes). Guardar recalcula todos los deals (`adminSetDisposicion`), así que el cambio se ve de inmediato; de paso rellena la fecha de Paydesk de los vales confirmados antes de este ajuste, leyéndola de `consumidoEn` del vale. Guardar dos veces no hace nada nuevo.
 
 ### Rutas y colecciones nuevas
 
@@ -272,8 +286,10 @@ Un admin puede reemplazar el archivo de una tienda desde `/admin/tiendas/:conces
 | Resultado | Cuándo | Qué pasa |
 |---|---|---|
 | Aceptado | Todo cuadra | Se aplica solo |
-| Rechazado | Ilegible, o no es el tipo de documento | La tienda ve un mensaje genérico y lo vuelve a subir; no se guarda nada |
+| Rechazado | Ilegible, o no es el tipo de documento | La tienda ve un mensaje genérico y lo vuelve a subir; no se guarda nada. Después de 2 rechazos seguidos puede pedir la verificación manual (abajo) |
 | En revisión | Monto, fecha, cliente o firma no cuadran; archivo repetido de otra solicitud; señales de alteración; o la verificación falló (incluidos archivos demasiado grandes para mandarlos: más de 3.5 MB en imagen o 22 MB en PDF) | Se guarda, la tienda lo ve "En revisión", y espera a un administrador en `/admin/revision` |
+
+**Verificación manual a petición de la tienda.** Si la verificación rechaza el mismo documento de la misma solicitud 2 veces seguidas (`RECHAZOS_PARA_REVISION_MANUAL`), el formulario ofrece "¿Crees que es un error? Solicitar verificación manual". El contador vive en el deal (`cotizacionRechazosAuto` / `comprobanteRechazosAuto`) para que cerrar la ventana no lo reinicie, y vuelve a 0 en cuanto un documento se acepta o queda en revisión. Al pedirla, el archivo se sube con `verificacionManual=true`: se verifica igual (para que el administrador vea qué encontró Claude), pero un rechazo ya no lo rebota — queda en revisión con `solicitudManual: true`, marcado como "Verificación manual" en `/admin/revision` y en el aviso de Slack. Si la verificación esta vez lo da por bueno, se aplica como cualquier otro. El backend no acepta la petición antes de los 2 rechazos: no es un atajo para saltarse la verificación.
 
 **Resolver una revisión** es atómico: el administrador "toma" la revisión en una transacción (pasa a `aprobando` o `rechazado`), así que dos administradores no la pueden resolver a la vez. Si mientras se aprueba la tienda sube otro documento, el nuevo se queda en revisión y no se pierde. Si la aprobación falla a medio camino, la revisión regresa a la bandeja; si la función se cae, a los 10 minutos vuelve a estar disponible.
 
@@ -306,7 +322,8 @@ Un admin puede reemplazar el archivo de una tienda desde `/admin/tiendas/:conces
 
 - Diccionario de campos real — se puede capturar desde `/admin/diccionario` o en `config/fields.ts`. Incluye el nombre interno de la propiedad "Kiosco". Las tres del vale ya están mapeadas.
 - Crear el workflow de HubSpot que manda la liga del vale por WhatsApp cuando `link_codigo_paydesk` se llena, y confirmar a qué teléfono del cliente le llega.
-- Crear el workflow que mueve el deal a la etapa de disposición cuando `codigo_paydesk_estatus` pasa a `Utilizado`. Sin él, la fecha de disposición nunca se estampa y se pierde el dato de cuándo se gastó el crédito.
+- Crear el workflow que mueve el deal a la etapa de disposición cuando `codigo_paydesk_estatus` pasa a `Utilizado`. Paydesk ya no lo necesita para su columna (ver "Fecha de disposición"), pero sin él la etapa en HubSpot queda atrás de la realidad.
+- Después de desplegar la fecha de disposición de Paydesk: en `/admin/etapas` → "Fecha de disposición del crédito", elegir el origen y "Guardar y recalcular" una vez, para que los deals existentes dejen de mostrar la fecha de la etapa de HubSpot.
 - Catálogo de nombres reales de tienda: se puede capturar tienda por tienda en `/admin/tiendas`. Si Aviva tiene el catálogo de códigos (`TEQ`, `TEO`, `FER`…) → nombres, vale la pena un import masivo en vez de 481 ediciones a mano.
 - Confirmar con el admin de HubSpot si un deal puede tener más de un Kiosco marcado (hoy se toma el primero y se loguea el caso).
 - Crear las cuentas de admin y otorgarles el claim `admin` (ver "Alta de administradores") y revisar el rol de cada una (ver "Roles de administrador").

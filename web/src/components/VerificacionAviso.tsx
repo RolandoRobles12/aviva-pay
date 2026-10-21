@@ -11,10 +11,13 @@ import type { Verificacion } from "../lib/uploads";
 export function VerificacionAviso({
   verificacion,
   enRevision,
+  solicitudManual = false,
   onCerrar,
 }: {
   verificacion: Verificacion | null;
   enRevision: boolean;
+  /** La tienda misma pidió la verificación manual: no hay "posible problema" que contarle. */
+  solicitudManual?: boolean;
   onCerrar: () => void;
 }) {
   const motivos = verificacion?.motivos ?? [];
@@ -22,7 +25,12 @@ export function VerificacionAviso({
     <div className="upload-form">
       <h3>{enRevision ? "Documento en revisión" : "Documento guardado con observaciones"}</h3>
       <div className="callout callout--warn">
-        {enRevision ? (
+        {enRevision && solicitudManual ? (
+          <p>
+            Recibimos tu documento y lo enviamos al equipo de Aviva para que lo
+            verifique manualmente. Mientras tanto aparecerá como “En revisión”.
+          </p>
+        ) : enRevision ? (
           <>
             <p>
               Recibimos tu documento, pero encontramos un posible problema con

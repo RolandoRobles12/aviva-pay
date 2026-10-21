@@ -27,6 +27,8 @@ export interface RevisionDocumento {
   comentario?: string;
   resueltoPor?: string;
   resueltoEn?: string;
+  /** La tienda la mandó a revisión con "Solicitar verificación manual". */
+  solicitudManual?: boolean;
 }
 
 /**
@@ -69,6 +71,7 @@ export interface PayDeskDeal {
   cotizacionMontoTotalCompra: number | null;
 
   creditoLiberadoFecha: string | null;
+  /** Ya resuelta según el origen configurado en /admin/etapas: la confirmación en caja o la etapa de HubSpot. */
   disposicionCreditoFecha: string | null;
 
   comprobanteEntregaEstatus: UploadStatus;
@@ -84,6 +87,9 @@ export interface PayDeskDeal {
   /** Documento que espera aprobación de un administrador, o que uno rechazó. */
   cotizacionRevision?: RevisionDocumento | null;
   comprobanteRevision?: RevisionDocumento | null;
+  /** Rechazos automáticos seguidos del documento; ausente = 0. Ver RECHAZOS_PARA_REVISION_MANUAL. */
+  cotizacionRechazosAuto?: number;
+  comprobanteRechazosAuto?: number;
 
   desembolsoFecha: string | null;
 }

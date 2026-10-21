@@ -24,6 +24,7 @@ export {
 } from "./http/admin/fieldDictionary";
 export { adminGetFieldLabels, adminSetFieldLabels } from "./http/admin/fieldLabels";
 export { adminGetEtapas, adminSetEtapas } from "./http/admin/etapas";
+export { adminGetDisposicion, adminSetDisposicion } from "./http/admin/disposicion";
 export { adminGetOcr, adminSetOcr, adminProbarOcr } from "./http/admin/ocr";
 export { adminListRevisiones, adminResolverRevision } from "./http/admin/revisiones";
 export { adminMigrarLigasArchivos } from "./http/admin/migrarLigas";

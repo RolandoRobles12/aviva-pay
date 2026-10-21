@@ -151,6 +151,9 @@ export function SolicitudesPage() {
               const d = deals.find((x) => x.dealId === activeModal.dealId);
               return Boolean(d?.cotizacionPath || d?.cotizacionUrl);
             })()}
+            rechazosAuto={
+              deals.find((x) => x.dealId === activeModal.dealId)?.cotizacionRechazosAuto ?? 0
+            }
             onUploaded={() => setActiveModal(null)}
             onCancel={() => setActiveModal(null)}
           />
@@ -184,6 +187,9 @@ export function SolicitudesPage() {
               const d = deals.find((x) => x.dealId === activeModal.dealId);
               return Boolean(d?.comprobantePath || d?.comprobanteUrl);
             })()}
+            rechazosAuto={
+              deals.find((x) => x.dealId === activeModal.dealId)?.comprobanteRechazosAuto ?? 0
+            }
             onUploaded={() => setActiveModal(null)}
             onCancel={() => setActiveModal(null)}
           />

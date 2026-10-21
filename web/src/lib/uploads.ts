@@ -29,6 +29,26 @@ export interface Verificacion {
   motivos: string[];
 }
 
+/**
+ * Rechazos automáticos seguidos a partir de los cuales la tienda puede
+ * pedir que una persona revise el documento. Copia del número del backend
+ * (RECHAZOS_PARA_REVISION_MANUAL en functions/src/hubspot/uploads.ts),
+ * solo para ofrecer el botón desde que se abre la ventana; el backend es
+ * quien decide y avisa en cada rechazo (`revisionManualDisponible`).
+ */
+export const RECHAZOS_PARA_REVISION_MANUAL = 2;
+
+/** Una subida que el servidor no aceptó, con lo que la pantalla necesita para ofrecer la salida. */
+export class SubidaError extends Error {
+  constructor(
+    message: string,
+    /** Ya van suficientes rechazos automáticos: se puede pedir la verificación manual. */
+    public readonly revisionManualDisponible = false,
+  ) {
+    super(message);
+  }
+}
+
 export interface UploadResult {
   ok: true;
   /** Se guardó, pero espera que un administrador lo apruebe. */
@@ -37,7 +57,13 @@ export interface UploadResult {
 }
 
 async function leerRespuesta(res: Response): Promise<{
-  datos: { ok?: true; error?: string; verificacion?: Verificacion | null; enRevision?: boolean } | null;
+  datos: {
+    ok?: true;
+    error?: string;
+    verificacion?: Verificacion | null;
+    enRevision?: boolean;
+    revisionManualDisponible?: boolean;
+  } | null;
   crudo: string;
 }> {
   const crudo = await res.text();
@@ -73,7 +99,10 @@ async function postMultipart(path: string, formData: FormData) {
           `Revisa que ${FUNCTIONS_BASE_URL}/${path} exista y sea públicamente invocable.`,
       );
     }
-    throw new Error(datos.error ?? "No se pudo completar la operación");
+    throw new SubidaError(
+      datos.error ?? "No se pudo completar la operación",
+      Boolean(datos.revisionManualDisponible),
+    );
   }
 
   if (!datos) {
@@ -85,17 +114,23 @@ async function postMultipart(path: string, formData: FormData) {
   return datos as UploadResult;
 }
 
+/** La tienda pide que una persona revise el documento en vez de la verificación automática. */
+interface ConSolicitudManual {
+  solicitudManual?: boolean;
+}
+
 function cotizacionFormData(params: {
   dealId: string;
   file: File;
   fechaEntregaAcordada: string;
   montoTotalCompra: string;
-}) {
+} & ConSolicitudManual) {
   const formData = new FormData();
   formData.append("dealId", params.dealId);
   formData.append("file", params.file);
   formData.append("fechaEntregaAcordada", params.fechaEntregaAcordada);
   formData.append("montoTotalCompra", params.montoTotalCompra);
+  if (params.solicitudManual) formData.append("verificacionManual", "true");
   return formData;
 }
 
@@ -104,7 +139,7 @@ function comprobanteFormData(params: {
   file: File;
   fechaEntrega: string;
   firmaClienteConfirmada: boolean;
-}) {
+} & ConSolicitudManual) {
   const formData = new FormData();
   formData.append("dealId", params.dealId);
   formData.append("file", params.file);
@@ -113,6 +148,7 @@ function comprobanteFormData(params: {
     "firmaClienteConfirmada",
     params.firmaClienteConfirmada ? "true" : "false",
   );
+  if (params.solicitudManual) formData.append("verificacionManual", "true");
   return formData;
 }
 
@@ -121,7 +157,7 @@ export function uploadCotizacion(params: {
   file: File;
   fechaEntregaAcordada: string;
   montoTotalCompra: string;
-}) {
+} & ConSolicitudManual) {
   return postMultipart("uploadCotizacion", cotizacionFormData(params));
 }
 
@@ -130,7 +166,7 @@ export function uploadComprobante(params: {
   file: File;
   fechaEntrega: string;
   firmaClienteConfirmada: boolean;
-}) {
+} & ConSolicitudManual) {
   return postMultipart("uploadComprobante", comprobanteFormData(params));
 }
 

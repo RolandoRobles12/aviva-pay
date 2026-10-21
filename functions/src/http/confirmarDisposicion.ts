@@ -8,6 +8,9 @@ import { evaluarVale } from "../vale/validar";
 import { dealEstaCancelado } from "../vale/cancelacion";
 import { updateDealProperties } from "../hubspot/deals";
 import { VALE_ESTADO_HUBSPOT } from "../config/fields";
+import { getDeal, patchDealFields } from "../firestore/dealsRepository";
+import { getOrigenDisposicion } from "../firestore/disposicionConfigRepository";
+import { fechaHubspotGuardada, resolverFechaDisposicion } from "../vale/disposicion";
 
 interface ConfirmarRequest {
   codigo?: string;
@@ -92,11 +95,31 @@ export const confirmarDisposicion = onCall<ConfirmarRequest>(
       return { ok: false as const, ...evaluarVale(actual, concesionarioIds) };
     }
 
-    // Solo el estado. La fecha de disposición la estampa HubSpot solo
-    // cuando un workflow —disparado por este mismo estado— mueve el deal a
-    // la etapa de disposición; y el monto de la compra ya vive en la
-    // propiedad de la cotización, que significa otra cosa y no se pisa.
-    // El monto realmente dispuesto queda en el vale y en /admin/vales.
+    // Este es el momento de la disposición: queda en el deal para la
+    // columna "Disposición del crédito" de la tienda, sin esperar a que
+    // nadie mueva la etapa en HubSpot (ver vale/disposicion.ts).
+    const deal = await getDeal(consumido.dealId);
+    if (deal) {
+      const ahora = new Date().toISOString();
+      const hubspot = fechaHubspotGuardada(deal);
+      await patchDealFields(consumido.dealId, {
+        disposicionPaydeskFecha: ahora,
+        // Se fija aquí para un deal sincronizado antes de que existiera:
+        // a partir de ahora su `disposicionCreditoFecha` ya no es la de
+        // HubSpot.
+        disposicionHubspotFecha: hubspot,
+        disposicionCreditoFecha: resolverFechaDisposicion(await getOrigenDisposicion(), {
+          paydesk: ahora,
+          hubspot,
+        }),
+      });
+    }
+
+    // A HubSpot, solo el estado. Su fecha de etapa de disposición es
+    // calculada y rechaza escrituras; la mueve un workflow disparado por
+    // este mismo estado. Y el monto de la compra ya vive en la propiedad
+    // de la cotización, que significa otra cosa y no se pisa. El monto
+    // realmente dispuesto queda en el vale y en /admin/vales.
     await updateDealProperties(consumido.dealId, {
       valeEstado: VALE_ESTADO_HUBSPOT.utilizado,
     });
