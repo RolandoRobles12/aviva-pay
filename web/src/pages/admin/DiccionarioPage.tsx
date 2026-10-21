@@ -91,7 +91,6 @@ const ETIQUETAS: Record<string, string> = {
   valeCodigo: "Vale · código de 10 dígitos",
   valeUrl: "Vale · liga que se manda por WhatsApp",
   valeEstado: "Vale · estatus",
-  paydeskUrl: "Notificación · liga de Paydesk",
 };
 
 /**

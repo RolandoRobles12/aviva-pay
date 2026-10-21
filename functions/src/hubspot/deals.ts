@@ -367,10 +367,9 @@ export async function updateDealProperties(
     const hubspotProperty = dictionary[logicalKey as HubspotDealPropertyKey];
     if (!hubspotProperty || value === undefined) continue;
     if (hubspotProperty.startsWith("TODO_")) {
-      // Unmapped field (or one left as TODO_ on purpose, like paydeskUrl/
-      // paydeskCodigo pending a different process) — HubSpot has no
-      // property with this literal name, so writing it would 400 and
-      // fail the whole update, including the properties that ARE mapped.
+      // Unmapped field — HubSpot has no property with this literal name,
+      // so writing it would 400 and fail the whole update, including the
+      // properties that ARE mapped.
       logger.warn(
         `updateDealProperties: skipping "${logicalKey}" for deal ${dealId} — ` +
           `still unmapped in the field dictionary (${hubspotProperty})`,

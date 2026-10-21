@@ -25,11 +25,9 @@ interface SyncWebhookBody {
  * format) is deliberate: HubSpot's workflow "API Key" auth type sends
  * whatever raw value its secret holds, with no scheme of its own.
  *
- * The first time a given concesionario is seen, also writes the Paydesk
- * URL back onto the triggering deal so a second HubSpot workflow can pick
- * it up and notify that store's contact (section 9, "Notificación").
- * Later deals for the same concesionario just add a row to the existing
- * page — no repeat notification.
+ * The first time a given concesionario is seen, its store document is
+ * created (with nobody invited yet — see /admin/tiendas). Later deals for
+ * the same concesionario just add a row to the existing page.
  *
  * Once the deal carries a crédito-liberado date it also issues the
  * client's one-use vale and writes its código and URL back onto the deal,

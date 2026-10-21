@@ -1,6 +1,4 @@
 import { logger } from "firebase-functions/v2";
-import { env } from "../config/env";
-import { updateDealProperties } from "../hubspot/deals";
 import { upsertDealFromHubspot } from "../firestore/dealsRepository";
 import { emitirValeParaDeal } from "../vale/emitir";
 import { cancelarValeSiElDealSeCancelo } from "../vale/cancelacion";
@@ -31,10 +29,8 @@ export async function procesarDeal(
       : await emitirValeParaDeal(deal, { emitidoPor: origen });
 
   if (isNewConcesionario) {
-    // Primera vez que vemos esta tienda: HubSpot recibe la liga de acceso
-    // para que su workflow de notificación se la pase. El acceso en sí es
-    // por persona (correo invitado + contraseña), desde el catálogo.
-    await updateDealProperties(deal.dealId, { paydeskUrl: env.payDeskBaseUrl });
+    // Primera vez que vemos esta tienda. Nadie entra todavía: el acceso es
+    // por persona y lo da un admin invitando su correo desde el catálogo.
     logger.info(`procesarDeal: registered concesionario ${deal.concesionarioId}`);
   }
 

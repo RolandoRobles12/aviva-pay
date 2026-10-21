@@ -12,12 +12,6 @@ const CONCURRENCY = 10;
  * from HubSpot — across both the current and the obsolete "legacy"
  * pipeline — and upserts each into Firestore, same as the per-deal webhook
  * does for new activity going forward.
- *
- * Deliberately does NOT trigger the "notify the store" write-back
- * (paydeskUrl/paydeskCodigo) that syncDealWebhook does for a brand-new
- * concesionario — firing that for every store discovered in one bulk pass
- * would notify all of them at once, which needs to be a deliberate,
- * separate rollout (see docs/ARCHITECTURE.md — "Pendientes conocidos").
  */
 export const adminSyncConstrurama = onCall(
   {

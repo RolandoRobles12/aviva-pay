@@ -55,9 +55,8 @@ export async function getDealsByConcesionarioIds(
 /**
  * Upserts a deal document from freshly-fetched HubSpot data, creating the
  * store's document if this is the first deal we've seen for that Kiosco.
- * Returns `isNewConcesionario: true` only on that first sight — the signal
- * used to trigger the "notify the store" workflow (section 9), since a
- * store should only be notified once, not on every new deal.
+ * Returns `isNewConcesionario: true` only on that first sight, so callers
+ * can tell a brand-new store apart (the backfill counts them).
  *
  * cotizacionUrl/comprobanteUrl are deliberately excluded from the regular
  * merge: `data` carries whatever the HubSpot deal property holds right
