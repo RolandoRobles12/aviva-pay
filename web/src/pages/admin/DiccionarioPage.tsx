@@ -33,6 +33,21 @@ export function EncabezadoHubspot() {
   );
 }
 
+/**
+ * La fecha de disposición de HubSpot se sigue leyendo, pero la tabla solo
+ * la usa si así se configuró en Etapas del crédito; por defecto manda la
+ * confirmación en caja. Sin esto, editar la propiedad y no ver cambio en
+ * la columna parecería un error.
+ */
+export function AyudaOrigenDisposicion() {
+  return (
+    <span className="adm-field__ayuda">
+      Solo cuenta si en Etapas del crédito la fecha de disposición sale de HubSpot. Si sale
+      de Paydesk (la confirmación en caja), esta propiedad se sigue leyendo pero no se muestra.
+    </span>
+  );
+}
+
 /** Human labels for the logical field names, so the screen doesn't read like source code. */
 const ETIQUETAS: Record<string, string> = {
   kiosco: "Kiosco (tienda)",
@@ -151,6 +166,7 @@ export function DiccionarioPage() {
                 <span>
                   {ETIQUETAS[key] ?? key} {pendiente && <Badge tono="warn">Sin definir</Badge>}
                 </span>
+                {key === "disposicionCreditoFecha" && <AyudaOrigenDisposicion />}
               </label>
               <div className="dictionary-row__input">
                 <input
