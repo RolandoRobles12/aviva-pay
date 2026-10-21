@@ -172,6 +172,8 @@ Ahora el deal guarda las dos fechas crudas y una resuelta:
 
 El origen se elige en `/admin/etapas` → "Fecha de disposición del crédito" (`paydesk_config/disposicion`, solo super admin): **Paydesk** (por defecto; sin confirmación en caja la disposición sigue pendiente, diga lo que diga la etapa) o **HubSpot** (como era antes). Guardar recalcula todos los deals (`adminSetDisposicion`), así que el cambio se ve de inmediato; de paso rellena la fecha de Paydesk de los vales confirmados antes de este ajuste, leyéndola de `consumidoEn` del vale. Guardar dos veces no hace nada nuevo.
 
+Las pantallas lo dicen según cómo esté configurado, no con una regla condicional: en el diccionario de campos y en Fechas de etapa, la propiedad de disposición lleva "No se usa en la tabla" o "En uso"; y en la tabla de la tienda, con origen Paydesk, el "Pendiente" de esa columna explica al pasar el cursor que se marca al confirmar la venta con el código. `getConcesionarioDeals` y `adminGetConcesionarioDeals` mandan el origen junto con las etiquetas, porque la tienda no puede leer `paydesk_config`.
+
 ### Rutas y colecciones nuevas
 
 | Ruta | Quién |

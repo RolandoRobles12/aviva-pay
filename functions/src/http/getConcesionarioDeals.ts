@@ -4,6 +4,7 @@ import { getConcesionariosByIds } from "../firestore/concesionariosRepository";
 import { getDealsByConcesionarioIds } from "../firestore/dealsRepository";
 import { getFieldLabels } from "../firestore/fieldLabelsRepository";
 import { getEtapas } from "../firestore/etapasRepository";
+import { getOrigenDisposicion } from "../firestore/disposicionConfigRepository";
 import { getRollout, resolveRolloutForStore } from "../firestore/rolloutRepository";
 
 /**
@@ -34,12 +35,13 @@ export const getConcesionarioDeals = onCall(
       );
     }
 
-    const [concesionarios, deals, labels, rollout, etapas] = await Promise.all([
+    const [concesionarios, deals, labels, rollout, etapas, origenDisposicion] = await Promise.all([
       getConcesionariosByIds(concesionarioIds),
       getDealsByConcesionarioIds(concesionarioIds),
       getFieldLabels(),
       getRollout(),
       getEtapas(),
+      getOrigenDisposicion(),
     ]);
 
     return {
@@ -51,6 +53,9 @@ export const getConcesionarioDeals = onCall(
       deals,
       labels,
       etapas,
+      // Para explicarle a la tienda qué hace falta para que la disposición
+      // deje de estar "Pendiente" — ver DealsTable.
+      origenDisposicion,
       // Each store's own cutoff: deals approved before it are historical
       // and never counted as pending. See rolloutRepository.ts. Keyed by
       // concesionarioId since stores can be on different cutoffs.

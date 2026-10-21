@@ -363,6 +363,14 @@ h3 {
   color: color-mix(in srgb, var(--negro-off) 55%, transparent);
 }
 
+/* "Pendiente" con explicación al pasar el cursor: el subrayado punteado
+   avisa que hay algo que leer. */
+.cell-pending--ayuda {
+  cursor: help;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
 .cell-done {
   display: inline-flex;
   align-items: center;

@@ -28,6 +28,7 @@ export function SolicitudesPage() {
     dealsFiltrados,
     labels,
     rolloutPorTienda,
+    origenDisposicion,
     concesionarios,
     concesionarioNombres,
     filtros,
@@ -127,6 +128,7 @@ export function SolicitudesPage() {
             deals={visibles}
             labels={labels}
             rolloutPorTienda={rolloutPorTienda}
+            origenDisposicion={origenDisposicion}
             concesionarioNombres={nombresVisibles}
             sort={sort}
             onSort={handleSort}

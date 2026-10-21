@@ -159,6 +159,7 @@ export const getConcesionarioDealsCallable = httpsCallable<
     etapas: EtapaConfig[];
     /** Rollout cutoff per store (concesionarioId → ISO date | null). */
     rolloutPorTienda: Record<string, string | null>;
+    origenDisposicion: OrigenDisposicion;
   }
 >(functions, "getConcesionarioDeals");
 
@@ -285,6 +286,7 @@ export const adminGetConcesionarioDealsCallable = httpsCallable<
     labels: FieldLabels;
     etapas: EtapaConfig[];
     rolloutDesde: string | null;
+    origenDisposicion: OrigenDisposicion;
   }
 >(functions, "adminGetConcesionarioDeals");
 

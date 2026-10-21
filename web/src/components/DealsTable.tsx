@@ -3,6 +3,7 @@ import type { FieldLabels } from "../types/admin";
 import { ArchivoLink } from "./ArchivoLink";
 import { completados, enRevision, getEtapas, scopeOf, type RolloutMap } from "../lib/dealScope";
 import type { SortKey, SortState } from "../lib/dealSort";
+import type { OrigenDisposicion } from "../lib/firebase";
 
 /** Used until the real labels (fetched from the admin's Etiquetas config) arrive, and for any key it doesn't cover. */
 const DEFAULT_LABELS: FieldLabels = {
@@ -91,8 +92,16 @@ function CreditoLiberadoCell({
   );
 }
 
-function DateCell({ iso }: { iso: string | null }) {
-  if (!iso) return <span className="cell-pending">Pendiente</span>;
+function DateCell({ iso, ayudaPendiente }: { iso: string | null; ayudaPendiente?: string }) {
+  if (!iso) {
+    return ayudaPendiente ? (
+      <span className="cell-pending cell-pending--ayuda" title={ayudaPendiente}>
+        Pendiente
+      </span>
+    ) : (
+      <span className="cell-pending">Pendiente</span>
+    );
+  }
   return (
     <span className="cell-done">
       <span className="cell-done__check" aria-hidden>
@@ -293,12 +302,20 @@ export function DealsTable({
   onUploadComprobante,
   onValidarCodigo,
   mostrarVerificacion = false,
+  origenDisposicion,
 }: {
   deals: PayDeskDeal[];
   /** From the admin's Etiquetas config. Falls back to DEFAULT_LABELS for any missing key. */
   labels?: FieldLabels;
   /** Rollout cutoff per store. Deals approved before their store's cutoff are shown but never demanded. */
   rolloutPorTienda?: RolloutMap;
+  /**
+   * De dónde sale la fecha de disposición (ver /admin/etapas). Con
+   * `paydesk`, la tienda es quien la marca al confirmar la venta, y el
+   * "Pendiente" se lo dice al pasar el cursor; con `hubspot` depende de
+   * Aviva, así que no hay nada que pedirle.
+   */
+  origenDisposicion?: OrigenDisposicion;
   /**
    * concesionarioId → store name. A signed-in user can have more than one
    * store, so the list is a combined view across all of them — the
@@ -442,7 +459,14 @@ export function DealsTable({
                 />
               </td>
               <td>
-                <DateCell iso={deal.disposicionCreditoFecha} />
+                <DateCell
+                  iso={deal.disposicionCreditoFecha}
+                  ayudaPendiente={
+                    origenDisposicion === "paydesk"
+                      ? "Se marca cuando confirmes la venta con el código del cliente (“Validar código”)."
+                      : undefined
+                  }
+                />
               </td>
               <td>
                 <UploadCell

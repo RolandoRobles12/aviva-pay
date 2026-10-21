@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { adminGetConcesionarioDealsCallable } from "../../lib/firebase";
+import { adminGetConcesionarioDealsCallable, type OrigenDisposicion } from "../../lib/firebase";
 import { adminUploadCotizacion, adminUploadComprobante } from "../../lib/uploads";
 import type { PayDeskConcesionario, PayDeskDeal } from "../../types/deal";
 import type { FieldLabels } from "../../types/admin";
@@ -22,6 +22,7 @@ type LoadState =
       deals: PayDeskDeal[];
       labels: FieldLabels;
       rolloutDesde: string | null;
+      origenDisposicion: OrigenDisposicion;
     };
 
 type ActiveModal =
@@ -65,6 +66,7 @@ export function ConcesionarioPreviewPage() {
       deals: result.data.deals,
       labels: result.data.labels,
       rolloutDesde: result.data.rolloutDesde,
+      origenDisposicion: result.data.origenDisposicion,
     };
   }
 
@@ -134,6 +136,7 @@ export function ConcesionarioPreviewPage() {
         )}
         labels={state.labels}
         rolloutPorTienda={{ [state.concesionario.concesionarioId]: state.rolloutDesde }}
+        origenDisposicion={state.origenDisposicion}
         sort={sort}
         onSort={handleSort}
         onUploadCotizacion={(dealId) => setActiveModal({ type: "cotizacion", dealId })}
