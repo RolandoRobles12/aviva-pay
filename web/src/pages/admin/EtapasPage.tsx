@@ -32,7 +32,7 @@ const OPCIONES_DISPOSICION: Opcion<OrigenDisposicion>[] = [
     valor: "hubspot",
     titulo: "HubSpot: cuando el crédito entra a la etapa de disposición",
     descripcion:
-      "La fecha de la etapa en HubSpot (ver Conexión con HubSpot → Fechas de etapa). Depende de que alguien o un workflow mueva la etapa.",
+      "La fecha de la etapa en HubSpot: la propiedad “Disposición del crédito · fecha” de Conexión con HubSpot → Campos, con sus respaldos de Fechas de etapa. Depende de que alguien o un workflow mueva la etapa.",
   },
 ];
 
