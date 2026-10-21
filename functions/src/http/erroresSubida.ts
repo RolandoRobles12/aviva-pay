@@ -4,13 +4,17 @@ import { AppCheckError } from "../auth/appCheck";
 import { esLimiteExcedido, MENSAJE_LIMITE } from "../auth/rateLimit";
 import { OcrRechazadoError } from "../ocr/validarDocumento";
 import { alertar } from "../notificaciones/alertas";
+import { RevisionManualNoDisponibleError } from "../hubspot/uploads";
 
 /**
  * Cómo responden las cuatro funciones de subida (tienda y admin,
  * cotización y comprobante) cuando algo falla, en un solo lugar para que
  * no se desincronicen:
  * - App Check inválido → 403; demasiadas subidas → 429;
- * - documento que claramente no sirve → 422 con el mensaje genérico;
+ * - documento que claramente no sirve → 422 con el mensaje genérico, y
+ *   si ya van suficientes rechazos, la señal para ofrecer la verificación
+ *   manual;
+ * - verificación manual pedida antes de tiempo → 409;
  * - cualquier otra cosa → 500 con un mensaje en español, el detalle a los
  *   logs y un aviso a Slack.
  */
@@ -28,7 +32,14 @@ export async function responderErrorSubida(
     return;
   }
   if (err instanceof OcrRechazadoError) {
-    res.status(422).json({ error: err.message });
+    res.status(422).json({
+      error: err.message,
+      revisionManualDisponible: err.revisionManualDisponible,
+    });
+    return;
+  }
+  if (err instanceof RevisionManualNoDisponibleError) {
+    res.status(409).json({ error: err.message });
     return;
   }
   logger.error(`${opciones.funcion}: failed`, err);

@@ -66,6 +66,7 @@ export const uploadComprobante = onRequest(
         file,
         fechaEntrega,
         firmaClienteConfirmada,
+        solicitudManual: fields.verificacionManual === "true",
       });
 
       // A la tienda solo se le dice si quedó en revisión, nunca qué se

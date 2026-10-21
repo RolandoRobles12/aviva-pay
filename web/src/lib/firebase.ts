@@ -394,6 +394,19 @@ export const adminSetEtapasCallable = httpsCallable<
   { ok: true }
 >(functions, "adminSetEtapas");
 
+/** De dónde sale la fecha de "Disposición del crédito". Ver functions/src/firestore/disposicionConfigRepository.ts. */
+export type OrigenDisposicion = "paydesk" | "hubspot";
+
+export const adminGetDisposicionCallable = httpsCallable<void, { origen: OrigenDisposicion }>(
+  functions,
+  "adminGetDisposicion",
+);
+
+export const adminSetDisposicionCallable = httpsCallable<
+  { origen: OrigenDisposicion },
+  { ok: true; revisados: number; actualizados: number }
+>(functions, "adminSetDisposicion");
+
 export type ModoOcr = "automatico" | "apagado";
 export type ModeloOcr = "sonnet" | "haiku";
 export interface OcrConfig {

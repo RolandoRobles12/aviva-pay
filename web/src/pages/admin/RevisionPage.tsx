@@ -94,6 +94,7 @@ function Tarjeta({ r, onResuelta }: { r: RevisionPendiente; onResuelta: (texto: 
       titulo={
         <>
           {r.cliente ?? "Sin nombre"} <Badge tono="neutro">{TIPO[r.tipo]}</Badge>
+          {r.revision.solicitudManual && <> <Badge tono="warn">Verificación manual</Badge></>}
         </>
       }
       descripcion={`${r.tienda ?? "Sin tienda"} · subido ${haceCuanto(r.revision.subidoEn)} · solicitud ${r.dealId}`}
@@ -126,6 +127,12 @@ function Tarjeta({ r, onResuelta }: { r: RevisionPendiente; onResuelta: (texto: 
         )
       }
     >
+      {r.revision.solicitudManual && (
+        <Notice tono="info" titulo="La tienda pidió verificación manual">
+          La verificación automática rechazó este documento varias veces seguidas y la tienda
+          cree que es correcto. Revísalo tú: abajo está lo que encontró la verificación.
+        </Notice>
+      )}
       <Notice tono="warn" titulo={noVerificado ? "No se pudo verificar automáticamente" : "Por qué está en revisión"}>
         {v && v.motivos.length > 0 ? (
           <ul>

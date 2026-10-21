@@ -2,6 +2,8 @@ import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { formatKioscoDisplay } from "../concesionario/identity";
 import { ensureConcesionario } from "./concesionariosRepository";
 import { getCancelStages } from "./cancelStagesRepository";
+import { getOrigenDisposicion } from "./disposicionConfigRepository";
+import { resolverFechaDisposicion } from "../vale/disposicion";
 import type { DealSincronizado, PayDeskDeal } from "../types/deal";
 
 const COLLECTION = "paydesk_deals";
@@ -84,9 +86,19 @@ export async function upsertDealFromHubspot(
     data.dealstage && etapasCanceladas.includes(data.dealstage),
   );
 
+  // Lo que trae el mapeo es la fecha de la etapa de HubSpot; la de
+  // Paydesk la pone confirmarDisposicion y la sincronización no la toca.
+  const disposicionHubspotFecha = data.disposicionCreditoFecha;
+  const disposicionCreditoFecha = resolverFechaDisposicion(await getOrigenDisposicion(), {
+    hubspot: disposicionHubspotFecha,
+    paydesk: existing?.disposicionPaydeskFecha ?? null,
+  });
+
   await dealRef.set(
     {
       ...syncedFromHubspot,
+      disposicionHubspotFecha,
+      disposicionCreditoFecha,
       cancelado,
       // Un deal con archivo en Storage (`*Path`) ya no guarda URL: "Ver
       // archivo" pide una liga temporal. Sin esta condición, el `?? ` de

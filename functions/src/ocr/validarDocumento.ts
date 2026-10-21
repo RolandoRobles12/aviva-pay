@@ -33,6 +33,13 @@ export interface ResultadoOcr {
  * lleva el motivo real, para el equipo de Aviva (Slack, logs).
  */
 export class OcrRechazadoError extends Error {
+  /**
+   * Ya van suficientes rechazos automáticos de este documento en esta
+   * solicitud como para que la tienda pueda pedir que una persona lo
+   * revise. Lo llena hubspot/uploads.ts, que es quien lleva la cuenta.
+   */
+  revisionManualDisponible = false;
+
   constructor(
     message: string,
     public readonly detalle: string,
@@ -84,7 +91,8 @@ async function registrarHash(hash: string, dealId: string, tipo: DocumentoTipo) 
  *
  * `esAdmin` es para el admin, que reemplaza documentos por la tienda y es
  * quien resuelve los casos dudosos: se registra el resultado pero no se le
- * rechaza.
+ * rechaza. `noRechazar` hace lo mismo para la tienda cuando pidió la
+ * verificación manual: el documento va a revisión en vez de rebotar.
  */
 export async function validarDocumento(params: {
   tipo: DocumentoTipo;
@@ -95,6 +103,7 @@ export async function validarDocumento(params: {
   montoDeclarado?: number | null;
   fechaDeclarada?: string | null;
   esAdmin?: boolean;
+  noRechazar?: boolean;
 }): Promise<ResultadoOcr | null> {
   const { modo, modelo } = await getOcrConfig();
   if (modo === "apagado") return null;
@@ -155,7 +164,7 @@ export async function validarDocumento(params: {
     resultado.motivos,
   );
 
-  if (estado === "rechazado" && !params.esAdmin) {
+  if (estado === "rechazado" && !params.esAdmin && !params.noRechazar) {
     const rechazos = fallidas.filter((r) => r.severidad === "rechazo");
     throw new OcrRechazadoError(
       mensajeRechazoTienda(tipo),

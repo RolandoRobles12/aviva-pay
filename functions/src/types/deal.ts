@@ -28,6 +28,12 @@ export interface RevisionDocumento {
   comentario?: string;
   resueltoPor?: string;
   resueltoEn?: string;
+  /**
+   * La tienda la mandó a revisión ella misma ("Solicitar verificación
+   * manual") después de varios rechazos automáticos, porque cree que el
+   * documento sí es correcto.
+   */
+  solicitudManual?: boolean;
 }
 
 export interface PayDeskDeal {
@@ -63,7 +69,17 @@ export interface PayDeskDeal {
   cotizacionMontoTotalCompra: number | null;
 
   creditoLiberadoFecha: string | null; // ISO date
+  /**
+   * La fecha que muestra la columna "Disposición del crédito", ya
+   * resuelta según el origen configurado en /admin/etapas (ver
+   * vale/disposicion.ts): la de Paydesk o la de HubSpot. Las dos crudas
+   * se guardan aparte para poder cambiar de origen sin perder ninguna.
+   */
   disposicionCreditoFecha: string | null; // ISO date
+  /** Cuándo la tienda confirmó la disposición del vale en la caja. */
+  disposicionPaydeskFecha?: string | null; // ISO
+  /** Cuándo el deal entró a la etapa de disposición en HubSpot. Ausente en deals sin sincronizar desde este cambio. */
+  disposicionHubspotFecha?: string | null; // ISO
 
   comprobanteEntregaEstatus: UploadStatus;
   comprobanteUrl: string | null;
@@ -90,6 +106,14 @@ export interface PayDeskDeal {
    */
   cotizacionRevision?: RevisionDocumento | null;
   comprobanteRevision?: RevisionDocumento | null;
+  /**
+   * Rechazos automáticos seguidos del documento (ver hubspot/uploads.ts).
+   * Al llegar a RECHAZOS_PARA_REVISION_MANUAL la tienda puede pedir que
+   * una persona lo revise. Vuelve a 0 en cuanto un documento se acepta o
+   * queda en revisión. Ausente = 0.
+   */
+  cotizacionRechazosAuto?: number;
+  comprobanteRechazosAuto?: number;
 
   /**
    * Fecha (ISO) de cada etapa personalizada que el admin definió, por id de

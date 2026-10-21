@@ -10,6 +10,7 @@ const DOCUMENTOS: Record<string, string> = {
   field_labels: "Etiquetas",
   stage_date_properties: "Fechas de etapa",
   etapas: "Etapas",
+  disposicion: "Fecha de disposición",
   cancel_stages: "Etapas de cancelación",
   rollout: "Fecha de arranque",
   vale: "Vigencia de vales",

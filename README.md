@@ -53,7 +53,7 @@ Rutas:
 - `/vale/:token` — el vale del cliente final, sin sesión (le llega por WhatsApp)
 - `/admin` — panel de Aviva, con menú lateral (en celular, botón "Menú"). Empieza en **Inicio** (`/admin/inicio`), que resume lo que hay que atender.
   - Día a día (todos los admins): Revisión de documentos, Tiendas, Vales (buscar un vale / reporte) y Métricas.
-  - Configuración (solo super admin): Verificación de documentos, Avisos en Slack, Etapas del crédito, Conexión con HubSpot (campos, fechas de etapa, cancelaciones y nombres de columnas), Administradores y Estado del sistema (estado e historial de cambios).
+  - Configuración (solo super admin): Verificación de documentos, Avisos en Slack, Etapas del crédito (incluye de dónde sale la fecha de disposición), Conexión con HubSpot (campos, fechas de etapa, cancelaciones y nombres de columnas), Administradores y Estado del sistema (estado e historial de cambios).
 
 Los componentes y estilos del panel están en `web/src/components/admin/ui.tsx` y `web/src/styles/admin.css`; las pantallas nuevas deben armarse con ellos.
 
@@ -71,4 +71,4 @@ npm run build:web
 firebase deploy --only hosting,functions,firestore:rules,storage
 ```
 
-Después del primer despliegue con esta versión: correr "Migrar ligas y verificaciones" en `/admin/estado`. Pendientes antes y después de producción en "Pendientes conocidos" de `docs/ARCHITECTURE.md`.
+Después del primer despliegue con esta versión: correr "Migrar ligas y verificaciones" en `/admin/estado`, y en `/admin/etapas` → "Fecha de disposición del crédito" dar "Guardar y recalcular" una vez. Pendientes antes y después de producción en "Pendientes conocidos" de `docs/ARCHITECTURE.md`.

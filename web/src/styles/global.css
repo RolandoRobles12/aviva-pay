@@ -2373,3 +2373,21 @@ h3 {
 .metricas__global td {
   font-weight: 600;
 }
+
+/* --- Verificación manual, después de varios rechazos automáticos --- */
+
+.revision-manual {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+
+.revision-manual p {
+  margin: 0;
+}
+
+.upload-form .revision-manual button.button-secondary {
+  background: var(--blanco);
+}
