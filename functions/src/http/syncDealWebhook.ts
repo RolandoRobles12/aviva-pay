@@ -83,7 +83,24 @@ export const syncDealWebhook = onRequest(
       }
 
       const r = await procesarDeal(deal, "hubspot-workflow");
-      res.status(200).json({ ok: true, ...r });
+      // Lo que Paydesk leyó del deal y a qué hora. Un "success" de HubSpot
+      // solo dice que la llamada salió bien; cuando un deal se queda
+      // atrasado, esto es lo que dice si se leyó antes de que HubSpot
+      // calculara la fecha de la etapa, o si el deal cambió otra vez
+      // después. Va en la respuesta (la ve quien revisa el historial del
+      // workflow) y en los logs.
+      const leido = {
+        leidoEn: new Date().toISOString(),
+        dealstage: deal.dealstage,
+        fechaSolicitud: deal.fechaSolicitud,
+        estatusKyc: deal.estatusKyc,
+        creditoLiberadoFecha: deal.creditoLiberadoFecha,
+        disposicionCreditoFecha: deal.disposicionCreditoFecha,
+        desembolsoFecha: deal.desembolsoFecha,
+        canceladoFecha: deal.canceladoFecha,
+      };
+      logger.info(`syncDealWebhook: deal ${dealId} procesado`, { ...r, leido });
+      res.status(200).json({ ok: true, ...r, leido });
     } catch (err) {
       logger.error(`syncDealWebhook: failed for deal ${dealId}`, err);
       await alertar("webhook", `Falló la sincronización del deal ${dealId} desde HubSpot`, err);

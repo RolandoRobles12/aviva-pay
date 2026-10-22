@@ -12,7 +12,13 @@ import type { DealSincronizado } from "../types/deal";
 export async function procesarDeal(
   deal: DealSincronizado,
   origen: "hubspot-workflow" | "sincronizacion-periodica",
-): Promise<{ isNewConcesionario: boolean; valeEmitido: boolean; valesCancelados: number }> {
+): Promise<{
+  isNewConcesionario: boolean;
+  valeEmitido: boolean;
+  /** Por qué no se emitió, cuando no se emitió (ver vale/emitir.ts). */
+  motivoVale: string | null;
+  valesCancelados: number;
+}> {
   const { isNewConcesionario } = await upsertDealFromHubspot(deal);
 
   // Cancelar va ANTES de emitir, y no es un detalle de orden: si el deal
@@ -25,7 +31,7 @@ export async function procesarDeal(
   // las veces que sea no genera un segundo vale — ver vale/emitir.ts.
   const vale =
     valesCancelados.length > 0
-      ? { vale: null }
+      ? { vale: null, motivo: "deal-cancelado" }
       : await emitirValeParaDeal(deal, { emitidoPor: origen });
 
   if (isNewConcesionario) {
@@ -37,6 +43,7 @@ export async function procesarDeal(
   return {
     isNewConcesionario,
     valeEmitido: vale.vale !== null,
+    motivoVale: "motivo" in vale ? vale.motivo : null,
     valesCancelados: valesCancelados.length,
   };
 }

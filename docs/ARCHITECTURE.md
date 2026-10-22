@@ -266,10 +266,12 @@ La propiedad Kiosco es de tipo **multiple checkboxes**, con ~481 opciones cuyo t
 ## Flujo de sincronización (HubSpot → Firestore)
 
 1. Un workflow de HubSpot (pipeline de Solicitudes) se dispara en creación de deal o cambio de stage/propiedad.
-2. El paso de Custom Code llama a `syncDealWebhook` (HTTPS) con `{ dealId }` y un header `Authorization: Bearer <HUBSPOT_WEBHOOK_SECRET>`.
+2. El paso de Custom Code llama a `syncDealWebhook` (HTTPS) con `{ dealId }` y un header `Authorization: <HUBSPOT_WEBHOOK_SECRET>` — el secreto tal cual, sin `Bearer`.
 3. La función trae el deal de HubSpot (las propiedades del diccionario, incluida la tienda) y hace upsert en `paydesk_deals/{dealId}`.
 4. Si es la primera vez que se ve a esa tienda, se crea su documento en `paydesk_concesionarios` (sin usuarios invitados todavía). Invitar a alguien de esa tienda es un paso aparte, manual, desde `/admin/tiendas`, y esa invitación ya le manda su correo para crear contraseña. Por eso la "Notificación" de la sección 9 del requerimiento (escribir la liga de Paydesk en el deal para que un workflow se la mande a la tienda) se quitó: la liga era la misma para todas las tiendas y no daba acceso por sí sola. Deals posteriores de la misma tienda solo agregan una fila.
 5. Si el deal todavía no trae la tienda capturada, el sync se omite (queda pendiente hasta el próximo disparo del workflow, cuando se espera que el campo ya esté lleno).
+
+La respuesta trae, además del resultado (`valeEmitido`, `motivoVale` cuando no se emitió, `valesCancelados`), lo que Paydesk **leyó** del deal y a qué hora (`leido`: etapa y fechas de etapa). Un "success" en el historial del workflow solo dice que la llamada salió bien; si un deal se queda atrasado, `leido` dice si se leyó antes de que HubSpot calculara la fecha de la etapa (la etapa nueva sin su fecha) o si el deal cambió otra vez después (la etapa leída ya no es la actual). Lo mismo queda en los logs de `syncDealWebhook`.
 
 ## Flujo de escritura (concesionario → HubSpot)
 
