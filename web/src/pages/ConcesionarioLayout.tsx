@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useNavigate, useOutletContext } from "react-router-dom";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
-import { auth, db, getConcesionarioDealsCallable, logout } from "../lib/firebase";
+import {
+  auth,
+  db,
+  getConcesionarioDealsCallable,
+  logout,
+  type OrigenDisposicion,
+} from "../lib/firebase";
 import type { PayDeskConcesionario, PayDeskDeal } from "../types/deal";
 import type { FieldLabels } from "../types/admin";
 import { setEtapas, type RolloutMap } from "../lib/dealScope";
@@ -29,6 +35,7 @@ type LoadState =
       labels: FieldLabels;
       /** Rollout cutoff per store; see dealScope.ts. */
       rolloutPorTienda: RolloutMap;
+      origenDisposicion: OrigenDisposicion;
     };
 
 export interface ConcesionarioContext {
@@ -42,6 +49,8 @@ export interface ConcesionarioContext {
   dealsFiltrados: PayDeskDeal[];
   labels: FieldLabels;
   rolloutPorTienda: RolloutMap;
+  /** De dónde sale la fecha de disposición; cambia lo que se le explica a la tienda mientras está pendiente. */
+  origenDisposicion: OrigenDisposicion;
   filtros: Filtros;
   setFiltros: (f: Filtros) => void;
 }
@@ -77,11 +86,19 @@ export function ConcesionarioLayout() {
         await auth.currentUser?.getIdToken(true);
 
         const result = await getConcesionarioDealsCallable();
-        const { concesionarios, deals, labels, etapas, rolloutPorTienda } = result.data;
+        const { concesionarios, deals, labels, etapas, rolloutPorTienda, origenDisposicion } =
+          result.data;
         if (cancelled) return;
         setEtapas(etapas);
 
-        setState({ status: "ready", concesionarios, deals, labels, rolloutPorTienda });
+        setState({
+          status: "ready",
+          concesionarios,
+          deals,
+          labels,
+          rolloutPorTienda,
+          origenDisposicion,
+        });
 
         // Realtime updates: the session's custom claim is what makes this
         // query pass the Firestore rules, and it only ever matches deals
@@ -103,6 +120,7 @@ export function ConcesionarioLayout() {
                 concesionarios,
                 labels,
                 rolloutPorTienda,
+                origenDisposicion,
                 deals: chunks.flatMap((_, j) => porChunk.get(j) ?? []),
               });
             },
@@ -169,6 +187,7 @@ export function ConcesionarioLayout() {
     dealsFiltrados,
     labels: state.labels,
     rolloutPorTienda: state.rolloutPorTienda,
+    origenDisposicion: state.origenDisposicion,
     filtros,
     setFiltros,
   };

@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
+  adminGetDisposicionCallable,
   adminGetFieldDictionaryCallable,
   adminSetFieldDictionaryCallable,
+  type OrigenDisposicion,
 } from "../../lib/firebase";
 import type { FieldDictionary } from "../../types/admin";
 import { Badge, Cargando, MensajeInline, Notice, PageHeader, Tabs } from "../../components/admin/ui";
@@ -33,6 +36,40 @@ export function EncabezadoHubspot() {
   );
 }
 
+/**
+ * La fecha de disposición de HubSpot se sigue leyendo, pero la columna de
+ * la tienda solo la usa si así se configuró en Etapas del crédito; por
+ * defecto manda la confirmación en caja. Dice cómo está hoy, en vez de
+ * una regla condicional: quien llega a esta pantalla a cambiar la
+ * propiedad no sabe que existe ese ajuste, y si edita la propiedad sin
+ * ver cambio en la columna lo va a leer como un error.
+ */
+export function AyudaOrigenDisposicion() {
+  const [origen, setOrigen] = useState<OrigenDisposicion | null>(null);
+
+  useEffect(() => {
+    adminGetDisposicionCallable()
+      .then((r) => setOrigen(r.data.origen))
+      .catch(() => setOrigen(null));
+  }, []);
+
+  if (!origen) return null;
+
+  const cambiar = <Link to="/admin/etapas">Etapas del crédito</Link>;
+  return origen === "paydesk" ? (
+    <span className="adm-field__ayuda">
+      <Badge tono="warn">No se usa en la tabla</Badge> La columna “Disposición del crédito”
+      muestra cuándo la tienda confirmó la venta con el código del cliente, no esta
+      propiedad. Para usar la etapa de HubSpot, cámbialo en {cambiar}.
+    </span>
+  ) : (
+    <span className="adm-field__ayuda">
+      <Badge tono="ok">En uso</Badge> La columna “Disposición del crédito” muestra esta
+      fecha de HubSpot. Para usar la confirmación en caja, cámbialo en {cambiar}.
+    </span>
+  );
+}
+
 /** Human labels for the logical field names, so the screen doesn't read like source code. */
 const ETIQUETAS: Record<string, string> = {
   kiosco: "Kiosco (tienda)",
@@ -54,7 +91,6 @@ const ETIQUETAS: Record<string, string> = {
   valeCodigo: "Vale · código de 10 dígitos",
   valeUrl: "Vale · liga que se manda por WhatsApp",
   valeEstado: "Vale · estatus",
-  paydeskUrl: "Notificación · liga de Paydesk",
 };
 
 /**
@@ -151,6 +187,7 @@ export function DiccionarioPage() {
                 <span>
                   {ETIQUETAS[key] ?? key} {pendiente && <Badge tono="warn">Sin definir</Badge>}
                 </span>
+                {key === "disposicionCreditoFecha" && <AyudaOrigenDisposicion />}
               </label>
               <div className="dictionary-row__input">
                 <input

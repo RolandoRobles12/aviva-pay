@@ -1,6 +1,4 @@
 import { logger } from "firebase-functions/v2";
-import { env } from "../config/env";
-import { updateDealProperties } from "../hubspot/deals";
 import { upsertDealFromHubspot } from "../firestore/dealsRepository";
 import { emitirValeParaDeal } from "../vale/emitir";
 import { cancelarValeSiElDealSeCancelo } from "../vale/cancelacion";
@@ -14,7 +12,13 @@ import type { DealSincronizado } from "../types/deal";
 export async function procesarDeal(
   deal: DealSincronizado,
   origen: "hubspot-workflow" | "sincronizacion-periodica",
-): Promise<{ isNewConcesionario: boolean; valeEmitido: boolean; valesCancelados: number }> {
+): Promise<{
+  isNewConcesionario: boolean;
+  valeEmitido: boolean;
+  /** Por qué no se emitió, cuando no se emitió (ver vale/emitir.ts). */
+  motivoVale: string | null;
+  valesCancelados: number;
+}> {
   const { isNewConcesionario } = await upsertDealFromHubspot(deal);
 
   // Cancelar va ANTES de emitir, y no es un detalle de orden: si el deal
@@ -27,20 +31,19 @@ export async function procesarDeal(
   // las veces que sea no genera un segundo vale — ver vale/emitir.ts.
   const vale =
     valesCancelados.length > 0
-      ? { vale: null }
+      ? { vale: null, motivo: "deal-cancelado" }
       : await emitirValeParaDeal(deal, { emitidoPor: origen });
 
   if (isNewConcesionario) {
-    // Primera vez que vemos esta tienda: HubSpot recibe la liga de acceso
-    // para que su workflow de notificación se la pase. El acceso en sí es
-    // por persona (correo invitado + contraseña), desde el catálogo.
-    await updateDealProperties(deal.dealId, { paydeskUrl: env.payDeskBaseUrl });
+    // Primera vez que vemos esta tienda. Nadie entra todavía: el acceso es
+    // por persona y lo da un admin invitando su correo desde el catálogo.
     logger.info(`procesarDeal: registered concesionario ${deal.concesionarioId}`);
   }
 
   return {
     isNewConcesionario,
     valeEmitido: vale.vale !== null,
+    motivoVale: "motivo" in vale ? vale.motivo : null,
     valesCancelados: valesCancelados.length,
   };
 }

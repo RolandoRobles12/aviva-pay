@@ -87,14 +87,10 @@ export const HUBSPOT_DEAL_PROPERTIES = {
   valeUrl: "link_codigo_paydesk",
   valeEstado: "codigo_paydesk_estatus",
 
-  // --- Notificación (section 9) ---
-  // Written onto the triggering deal the first time a given store is seen,
-  // so a second HubSpot workflow can enroll on "property is known" and
-  // send that store's contact the Paydesk link. Access itself is granted
-  // separately, per person, from the admin catalog — see
-  // concesionario/userSync.ts. TODO: confirm the trigger mechanism and the
-  // recipient contact with the HubSpot workflow owner.
-  paydeskUrl: "TODO_paydesk_url",
+  // Ya no hay propiedad para avisarle a una tienda nueva su liga de
+  // Paydesk (la "Notificación" de la sección 9): el acceso es por persona
+  // y lo da un admin invitando su correo desde /admin/tiendas, que ya le
+  // manda su propio correo para crear contraseña.
 } as const;
 
 export type HubspotDealPropertyKey = keyof typeof HUBSPOT_DEAL_PROPERTIES;
@@ -107,9 +103,9 @@ export type HubspotDealPropertyKey = keyof typeof HUBSPOT_DEAL_PROPERTIES;
  * cosmetic: renaming a label here never changes which HubSpot property it
  * reads from, whether it's required, or anything else about the logic.
  *
- * Only fields with concesionario-facing text are listed — `kiosco`, the
- * file URL fields, and the notification field (paydeskUrl)
- * never render as a standalone label, so they're not here.
+ * Only fields with concesionario-facing text are listed — `kiosco` and
+ * the file URL fields never render as a standalone label, so they're not
+ * here.
  */
 export const FIELD_LABELS: Partial<Record<HubspotDealPropertyKey, string>> = {
   cliente: "Cliente",

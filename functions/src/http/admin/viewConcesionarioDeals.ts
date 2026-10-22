@@ -4,6 +4,7 @@ import { getConcesionario } from "../../firestore/concesionariosRepository";
 import { getDealsByConcesionario } from "../../firestore/dealsRepository";
 import { getFieldLabels } from "../../firestore/fieldLabelsRepository";
 import { getEtapas } from "../../firestore/etapasRepository";
+import { getOrigenDisposicion } from "../../firestore/disposicionConfigRepository";
 import { getVerificacionesDeDeals } from "../../firestore/verificacionesRepository";
 import { getRollout, resolveRolloutForStore } from "../../firestore/rolloutRepository";
 
@@ -34,11 +35,12 @@ export const adminGetConcesionarioDeals = onCall<Request>(
       throw new HttpsError("not-found", "Concesionario no encontrado");
     }
 
-    const [deals, labels, rollout, etapas] = await Promise.all([
+    const [deals, labels, rollout, etapas, origenDisposicion] = await Promise.all([
       getDealsByConcesionario(concesionarioId),
       getFieldLabels(),
       getRollout(),
       getEtapas(),
+      getOrigenDisposicion(),
     ]);
 
     // La verificación vive aparte (la tienda no la puede leer); para el
@@ -59,6 +61,7 @@ export const adminGetConcesionarioDeals = onCall<Request>(
       deals: conVerificacion,
       labels,
       etapas,
+      origenDisposicion,
       // The cutoff this store is held to: deals approved before it are
       // historical and never counted as pending. See rolloutRepository.ts.
       rolloutDesde: resolveRolloutForStore(rollout, concesionario.rolloutDesde),

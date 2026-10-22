@@ -5,7 +5,7 @@ import {
 } from "../../lib/firebase";
 import type { StageDateProperties } from "../../types/admin";
 import { Cargando, MensajeInline, Notice } from "../../components/admin/ui";
-import { EncabezadoHubspot } from "./DiccionarioPage";
+import { AyudaOrigenDisposicion, EncabezadoHubspot } from "./DiccionarioPage";
 
 /** Human labels for the five milestone dates, matching DiccionarioPage's style. */
 const ETIQUETAS: Record<string, string> = {
@@ -134,6 +134,7 @@ export function EtapaFechasPage() {
             <div className="dictionary-row dictionary-row--stack" key={key}>
               <label>
                 {ETIQUETAS[key] ?? key}
+                {key === "disposicionCreditoFecha" && <AyudaOrigenDisposicion />}
               </label>
               <div className="stage-date-list">
                 {lista.length === 0 && (

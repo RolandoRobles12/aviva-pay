@@ -25,11 +25,9 @@ interface SyncWebhookBody {
  * format) is deliberate: HubSpot's workflow "API Key" auth type sends
  * whatever raw value its secret holds, with no scheme of its own.
  *
- * The first time a given concesionario is seen, also writes the Paydesk
- * URL back onto the triggering deal so a second HubSpot workflow can pick
- * it up and notify that store's contact (section 9, "Notificación").
- * Later deals for the same concesionario just add a row to the existing
- * page — no repeat notification.
+ * The first time a given concesionario is seen, its store document is
+ * created (with nobody invited yet — see /admin/tiendas). Later deals for
+ * the same concesionario just add a row to the existing page.
  *
  * Once the deal carries a crédito-liberado date it also issues the
  * client's one-use vale and writes its código and URL back onto the deal,
@@ -85,7 +83,24 @@ export const syncDealWebhook = onRequest(
       }
 
       const r = await procesarDeal(deal, "hubspot-workflow");
-      res.status(200).json({ ok: true, ...r });
+      // Lo que Paydesk leyó del deal y a qué hora. Un "success" de HubSpot
+      // solo dice que la llamada salió bien; cuando un deal se queda
+      // atrasado, esto es lo que dice si se leyó antes de que HubSpot
+      // calculara la fecha de la etapa, o si el deal cambió otra vez
+      // después. Va en la respuesta (la ve quien revisa el historial del
+      // workflow) y en los logs.
+      const leido = {
+        leidoEn: new Date().toISOString(),
+        dealstage: deal.dealstage,
+        fechaSolicitud: deal.fechaSolicitud,
+        estatusKyc: deal.estatusKyc,
+        creditoLiberadoFecha: deal.creditoLiberadoFecha,
+        disposicionCreditoFecha: deal.disposicionCreditoFecha,
+        desembolsoFecha: deal.desembolsoFecha,
+        canceladoFecha: deal.canceladoFecha,
+      };
+      logger.info(`syncDealWebhook: deal ${dealId} procesado`, { ...r, leido });
+      res.status(200).json({ ok: true, ...r, leido });
     } catch (err) {
       logger.error(`syncDealWebhook: failed for deal ${dealId}`, err);
       await alertar("webhook", `Falló la sincronización del deal ${dealId} desde HubSpot`, err);

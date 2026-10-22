@@ -172,6 +172,8 @@ Ahora el deal guarda las dos fechas crudas y una resuelta:
 
 El origen se elige en `/admin/etapas` → "Fecha de disposición del crédito" (`paydesk_config/disposicion`, solo super admin): **Paydesk** (por defecto; sin confirmación en caja la disposición sigue pendiente, diga lo que diga la etapa) o **HubSpot** (como era antes). Guardar recalcula todos los deals (`adminSetDisposicion`), así que el cambio se ve de inmediato; de paso rellena la fecha de Paydesk de los vales confirmados antes de este ajuste, leyéndola de `consumidoEn` del vale. Guardar dos veces no hace nada nuevo.
 
+Las pantallas lo dicen según cómo esté configurado, no con una regla condicional: en el diccionario de campos y en Fechas de etapa, la propiedad de disposición lleva "No se usa en la tabla" o "En uso"; y en la tabla de la tienda, con origen Paydesk, el "Pendiente" de esa columna explica al pasar el cursor que se marca al confirmar la venta con el código. `getConcesionarioDeals` y `adminGetConcesionarioDeals` mandan el origen junto con las etiquetas, porque la tienda no puede leer `paydesk_config`.
+
 ### Rutas y colecciones nuevas
 
 | Ruta | Quién |
@@ -264,10 +266,12 @@ La propiedad Kiosco es de tipo **multiple checkboxes**, con ~481 opciones cuyo t
 ## Flujo de sincronización (HubSpot → Firestore)
 
 1. Un workflow de HubSpot (pipeline de Solicitudes) se dispara en creación de deal o cambio de stage/propiedad.
-2. El paso de Custom Code llama a `syncDealWebhook` (HTTPS) con `{ dealId }` y un header `Authorization: Bearer <HUBSPOT_WEBHOOK_SECRET>`.
+2. El paso de Custom Code llama a `syncDealWebhook` (HTTPS) con `{ dealId }` y un header `Authorization: <HUBSPOT_WEBHOOK_SECRET>` — el secreto tal cual, sin `Bearer`.
 3. La función trae el deal de HubSpot (las propiedades del diccionario, incluida la tienda) y hace upsert en `paydesk_deals/{dealId}`.
-4. Si es la primera vez que se ve a esa tienda, se crea su documento en `paydesk_concesionarios` (sin usuarios invitados todavía) y se escribe de vuelta en el deal la liga de Paydesk. Invitar a alguien de esa tienda es un paso aparte, manual, desde `/admin/tiendas`. Deals posteriores de la misma tienda solo agregan una fila.
+4. Si es la primera vez que se ve a esa tienda, se crea su documento en `paydesk_concesionarios` (sin usuarios invitados todavía). Invitar a alguien de esa tienda es un paso aparte, manual, desde `/admin/tiendas`, y esa invitación ya le manda su correo para crear contraseña. Por eso la "Notificación" de la sección 9 del requerimiento (escribir la liga de Paydesk en el deal para que un workflow se la mande a la tienda) se quitó: la liga era la misma para todas las tiendas y no daba acceso por sí sola. Deals posteriores de la misma tienda solo agregan una fila.
 5. Si el deal todavía no trae la tienda capturada, el sync se omite (queda pendiente hasta el próximo disparo del workflow, cuando se espera que el campo ya esté lleno).
+
+La respuesta trae, además del resultado (`valeEmitido`, `motivoVale` cuando no se emitió, `valesCancelados`), lo que Paydesk **leyó** del deal y a qué hora (`leido`: etapa y fechas de etapa). Un "success" en el historial del workflow solo dice que la llamada salió bien; si un deal se queda atrasado, `leido` dice si se leyó antes de que HubSpot calculara la fecha de la etapa (la etapa nueva sin su fecha) o si el deal cambió otra vez después (la etapa leída ya no es la actual). Lo mismo queda en los logs de `syncDealWebhook`.
 
 ## Flujo de escritura (concesionario → HubSpot)
 
@@ -331,7 +335,6 @@ Un admin puede reemplazar el archivo de una tienda desde `/admin/tiendas/:conces
 - **Corte operativo del reemplazo de NIP por correo/contraseña**: el acceso viejo (código + NIP) quedó retirado por completo, así que ninguna tienda puede entrar hasta que un admin le invite al menos un correo desde `/admin/tiendas`. Falta correr ese alta inicial para las tiendas que ya estaban activas.
 - Revisar la plantilla del correo que envía `sendPasswordResetEmail` (Firebase Console → Authentication → Templates) — hoy es la genérica de Firebase; vale la pena personalizarla con la marca de Aviva ya que es el único correo que recibe una tienda invitada.
 - Confirmar pipeline/stage IDs de HubSpot (`HUBSPOT_PIPELINE` en `fields.ts`).
-- Confirmar con el dueño del workflow de HubSpot: cómo se dispara la notificación (sección 9) y a qué contacto de la tienda le llega.
 - Provisionar el private app de HubSpot dedicado (scopes: lectura/escritura de deals y files).
 - Secretos de funciones antes de desplegar: `ANTHROPIC_API_KEY` y `SLACK_BOT_TOKEN` (`firebase functions:secrets:set ...`). Sin ellos el despliegue falla.
 - Correr una vez "Migrar ligas y verificaciones" en `/admin/estado` después de desplegar.
