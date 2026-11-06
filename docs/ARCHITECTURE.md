@@ -249,6 +249,30 @@ La propiedad Kiosco es de tipo **multiple checkboxes**, con ~481 opciones cuyo t
 - **Como nombre visible**: `#0046 - TEQ CR` no le dice nada a un concesionario. Se muestra `Construrama TEQ` con `Tienda 0046` como dato secundario, **y el panel permite reemplazarlo por el nombre real de la tienda**. El valor crudo se guarda para trazabilidad pero nunca se le muestra a la tienda.
 - Como es *multi-checkbox*, HubSpot puede devolver varios valores separados por `;`. Una solicitud pertenece a una sola tienda, así que se toma el primero y se deja un `logger.warn` cuando llegan varios — pendiente confirmar con el admin de HubSpot si eso puede pasar legítimamente.
 
+## Capacitación de tiendas (onboarding autónomo)
+
+El objetivo es que una tienda nueva arranque sin llamadas ni WhatsApps a Aviva: que sepa qué le toca, cómo se hace y qué hacer cuando algo sale distinto. Vive en el mismo portal, no en un PDF aparte, para que lo que aprende se vea idéntico a lo que después usa.
+
+| Pieza | Dónde | Qué hace |
+|---|---|---|
+| Pestaña **Aprende** | `/solicitudes/aprende` | 8 lecciones cortas (~26 min). Cada una dice para qué sirve, cómo se hace paso a paso y qué hacer cuando sale distinto, y cierra con casos del mostrador. Cada opción explica por qué sí o por qué no; se reintenta sin castigo. |
+| **Simulador de caja** | Lección "Validar el código" (`#simulador`) | La pantalla real de resultados (`ResultadoValidacion`) con códigos de práctica (`capacitacion/simulador.ts`). Nunca llama a `validarVale` ni a `confirmarDisposicion`: no deja lecturas ni intentos sospechosos. Aplica la misma regla de monto que el backend. |
+| **Guía rápida** | `/solicitudes/aprende/guia-rapida` | Una hoja para imprimir y pegar en la caja. |
+| **Preguntas frecuentes** y **¿Lo resuelvo yo o llamo a Aviva?** | Inicio de Aprende | Salen de lo que hoy termina en llamada. Separan lo que resuelve la tienda, lo que tiene que hacer el cliente con Aviva y lo que sí necesita al ejecutivo. |
+| **Bienvenida** | Primer ingreso | Invita a la capacitación; "Ahora no" la cierra. Se muestra una vez por persona. La pestaña sigue marcando cuántas lecciones faltan. |
+| **Ayudas en contexto** | Formularios de cotización y comprobante, caja, aviso de "En revisión" | "¿Cómo se hace?" abre la lección en `/ayuda` en otra pestaña, para no perder lo capturado. |
+| **Versión abierta** | `/ayuda` | La misma capacitación sin sesión (nombres de columna por defecto, sin guardar avance). Se liga desde el login y desde `/admin/tiendas`. |
+
+**Avance.** Por persona (uid), no por tienda: quien atiende la caja es una persona. `guardarCapacitacion` solo agrega lecciones (lista cerrada en `functions/src/capacitacion/lecciones.ts`) y `bienvenidaVista`; el uid sale del token. Vive en `paydesk_capacitacion/{uid}` con el correo copiado, sin acceso desde el cliente. `getConcesionarioDeals` devuelve el avance propio; `adminListConcesionarios` devuelve `capacitacionPorCorreo`, y `/admin/tiendas` lo muestra por tienda y por correo, con filtro "Solo con capacitación pendiente" y la liga de `/ayuda` para copiar.
+
+**Reglas del contenido** (`web/src/capacitacion/lecciones.tsx`):
+
+- Describe lo que la app hace hoy, con los mismos textos de botones y mensajes. Si cambia uno, cambia ahí.
+- Nunca explica qué revisa la verificación automática de documentos (ver "Qué ve la tienda"): dice qué debe tener un buen documento, no qué se detecta.
+- No promete plazos ni políticas que no estén en la app.
+- Usa los nombres de columna que Aviva configuró (`labels`) y las etapas configuradas; la explicación de la disposición cambia según su origen.
+- Agregar o quitar una lección: `ORDEN_LECCIONES` (web) y `LECCIONES_CAPACITACION` (functions). Una prueba revisa que coincidan. Agregar una deja a quien había terminado en "8 de 9", que es lo correcto.
+
 ## Componentes
 
 | Componente | Rol |

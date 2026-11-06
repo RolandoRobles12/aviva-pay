@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useNavigate, useOutletContext } from "react-router-dom";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import {
   auth,
   db,
   getConcesionarioDealsCallable,
+  guardarCapacitacionCallable,
   logout,
+  type CapacitacionTienda,
   type OrigenDisposicion,
 } from "../lib/firebase";
 import type { PayDeskConcesionario, PayDeskDeal } from "../types/deal";
@@ -13,6 +15,8 @@ import type { FieldLabels } from "../types/admin";
 import { setEtapas, type RolloutMap } from "../lib/dealScope";
 import { BrandMark } from "../components/BrandMark";
 import { SelectorTiendas } from "../components/SelectorTiendas";
+import { BienvenidaCapacitacion } from "../capacitacion/BienvenidaCapacitacion";
+import { calcularAvance } from "../capacitacion/progreso";
 import {
   FILTROS_INICIALES,
   aplicarFiltros,
@@ -53,6 +57,10 @@ export interface ConcesionarioContext {
   origenDisposicion: OrigenDisposicion;
   filtros: Filtros;
   setFiltros: (f: Filtros) => void;
+  /** Avance de quien entró en la capacitación (pestaña "Aprende"); null con un backend anterior. */
+  capacitacion: CapacitacionTienda | null;
+  /** Anota una lección como pasada. Rechaza si no se pudo guardar. */
+  marcarLeccion: (id: string) => Promise<void>;
 }
 
 export function useConcesionario() {
@@ -70,6 +78,9 @@ export function ConcesionarioLayout() {
   const navigate = useNavigate();
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_INICIALES);
+  // Aparte de `state` porque el listener de deals reescribe `state` en cada
+  // cambio y no debe pisar una lección recién pasada.
+  const [capacitacion, setCapacitacion] = useState<CapacitacionTienda | null>(null);
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -90,6 +101,7 @@ export function ConcesionarioLayout() {
           result.data;
         if (cancelled) return;
         setEtapas(etapas);
+        setCapacitacion(result.data.capacitacion ?? null);
 
         setState({
           status: "ready",
@@ -146,6 +158,23 @@ export function ConcesionarioLayout() {
     };
   }, []);
 
+  const marcarLeccion = useCallback(async (id: string) => {
+    // Se ve completada al instante; si el servidor falla, la lección avisa
+    // y ofrece reintentar, y el siguiente ingreso trae el dato real.
+    setCapacitacion((c) =>
+      c && !c.completadas.includes(id) ? { ...c, completadas: [...c.completadas, id] } : c,
+    );
+    const { data } = await guardarCapacitacionCallable({ leccion: id });
+    setCapacitacion(data);
+  }, []);
+
+  const cerrarBienvenida = useCallback(() => {
+    setCapacitacion((c) => (c ? { ...c, bienvenidaVista: true } : c));
+    // Si no se guarda, a lo más se le vuelve a ofrecer en el siguiente
+    // ingreso: no vale la pena interrumpirlo con un error.
+    guardarCapacitacionCallable({ bienvenidaVista: true }).catch(() => {});
+  }, []);
+
   async function handleLogout() {
     await logout();
     navigate("/", { replace: true });
@@ -190,7 +219,14 @@ export function ConcesionarioLayout() {
     origenDisposicion: state.origenDisposicion,
     filtros,
     setFiltros,
+    capacitacion,
+    marcarLeccion,
   };
+
+  const avanceCapacitacion = capacitacion ? calcularAvance(capacitacion.completadas) : null;
+  // Solo a quien nunca la ha visto ni ha empezado: es una invitación, no un muro.
+  const mostrarBienvenida =
+    capacitacion !== null && !capacitacion.bienvenidaVista && capacitacion.completadas.length === 0;
 
   return (
     <main className="app-shell">
@@ -222,11 +258,24 @@ export function ConcesionarioLayout() {
         <NavLink to="/solicitudes/validar">Validar código</NavLink>
         <NavLink to="/solicitudes/canceladas">Canceladas</NavLink>
         <NavLink to="/solicitudes/reporte">Reporte</NavLink>
+        <NavLink to="/solicitudes/aprende" className="tabs__aprende">
+          Aprende
+          {avanceCapacitacion && !avanceCapacitacion.completa && (
+            <span
+              className="tabs__pill"
+              title={`${avanceCapacitacion.hechas} de ${avanceCapacitacion.total} lecciones completadas`}
+            >
+              {avanceCapacitacion.hechas}/{avanceCapacitacion.total}
+            </span>
+          )}
+        </NavLink>
       </nav>
 
       <div className="app-body">
         <Outlet context={context} />
       </div>
+
+      {mostrarBienvenida && <BienvenidaCapacitacion onCerrar={cerrarBienvenida} />}
     </main>
   );
 }

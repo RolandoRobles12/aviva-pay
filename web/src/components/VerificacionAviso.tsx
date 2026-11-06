@@ -1,4 +1,5 @@
 import type { Verificacion } from "../lib/uploads";
+import { AyudaLink } from "./AyudaLink";
 
 /**
  * Qué pasó con el documento recién subido cuando no fue una aceptación
@@ -57,6 +58,7 @@ export function VerificacionAviso({
           </>
         )}
       </div>
+      {enRevision && <AyudaLink leccion="revision">¿Qué significa “En revisión”?</AyudaLink>}
       <div className="upload-form__actions">
         <button type="button" onClick={onCerrar}>
           Entendido

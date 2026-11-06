@@ -103,5 +103,12 @@ service cloud.firestore {
     match /paydesk_file_hashes/{hash} {
       allow read, write: if false;
     }
+
+    // Avance de cada persona de tienda en la capacitación. Se escribe con
+    // guardarCapacitacion y se lee con getConcesionarioDeals (la propia) o
+    // adminListConcesionarios (todas).
+    match /paydesk_capacitacion/{uid} {
+      allow read, write: if false;
+    }
   }
 }

@@ -1,6 +1,7 @@
 import { onCall } from "firebase-functions/v2/https";
 import { assertAdmin } from "../../auth/adminGuard";
 import { listConcesionarios as readConcesionarios } from "../../firestore/concesionariosRepository";
+import { listCapacitacionPorCorreo } from "../../firestore/capacitacionRepository";
 
 /**
  * The admin store catalog. Stores appear here automatically the first time
@@ -13,7 +14,10 @@ export const adminListConcesionarios = onCall(
   async (request) => {
     assertAdmin(request);
 
-    const concesionarios = await readConcesionarios();
+    const [concesionarios, capacitacionPorCorreo] = await Promise.all([
+      readConcesionarios(),
+      listCapacitacionPorCorreo(),
+    ]);
 
     return {
       concesionarios: concesionarios.map((c) => ({
@@ -24,6 +28,10 @@ export const adminListConcesionarios = onCall(
         usuarios: c.usuarios ?? [],
         rolloutDesde: c.rolloutDesde ?? null,
       })),
+      // Por correo y no por tienda: el mismo correo puede estar en varias
+      // tiendas y la capacitación es de la persona. Un correo que nunca
+      // entró no aparece aquí.
+      capacitacionPorCorreo,
     };
   },
 );

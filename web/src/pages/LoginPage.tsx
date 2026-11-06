@@ -173,6 +173,10 @@ export function LoginPage() {
           correo desde el panel.
         </p>
 
+        <Link to="/ayuda" className="link-button link-button--centered">
+          ¿Primera vez? Conoce cómo funciona Paydesk
+        </Link>
+
         <Link to="/admin" className="link-button link-button--centered">
           Ingreso para personal de Aviva
         </Link>

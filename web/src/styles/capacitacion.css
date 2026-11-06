@@ -1,0 +1,1059 @@
+/* --- Capacitación de tiendas (pestaña "Aprende" y /ayuda) ------------------
+   Mismos tokens que el resto del portal (global.css). Verde para lo que le
+   toca a la tienda y para lo logrado; ámbar solo para lo que requiere
+   atención, igual que en la lista de clientes. Columna de lectura angosta:
+   esto se lee, no se escanea como una tabla de trabajo. */
+
+.cap {
+  --cap-ancho: 52rem;
+  --cap-borde: color-mix(in srgb, var(--verde-musgo) 12%, transparent);
+  --cap-tenue: color-mix(in srgb, var(--negro-off) 64%, transparent);
+  --cap-rojo: #b3261e;
+}
+
+/* min-width: 0 en todo lo que es columna: sin eso, una tabla de ejemplo
+   ancha estira la columna entera en celular en vez de desplazarse dentro
+   de su marco. */
+.cap > * {
+  min-width: 0;
+  max-width: var(--cap-ancho);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.cap h1 {
+  font-size: 1.6rem;
+  color: var(--verde-musgo);
+}
+
+.cap a {
+  color: var(--verde-accion);
+  font-weight: 700;
+}
+
+/* --- Botones ---------------------------------------------------------- */
+
+.cap-boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  background: var(--verde-accion);
+  color: var(--blanco) !important;
+  text-decoration: none;
+  font-weight: 700;
+  border-radius: 10px;
+  padding: 0.7rem 1.2rem;
+  transition: background 0.15s ease;
+}
+
+.cap-boton:hover {
+  background: var(--verde-musgo);
+}
+
+.cap-boton--secundario {
+  background: var(--blanco);
+  color: var(--verde-musgo) !important;
+  border: 1.5px solid var(--cap-borde);
+}
+
+.cap-boton--secundario:hover {
+  background: var(--gris-frio);
+}
+
+/* --- Inicio ----------------------------------------------------------- */
+
+.cap-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(14rem, 18rem);
+  gap: 1.5rem;
+  align-items: center;
+  background: var(--blanco);
+  border: 1px solid var(--cap-borde);
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.cap-hero p {
+  margin: 0.5rem 0 0;
+  color: var(--cap-tenue);
+  max-width: 52ch;
+}
+
+.cap-hero__nota {
+  font-size: 0.88rem;
+}
+
+.cap-hero__avance {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.cap-hero__cifra {
+  margin: 0 !important;
+  color: var(--negro-off) !important;
+}
+
+.cap-hero__cifra strong {
+  font-size: 1.6rem;
+  color: var(--verde-musgo);
+}
+
+.cap-barra {
+  height: 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--verde-musgo) 12%, transparent);
+  overflow: hidden;
+}
+
+.cap-barra__relleno {
+  display: block;
+  height: 100%;
+  background: var(--verde-accion);
+  border-radius: inherit;
+  transition: width 0.3s ease;
+}
+
+.cap-completa {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--verde-musgo);
+  background: var(--verde-esmeralda);
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+}
+
+.cap-lista {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+  margin-bottom: 2rem;
+}
+
+.cap-tarjeta {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  background: var(--blanco);
+  border: 1px solid var(--cap-borde);
+  border-radius: 14px;
+  padding: 0.9rem 1.1rem;
+  text-decoration: none;
+  color: var(--negro-off) !important;
+  font-weight: 500 !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.cap-tarjeta:hover {
+  border-color: var(--verde-accion);
+  box-shadow: 0 4px 16px rgb(2 97 73 / 10%);
+}
+
+.cap-tarjeta__num {
+  display: grid;
+  place-items: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 50%;
+  background: var(--gris-frio);
+  color: var(--verde-musgo);
+  font-weight: 800;
+}
+
+.cap-tarjeta--hecha .cap-tarjeta__num {
+  background: var(--verde-esmeralda);
+}
+
+.cap-tarjeta__texto {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.cap-tarjeta__texto strong {
+  color: var(--verde-musgo);
+}
+
+.cap-tarjeta__texto span {
+  font-size: 0.88rem;
+  color: var(--cap-tenue);
+}
+
+.cap-tarjeta__meta {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--cap-tenue);
+  white-space: nowrap;
+}
+
+.cap-tarjeta--hecha .cap-tarjeta__meta {
+  color: var(--verde-musgo);
+}
+
+.cap-bloque {
+  margin-top: 2rem;
+}
+
+.cap-bloque h2 {
+  font-size: 1.15rem;
+  color: var(--verde-musgo);
+  margin-bottom: 0.75rem;
+}
+
+.cap-bloque__intro {
+  margin: -0.25rem 0 0.75rem;
+  color: var(--cap-tenue);
+}
+
+.cap-atajos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 0.75rem;
+}
+
+.cap-atajo {
+  display: grid;
+  gap: 0.25rem;
+  background: var(--blanco);
+  border: 1px solid var(--cap-borde);
+  border-radius: 14px;
+  padding: 1rem 1.1rem;
+  text-decoration: none;
+  color: var(--negro-off) !important;
+  font-weight: 500 !important;
+}
+
+.cap-atajo:hover {
+  border-color: var(--verde-accion);
+}
+
+.cap-atajo strong {
+  color: var(--verde-musgo);
+}
+
+.cap-atajo span {
+  font-size: 0.88rem;
+  color: var(--cap-tenue);
+}
+
+/* --- Preguntas frecuentes --------------------------------------------- */
+
+.cap-faq {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.cap-faq__buscar {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 0.25rem;
+}
+
+.cap-faq__item {
+  background: var(--blanco);
+  border: 1px solid var(--cap-borde);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+}
+
+.cap-faq__item summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--negro-off);
+}
+
+.cap-faq__item[open] summary {
+  color: var(--verde-musgo);
+  margin-bottom: 0.4rem;
+}
+
+.cap-faq__item p {
+  margin: 0 0 0.4rem;
+  color: var(--cap-tenue);
+}
+
+.cap-faq__leccion {
+  font-size: 0.88rem;
+}
+
+/* --- Lección ---------------------------------------------------------- */
+
+.cap-leccion__nav {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+  color: var(--cap-tenue);
+  margin-bottom: 1rem;
+}
+
+.cap-leccion__head {
+  margin-bottom: 1.5rem;
+}
+
+.cap-leccion__head p {
+  margin: 0.4rem 0 0.6rem;
+  font-size: 1.05rem;
+  color: var(--cap-tenue);
+}
+
+.cap-leccion__cuerpo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+}
+
+.cap-seccion {
+  min-width: 0;
+  background: var(--blanco);
+  border: 1px solid var(--cap-borde);
+  border-radius: 16px;
+  padding: 1.25rem 1.4rem;
+  scroll-margin-top: 1rem;
+}
+
+.cap-seccion h2 {
+  font-size: 1.1rem;
+  color: var(--verde-musgo);
+  margin-bottom: 0.6rem;
+}
+
+.cap-seccion p {
+  margin: 0 0 0.75rem;
+  max-width: 68ch;
+}
+
+.cap-seccion p:last-child {
+  margin-bottom: 0;
+}
+
+.cap-seccion ul {
+  margin: 0 0 0.75rem;
+  padding-left: 1.2rem;
+}
+
+.cap-seccion li + li {
+  margin-top: 0.3rem;
+}
+
+.cap-seccion--quiz {
+  margin-top: 1.25rem;
+  border: 2px solid color-mix(in srgb, var(--verde-accion) 35%, transparent);
+}
+
+.cap-pasos {
+  list-style: none;
+  counter-reset: paso;
+  padding: 0 !important;
+  margin: 0 0 0.75rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.cap-pasos > li {
+  counter-increment: paso;
+  position: relative;
+  padding-left: 2.6rem;
+  margin: 0 !important;
+}
+
+.cap-pasos > li::before {
+  content: counter(paso);
+  position: absolute;
+  left: 0;
+  top: -0.1rem;
+  display: grid;
+  place-items: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 50%;
+  background: var(--verde-accion);
+  color: var(--blanco);
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+
+.cap-pasos__detalle {
+  color: var(--cap-tenue);
+  margin-top: 0.15rem;
+}
+
+.cap-checklist {
+  list-style: none;
+  padding: 0 !important;
+}
+
+.cap-checklist li {
+  position: relative;
+  padding-left: 1.6rem;
+}
+
+.cap-checklist li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  color: var(--verde-accion);
+  font-weight: 800;
+}
+
+.cap-aviso {
+  display: grid;
+  gap: 0.3rem;
+  border-radius: 12px;
+  padding: 0.9rem 1.1rem;
+  border-left: 5px solid;
+}
+
+.cap-aviso p {
+  margin: 0;
+}
+
+.cap-aviso--importante {
+  background: var(--ambar-suave);
+  border-color: var(--ambar);
+}
+
+.cap-aviso--importante > strong {
+  color: var(--ambar);
+}
+
+.cap-aviso--consejo {
+  background: color-mix(in srgb, var(--verde-esmeralda) 45%, var(--blanco));
+  border-color: var(--verde-accion);
+}
+
+.cap-aviso--consejo > strong {
+  color: var(--verde-musgo);
+}
+
+/* Recortes de pantalla: un marco gris claro con la pieza real adentro. */
+.cap-ejemplo {
+  margin: 0.5rem 0 1rem;
+}
+
+.cap-ejemplo figcaption {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cap-tenue);
+  margin-bottom: 0.35rem;
+}
+
+.cap-ejemplo__marco {
+  background: var(--gris-frio);
+  border: 1px dashed color-mix(in srgb, var(--verde-musgo) 25%, transparent);
+  border-radius: 12px;
+  padding: 0.9rem;
+  overflow-x: auto;
+}
+
+.cap-ejemplo .deals-table-wrapper {
+  margin: 0;
+}
+
+/* Piezas que se ven como botones pero no hacen nada aquí. */
+.cap-falso {
+  pointer-events: none;
+  display: inline-flex;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.cap-tabla-wrap {
+  overflow-x: auto;
+  margin: 0.25rem 0 0.75rem;
+}
+
+.cap-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.cap-tabla th {
+  text-align: left;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--cap-tenue);
+  padding: 0.5rem 0.6rem;
+  border-bottom: 2px solid var(--gris-frio);
+}
+
+.cap-tabla td {
+  padding: 0.65rem 0.6rem;
+  border-bottom: 1px solid var(--gris-frio);
+  vertical-align: top;
+}
+
+.cap-tabla td:first-child {
+  min-width: 9rem;
+}
+
+.cap-rojo {
+  color: var(--cap-rojo, #b3261e);
+}
+
+.cap-ambar {
+  color: var(--ambar);
+}
+
+.cap-verde {
+  color: var(--verde-musgo);
+}
+
+/* --- Recorrido del crédito -------------------------------------------- */
+
+.cap-recorrido {
+  list-style: none;
+  padding: 0 !important;
+  margin: 0.5rem 0 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.cap-recorrido__etapa {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.8rem;
+  align-items: start;
+  padding: 0.7rem 0.9rem;
+  border-radius: 12px;
+  background: var(--gris-frio);
+  margin: 0 !important;
+}
+
+.cap-recorrido__etapa--tu {
+  background: color-mix(in srgb, var(--verde-esmeralda) 55%, var(--blanco));
+}
+
+.cap-recorrido__num {
+  display: grid;
+  place-items: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 50%;
+  background: var(--blanco);
+  color: var(--verde-musgo);
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+
+.cap-recorrido__etapa--tu .cap-recorrido__num {
+  background: var(--verde-accion);
+  color: var(--blanco);
+}
+
+.cap-recorrido__cabeza {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.6rem;
+}
+
+.cap-recorrido__etapa p {
+  margin: 0.15rem 0 0 !important;
+  font-size: 0.9rem;
+  color: var(--cap-tenue);
+}
+
+.cap-quien {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  background: var(--blanco);
+  color: var(--cap-tenue);
+}
+
+.cap-quien--tu {
+  background: var(--verde-accion);
+  color: var(--blanco);
+}
+
+.cap-quien--cliente {
+  background: var(--blanco);
+  color: var(--verde-pino);
+  border: 1px solid var(--cap-borde);
+}
+
+.cap-quien--llamar {
+  background: var(--ambar-suave);
+  color: var(--ambar);
+}
+
+.cap-tareas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0.75rem;
+}
+
+.cap-tarea {
+  display: grid;
+  gap: 0.25rem;
+  align-content: start;
+  background: var(--gris-frio);
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+}
+
+.cap-tarea p {
+  margin: 0 !important;
+  font-size: 0.88rem;
+  color: var(--cap-tenue);
+}
+
+.cap-tarea__num {
+  display: grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 50%;
+  background: var(--verde-accion);
+  color: var(--blanco);
+  font-weight: 800;
+  font-size: 0.85rem;
+  margin-bottom: 0.2rem;
+}
+
+/* --- El vale de ejemplo ----------------------------------------------- */
+
+.cap-vale {
+  display: grid;
+  justify-items: center;
+  gap: 0.4rem;
+  max-width: 17rem;
+  margin: 0 auto;
+  background: var(--blanco);
+  border-radius: 14px;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 4px 16px rgb(11 27 43 / 8%);
+}
+
+.cap-vale__etiqueta {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cap-tenue);
+}
+
+.cap-vale__monto {
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+/* Un código de barras de adorno: rayas, no un código que se pueda leer. */
+.cap-vale__barras {
+  width: 100%;
+  height: 3.2rem;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--negro-off) 0 2px,
+    transparent 2px 4px,
+    var(--negro-off) 4px 5px,
+    transparent 5px 8px,
+    var(--negro-off) 8px 11px,
+    transparent 11px 13px
+  );
+}
+
+.cap-vale__digitos {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-weight: 700;
+  letter-spacing: 0.25em;
+}
+
+/* --- Examen ----------------------------------------------------------- */
+
+.cap-quiz__intro {
+  color: var(--cap-tenue);
+}
+
+.cap-pregunta {
+  border: none;
+  padding: 0;
+  margin: 0 0 1.25rem;
+}
+
+.cap-pregunta legend {
+  display: flex;
+  gap: 0.6rem;
+  font-weight: 700;
+  margin-bottom: 0.6rem;
+  padding: 0;
+}
+
+.cap-pregunta__num {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: var(--gris-frio);
+  color: var(--verde-musgo);
+  font-size: 0.85rem;
+}
+
+.cap-pregunta__opciones {
+  display: grid;
+  gap: 0.5rem;
+  padding-left: 2.2rem;
+}
+
+.cap-opcion {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.25rem 0.6rem;
+  align-items: start;
+  padding: 0.65rem 0.8rem;
+  border: 1.5px solid var(--gris-frio);
+  border-radius: 10px;
+  cursor: pointer;
+  background: var(--blanco);
+}
+
+.cap-opcion:hover {
+  border-color: color-mix(in srgb, var(--verde-accion) 50%, transparent);
+}
+
+.cap-opcion input {
+  margin: 0.25rem 0 0;
+  accent-color: var(--verde-accion);
+}
+
+.cap-opcion__explicacion {
+  grid-column: 2;
+  font-size: 0.9rem;
+}
+
+.cap-opcion--bien {
+  border-color: var(--verde-accion);
+  background: color-mix(in srgb, var(--verde-esmeralda) 40%, var(--blanco));
+}
+
+.cap-opcion--bien .cap-opcion__explicacion strong {
+  color: var(--verde-musgo);
+}
+
+.cap-opcion--mal {
+  border-color: var(--ambar);
+  background: var(--ambar-suave);
+}
+
+.cap-opcion--mal .cap-opcion__explicacion strong {
+  color: var(--ambar);
+}
+
+.cap-quiz__marcador {
+  margin: 0 !important;
+  font-weight: 700;
+  color: var(--verde-musgo);
+}
+
+.cap-logro {
+  display: grid;
+  justify-items: start;
+  gap: 0.6rem;
+  margin-top: 1.25rem;
+  padding: 1.25rem 1.4rem;
+  border-radius: 16px;
+  background: var(--verde-marca);
+  color: var(--blanco);
+}
+
+.cap-logro strong {
+  font-size: 1.2rem;
+}
+
+.cap-logro a:not(.cap-boton) {
+  color: var(--verde-esmeralda);
+}
+
+.cap-logro .cap-boton {
+  background: var(--blanco);
+  color: var(--verde-musgo) !important;
+}
+
+.cap-logro .form-error {
+  color: var(--blanco);
+}
+
+.cap-logro .link-button {
+  color: var(--verde-esmeralda);
+}
+
+.cap-leccion__pie {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  font-size: 0.9rem;
+}
+
+/* --- Simulador de caja ------------------------------------------------- */
+
+.cap-simulador {
+  border: 2px dashed var(--ambar);
+  border-radius: 16px;
+  overflow: hidden;
+  margin-top: 0.5rem;
+}
+
+.cap-simulador__banda {
+  background: var(--ambar-suave);
+  color: var(--ambar);
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 0.5rem 1rem;
+}
+
+.cap-simulador__cuerpo {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(13rem, 16rem) minmax(0, 1fr);
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--gris-frio);
+}
+
+.cap-simulador__titulo {
+  font-weight: 700;
+  margin: 0 0 0.25rem !important;
+}
+
+.cap-simulador__misiones ul {
+  list-style: none;
+  padding: 0 !important;
+  margin: 0.5rem 0 !important;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.cap-simulador__misiones li {
+  margin: 0 !important;
+}
+
+.cap-mision {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: start;
+  width: 100%;
+  text-align: left;
+  font-family: var(--font-body);
+  background: var(--blanco);
+  border: 1.5px solid transparent;
+  border-radius: 10px;
+  padding: 0.5rem 0.6rem;
+  cursor: pointer;
+}
+
+.cap-mision:hover {
+  border-color: var(--verde-accion);
+}
+
+.cap-mision__check {
+  display: grid;
+  place-items: center;
+  width: 1.2rem;
+  height: 1.2rem;
+  border-radius: 50%;
+  border: 1.5px solid var(--cap-borde);
+  color: var(--blanco);
+  font-size: 0.7rem;
+  font-weight: 800;
+  margin-top: 0.1rem;
+}
+
+.cap-mision--hecha .cap-mision__check {
+  background: var(--verde-accion);
+  border-color: var(--verde-accion);
+}
+
+.cap-mision__codigo {
+  display: block;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+}
+
+.cap-mision__texto {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--cap-tenue);
+}
+
+.cap-simulador__caja {
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+  max-width: none;
+  align-content: start;
+}
+
+/* El campo de la caja trae un ancho natural de ~20 caracteres grandes;
+   en la columna angosta del simulador en celular, que se encoja. */
+.cap-simulador .validar-captura__input {
+  width: 100%;
+}
+
+.cap-simulador__error {
+  margin-top: -0.5rem !important;
+}
+
+/* --- Bienvenida (primer ingreso) -------------------------------------- */
+
+.cap-bienvenida h2 {
+  font-size: 1.3rem;
+  color: var(--verde-musgo);
+}
+
+.cap-bienvenida p {
+  margin: 0;
+}
+
+.cap-bienvenida__puntos {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.92rem;
+  color: color-mix(in srgb, var(--negro-off) 70%, transparent);
+}
+
+/* --- Guía rápida (para imprimir) -------------------------------------- */
+
+.cap-guia {
+  background: var(--blanco);
+  border: 1px solid var(--cap-borde);
+  border-radius: 16px;
+  padding: 1.5rem;
+}
+
+.cap-guia__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.cap-guia__head button {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 0.95rem;
+  background: var(--blanco);
+  color: var(--verde-musgo);
+  border: 1.5px solid var(--cap-borde);
+  border-radius: 10px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+}
+
+.cap-guia__sub {
+  margin: 0.2rem 0 1rem;
+  color: var(--cap-tenue);
+}
+
+.cap-guia__columnas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 1.5rem;
+}
+
+.cap-guia h2 {
+  font-size: 1rem;
+  color: var(--verde-musgo);
+  margin: 0.75rem 0 0.4rem;
+}
+
+.cap-guia ol,
+.cap-guia ul {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.92rem;
+}
+
+.cap-guia li + li {
+  margin-top: 0.35rem;
+}
+
+.cap-guia p {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.cap-guia__tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.cap-guia__tabla td {
+  padding: 0.35rem 0.4rem;
+  border-bottom: 1px solid var(--gris-frio);
+  vertical-align: top;
+}
+
+.cap-guia__tabla td:first-child {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+@media print {
+  .app-bar,
+  .tabs,
+  .cap-no-imprimir {
+    display: none !important;
+  }
+
+  body,
+  .app-body {
+    background: #fff;
+    padding: 0;
+  }
+
+  .cap-guia {
+    border: none;
+    padding: 0;
+  }
+}
+
+/* --- Celular ---------------------------------------------------------- */
+
+@media (max-width: 720px) {
+  .cap-hero {
+    grid-template-columns: 1fr;
+    padding: 1.1rem;
+  }
+
+  .cap-simulador__cuerpo {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0.75rem;
+  }
+
+  .cap-seccion {
+    padding: 1rem;
+  }
+
+  .cap-pregunta__opciones {
+    padding-left: 0;
+  }
+
+  .cap-tarjeta {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .cap-tarjeta__meta {
+    grid-column: 2;
+  }
+}

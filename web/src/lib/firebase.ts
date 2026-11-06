@@ -160,8 +160,34 @@ export const getConcesionarioDealsCallable = httpsCallable<
     /** Rollout cutoff per store (concesionarioId → ISO date | null). */
     rolloutPorTienda: Record<string, string | null>;
     origenDisposicion: OrigenDisposicion;
+    /** Avance de quien entró en la capacitación; null solo con un backend anterior. */
+    capacitacion: CapacitacionTienda | null;
   }
 >(functions, "getConcesionarioDeals");
+
+// --- Capacitación ---
+
+/** Avance propio en la capacitación (ver functions/src/firestore/capacitacionRepository.ts). */
+export interface CapacitacionTienda {
+  completadas: string[];
+  total: number;
+  completa: boolean;
+  bienvenidaVista: boolean;
+}
+
+/** Lo que ve Aviva de cada correo invitado. */
+export interface CapacitacionAdmin {
+  completadas: number;
+  total: number;
+  completaEn: string | null;
+  actualizadaEn: string | null;
+}
+
+/** Anota una lección pasada y/o que ya vio la bienvenida. Solo agrega. */
+export const guardarCapacitacionCallable = httpsCallable<
+  { leccion?: string; bienvenidaVista?: boolean },
+  CapacitacionTienda
+>(functions, "guardarCapacitacion");
 
 // --- Vale de un solo uso ---
 
@@ -228,7 +254,11 @@ export async function loginAdminWithGoogle() {
 
 export const adminListConcesionariosCallable = httpsCallable<
   void,
-  { concesionarios: AdminConcesionario[] }
+  {
+    concesionarios: AdminConcesionario[];
+    /** Correo en minúsculas → avance. Quien nunca entró a la capacitación no aparece. */
+    capacitacionPorCorreo?: Record<string, CapacitacionAdmin>;
+  }
 >(functions, "adminListConcesionarios");
 
 export const adminUpdateConcesionarioCallable = httpsCallable<

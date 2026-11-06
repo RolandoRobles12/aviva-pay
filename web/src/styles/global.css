@@ -2399,3 +2399,63 @@ h3 {
 .upload-form .revision-manual button.button-secondary {
   background: var(--blanco);
 }
+
+/* --- Capacitación: piezas que viven fuera de "Aprende" --------------------
+   El resto de la capacitación está en styles/capacitacion.css. */
+
+/* La pestaña "Aprende" lleva cuántas lecciones van mientras no termine:
+   un recordatorio que no interrumpe. */
+.tabs__aprende {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.tabs__pill {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: var(--ambar-suave);
+  color: var(--ambar);
+}
+
+/* "¿Cómo se hace?" junto a una tarea; abre la lección en otra pestaña. */
+.ayuda-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--verde-accion);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.ayuda-link:hover {
+  text-decoration: underline;
+}
+
+.ayuda-link__icono {
+  display: inline-grid;
+  place-items: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
+.upload-form__titulo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+
+.chip__badge--muted {
+  background: var(--ambar-suave);
+  color: var(--ambar);
+}

@@ -11,6 +11,7 @@ export { uploadCotizacion } from "./http/uploadCotizacion";
 export { uploadComprobante } from "./http/uploadComprobante";
 export { validarVale } from "./http/validarVale";
 export { confirmarDisposicion } from "./http/confirmarDisposicion";
+export { guardarCapacitacion } from "./http/capacitacion";
 
 // --- Cliente final (sin sesión: el token de la URL es lo que autoriza) ---
 export { getVale } from "./http/getVale";
