@@ -4,8 +4,8 @@ import { getEtapas } from "../lib/dealScope";
 import type { EtapaConfig } from "../types/admin";
 import { useCapacitacion, useEtiqueta } from "./contexto";
 import type { LeccionId } from "./progreso";
-import type { Pregunta } from "./Quiz";
 import { SimuladorCaja } from "./SimuladorCaja";
+import { TiendaPractica, cliente, seVe } from "./TiendaPractica";
 import {
   Avance,
   BotonSubir,
@@ -25,8 +25,11 @@ import {
 /**
  * El contenido de la capacitación. Cada lección responde tres cosas, en
  * este orden: para qué sirve, cómo se hace paso a paso, y qué hacer cuando
- * algo sale distinto — que es de donde salen las llamadas a soporte. Cierra
- * con casos del mostrador para comprobar que quedó claro.
+ * algo sale distinto — que es de donde salen las llamadas a soporte. Las
+ * que enseñan una tarea cierran con su práctica: la persona la hace en un
+ * simulador con las pantallas reales y clientes inventados. No hay
+ * exámenes: se aprende haciendo, y la lección se da por pasada al terminar
+ * la práctica (o con "Entendido" si no tiene tarea que practicar).
  *
  * Reglas para editarlo:
  * - Describir lo que la app hace hoy, con los mismos textos que muestra.
@@ -45,7 +48,11 @@ export interface Leccion {
   resumen: string;
   minutos: number;
   Contenido: () => ReactNode;
-  preguntas: Pregunta[];
+  /**
+   * El simulador de la tarea, si la lección enseña una. Avisa con
+   * `onCompletado` cuando se cumplieron todas sus misiones.
+   */
+  Practica?: (props: { onCompletado: () => void }) => ReactNode;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -587,13 +594,6 @@ function ValidarCodigo() {
         </p>
       </Seccion>
 
-      <Seccion titulo="Practica en el simulador" id="simulador">
-        <p>
-          Prueba cada caso antes de tenerlo con un cliente enfrente. Es la misma
-          pantalla que vas a usar en la caja, con códigos de práctica.
-        </p>
-        <SimuladorCaja />
-      </Seccion>
     </>
   );
 }
@@ -797,50 +797,6 @@ export const LECCIONES: Leccion[] = [
     resumen: "El recorrido de un crédito, tus tres tareas y la regla que nunca se rompe.",
     minutos: 3,
     Contenido: Bienvenida,
-    preguntas: [
-      {
-        id: "whatsapp",
-        enunciado:
-          "Llega un cliente y te enseña un WhatsApp que dice que su crédito de Aviva está aprobado por $15,000. ¿Le entregas el material?",
-        opciones: [
-          {
-            texto: "Sí, el mensaje dice que está aprobado.",
-            explicacion:
-              "Un mensaje o una captura se pueden falsificar. Lo único que prueba el crédito es validar su código en Paydesk.",
-          },
-          {
-            texto: "No hasta validar su código en Paydesk y confirmar la venta.",
-            correcta: true,
-            explicacion:
-              "Esa es la regla de oro: sin código validado en Paydesk, no hay entrega.",
-          },
-          {
-            texto: "Le llamo a Aviva para que me confirme por teléfono.",
-            explicacion:
-              "No hace falta: el código del cliente ya te dice en segundos si el crédito existe y por cuánto.",
-          },
-        ],
-      },
-      {
-        id: "tareas",
-        enunciado: "¿Cuáles de estas tareas te tocan a ti en Paydesk?",
-        opciones: [
-          {
-            texto: "Aprobar el crédito y liberar el dinero.",
-            explicacion: "Eso lo hace Aviva. Tus tareas empiezan cuando el cliente elige su material.",
-          },
-          {
-            texto: "Subir la cotización, validar el código en caja y subir el comprobante de entrega.",
-            correcta: true,
-            explicacion: "Exacto: esas tres son las etapas verdes del recorrido.",
-          },
-          {
-            texto: "Revisar la identidad del cliente.",
-            explicacion: "Eso lo hace el cliente directamente con Aviva.",
-          },
-        ],
-      },
-    ],
   },
   {
     id: "acceso",
@@ -848,226 +804,71 @@ export const LECCIONES: Leccion[] = [
     resumen: "Tu invitación, tu contraseña y qué hacer si alguien más de tu tienda necesita entrar.",
     minutos: 2,
     Contenido: Acceso,
-    preguntas: [
-      {
-        id: "companero",
-        enunciado: "Entra un compañero nuevo a la tienda y necesita usar Paydesk. ¿Qué hacen?",
-        opciones: [
-          {
-            texto: "Le presto mi correo y mi contraseña.",
-            explicacion:
-              "Cada cuenta es personal y todo queda registrado a nombre de quien la usa. Compartirla te hace responsable de lo que haga otra persona.",
-          },
-          {
-            texto: "Le pido a mi ejecutivo de Aviva que invite su correo.",
-            correcta: true,
-            explicacion: "Así tiene su propia cuenta, y tú sigues siendo responsable solo de lo tuyo.",
-          },
-          {
-            texto: "Que cree una cuenta él mismo desde la página de entrada.",
-            explicacion: "En Paydesk no hay registro libre: las cuentas solo existen si Aviva invita el correo.",
-          },
-        ],
-      },
-      {
-        id: "tienda-nueva",
-        enunciado:
-          "Tu ejecutivo te avisa que ya te dio acceso a una segunda tienda, pero no la ves. ¿Qué haces primero?",
-        opciones: [
-          {
-            texto: "Recargo la página.",
-            correcta: true,
-            explicacion: "Con eso Paydesk vuelve a revisar a qué tiendas tienes acceso.",
-          },
-          {
-            texto: "Pido una cuenta nueva para esa tienda.",
-            explicacion: "No hace falta: con una sola cuenta ves todas tus tiendas juntas.",
-          },
-        ],
-      },
-    ],
   },
   {
     id: "mis-clientes",
     titulo: "Leer tu lista de clientes",
     resumen: "Qué significa cada columna, cómo encontrar lo que te toca y dónde buscar a un cliente.",
-    minutos: 4,
+    minutos: 5,
     Contenido: MisClientes,
-    preguntas: [
-      {
-        id: "no-aparece",
-        enunciado:
-          "Buscas a un cliente que aprobaron el mes pasado y no aparece en tu lista. ¿Qué haces primero?",
-        opciones: [
+    Practica: ({ onCompletado }) => (
+      <TiendaPractica
+        onCompletado={onCompletado}
+        misiones={[
           {
-            texto: "Llamo a Aviva para reportar que falta.",
-            explicacion:
-              "Primero revisa el filtro: la lista abre en “Este mes”. Llama solo si tampoco aparece con “Todo”.",
+            id: "te-toca",
+            texto: "Deja en la lista solo a los clientes que esperan un documento tuyo.",
+            pista: "Toca el aviso verde o el filtro “Te toca a ti”.",
+            hecha: (s) => s.filtros.estado === "requieren-accion",
           },
           {
-            texto: "Cambio el periodo a “Todo” o lo busco por nombre.",
-            correcta: true,
-            explicacion:
-              "La lista abre en “Este mes”. Con “Todo” o con la búsqueda por nombre lo encuentras. Si no, revisa “Canceladas”.",
+            id: "pedro",
+            texto: "Encuentra a Pedro Sánchez. Lo aprobaron el mes pasado.",
+            pista: "La lista abre en “Este mes”: cambia el periodo a “Mes pasado” o “Todo”.",
+            hecha: (s) => seVe(s, "pedro"),
           },
           {
-            texto: "Cierro sesión y vuelvo a entrar.",
-            explicacion: "No hace falta: la lista ya está al día. Lo que lo esconde es el filtro de periodo.",
+            id: "anterior",
+            texto: "Encuentra al cliente que cerró antes de que tu tienda usara Paydesk.",
+            pista: "Prueba el filtro “Anteriores” con el periodo “Todo”.",
+            hecha: (s) => seVe(s, "jorge"),
           },
-        ],
-      },
-      {
-        id: "en-revision",
-        enunciado: "En la columna de cotización de un cliente dice “En revisión”. ¿Qué significa?",
-        opciones: [
-          {
-            texto: "Que tengo que volver a subirla.",
-            explicacion:
-              "No: el documento se guardó. Solo tienes que volver a subirlo si te equivocaste de archivo.",
-          },
-          {
-            texto: "Que Aviva la está revisando y no tengo que hacer nada.",
-            correcta: true,
-            explicacion: "Así es. Por eso ese cliente ya no cuenta en “Te toca a ti”.",
-          },
-        ],
-      },
-      {
-        id: "anterior",
-        enunciado: "Un cliente tiene la etiqueta “Anterior” y su comprobante dice “Subir si aplica”. ¿Qué haces?",
-        opciones: [
-          {
-            texto: "Nada: ese crédito cerró antes de que mi tienda empezara a usar Paydesk.",
-            correcta: true,
-            explicacion: "Aparece para que tengas la historia completa, pero no te pide documentos.",
-          },
-          {
-            texto: "Busco el comprobante en el archivo y lo subo hoy mismo.",
-            explicacion:
-              "No es necesario. Puedes subirlo si lo tienes a la mano, pero Paydesk no te lo pide.",
-          },
-        ],
-      },
-    ],
+        ]}
+      />
+    ),
   },
   {
     id: "cotizacion",
     titulo: "Subir la cotización",
     resumen: "Paso a paso, qué debe tener un buen documento y cómo corregirla si te equivocaste.",
-    minutos: 3,
+    minutos: 4,
     Contenido: Cotizacion,
-    preguntas: [
-      {
-        id: "monto",
-        enunciado:
-          "El crédito aprobado del cliente es de $20,000 y la cotización de su material suma $18,450.00. ¿Qué capturas en “Monto total de la compra”?",
-        opciones: [
+    Practica: ({ onCompletado }) => (
+      <TiendaPractica
+        onCompletado={onCompletado}
+        misiones={[
           {
-            texto: "$20,000, el monto aprobado.",
-            explicacion:
-              "El monto aprobado ya lo tiene Aviva. Aquí va el total de la cotización, tal como viene en el documento.",
+            id: "subir",
+            texto: "Sube la cotización de Ana Martínez. Su total es de $18,450.00.",
+            pista: "Usa cualquier PDF o foto de tu equipo: en la práctica no se envía a ningún lado.",
+            hecha: (s) => cliente(s, "ana")?.cotizacionEstatus === "completado",
           },
           {
-            texto: "$18,450.00, el total de la cotización.",
-            correcta: true,
-            explicacion: "Exacto: el mismo total que dice el documento que subes.",
+            id: "monto",
+            texto: "Captura como monto el total de la cotización, no el crédito aprobado ($20,000).",
+            hecha: (s) => cliente(s, "ana")?.cotizacionMontoTotalCompra === 18_450,
           },
-        ],
-      },
-      {
-        id: "equivocado",
-        enunciado: "Te das cuenta de que subiste la cotización de otro cliente. ¿Qué haces?",
-        opciones: [
-          {
-            texto: "Toco “Corregir documento” y subo la correcta.",
-            correcta: true,
-            explicacion: "El archivo nuevo reemplaza al anterior. Si está en revisión, el botón dice “Reemplazar”.",
-          },
-          {
-            texto: "Lo dejo así; Aviva se dará cuenta.",
-            explicacion:
-              "Un documento de otro cliente detiene el crédito y termina en una llamada. Corrígelo en cuanto lo notes.",
-          },
-        ],
-      },
-    ],
+        ]}
+      />
+    ),
   },
   {
     id: "validar-codigo",
     titulo: "Validar el código del cliente en caja",
     resumen: "Cómo comprobar que el crédito es real, confirmar la venta y qué hacer con cada respuesta.",
-    minutos: 6,
+    minutos: 7,
     Contenido: ValidarCodigo,
-    preguntas: [
-      {
-        id: "otra-tienda",
-        enunciado: "Validas el código de un cliente y sale “Este código no es de tu tienda”. ¿Qué haces?",
-        opciones: [
-          {
-            texto: "Le entrego el material; el crédito existe aunque sea de otra tienda.",
-            explicacion: "No: ese crédito está autorizado para otra tienda y tu venta no quedaría respaldada.",
-          },
-          {
-            texto: "No entrego material. El cliente pide a Aviva que reasignen su crédito a mi tienda.",
-            correcta: true,
-            explicacion:
-              "Paydesk no te dice de qué tienda es por privacidad; Aviva lo resuelve con el cliente.",
-          },
-          {
-            texto: "Lo vuelvo a escanear hasta que salga bien.",
-            explicacion: "La respuesta no va a cambiar, y cada intento queda registrado.",
-          },
-        ],
-      },
-      {
-        id: "menor",
-        enunciado:
-          "El crédito autorizado es de $25,000 y el cliente solo se lleva $19,300 de material. ¿Qué monto capturas al confirmar?",
-        opciones: [
-          {
-            texto: "$25,000, para que use todo su crédito.",
-            explicacion: "El monto de la venta es lo que realmente vendiste. Capturar de más es un error grave.",
-          },
-          {
-            texto: "$19,300, lo que realmente vendí.",
-            correcta: true,
-            explicacion: "Exacto. Puede ser menor al autorizado, nunca mayor.",
-          },
-        ],
-      },
-      {
-        id: "cuando-confirmar",
-        enunciado: "El cliente sigue eligiendo material. ¿Cuándo tocas “Confirmar disposición”?",
-        opciones: [
-          {
-            texto: "Ya, para apartar el crédito.",
-            explicacion:
-              "Confirmar gasta el vale y no se puede deshacer. Si quieres revisar el monto mientras decide, solo valida: eso no lo gasta.",
-          },
-          {
-            texto: "Cuando ya tengo el total de la venta y voy a entregar el material.",
-            correcta: true,
-            explicacion: "Así es. Validar puedes hacerlo las veces que quieras; confirmar, una sola vez.",
-          },
-        ],
-      },
-      {
-        id: "pistola",
-        enunciado:
-          "Tu pistola de la caja no lee el código en la pantalla del celular del cliente. ¿Qué haces?",
-        opciones: [
-          {
-            texto: "Le pido al cliente que regrese con el vale impreso.",
-            explicacion: "No hace falta mandarlo a imprimir: tienes otras dos maneras de meter el código.",
-          },
-          {
-            texto: "Uso “Escanear con la cámara” o tecleo los 10 dígitos.",
-            correcta: true,
-            explicacion: "Las pistolas de láser no leen pantallas. La cámara o el tecleo siempre funcionan.",
-          },
-        ],
-      },
-    ],
+    Practica: ({ onCompletado }) => <SimuladorCaja onCompletado={onCompletado} />,
   },
   {
     id: "comprobante",
@@ -1075,81 +876,54 @@ export const LECCIONES: Leccion[] = [
     resumen: "El último documento que te toca, cuándo subirlo y por qué la firma es indispensable.",
     minutos: 3,
     Contenido: Comprobante,
-    preguntas: [
-      {
-        id: "sin-firma",
-        enunciado: "Entregaste el material, pero el cliente se fue sin firmar el comprobante. ¿Qué haces?",
-        opciones: [
+    Practica: ({ onCompletado }) => (
+      <TiendaPractica
+        onCompletado={onCompletado}
+        misiones={[
           {
-            texto: "Lo subo sin firma y marco la casilla; total, ya se entregó.",
-            explicacion:
-              "Marcar la casilla es tu confirmación de que el cliente firmó. Marcarla sin firma es dar un dato falso.",
+            id: "subir",
+            texto: "Luis Ramírez ya recibió su material y firmó. Sube su comprobante de entrega.",
+            pista: "Fíjate en la casilla de la firma: sin ella no se puede guardar.",
+            hecha: (s) => cliente(s, "luis")?.comprobanteEntregaEstatus === "completado",
           },
-          {
-            texto: "Consigo la firma del cliente y después lo subo.",
-            correcta: true,
-            explicacion: "El comprobante solo sirve si el cliente lo firmó.",
-          },
-        ],
-      },
-      {
-        id: "fecha",
-        enunciado: "¿Qué fecha capturas en “Fecha de entrega”?",
-        opciones: [
-          {
-            texto: "El día en que el cliente recibió el material.",
-            correcta: true,
-            explicacion: "Sí: la fecha real de la entrega, la misma que dice el comprobante.",
-          },
-          {
-            texto: "El día en que estoy subiendo el comprobante.",
-            explicacion: "Si lo subes días después, la fecha correcta sigue siendo la de la entrega.",
-          },
-        ],
-      },
-    ],
+        ]}
+      />
+    ),
   },
   {
     id: "revision",
     titulo: "Documentos en revisión o con problema",
     resumen: "Qué hacer cuando un documento no se acepta a la primera, sin tener que llamar a nadie.",
-    minutos: 3,
+    minutos: 4,
     Contenido: Revision,
-    preguntas: [
-      {
-        id: "rechazo",
-        enunciado:
-          "Subes una cotización y sale “Hubo un problema con el archivo y no pudimos aceptarlo”. ¿Qué haces?",
-        opciones: [
+    Practica: ({ onCompletado }) => (
+      <TiendaPractica
+        onCompletado={onCompletado}
+        misiones={[
           {
-            texto: "Llamo a Aviva para que me digan qué tiene.",
-            explicacion:
-              "Por seguridad no se explica qué se encontró. Revisa el archivo y vuelve a subirlo; casi siempre se resuelve así.",
+            id: "rechazo",
+            texto: "Sube la cotización de Rosa Díaz. En esta práctica, su archivo no se va a aceptar.",
+            pista: "Lee el mensaje que aparece: es el mismo que verías en la tienda.",
+            hecha: (s) => {
+              const r = cliente(s, "rosa");
+              return Boolean(r && ((r.cotizacionRechazosAuto ?? 0) > 0 || r.cotizacionRevision));
+            },
           },
           {
-            texto: "Reviso que sea el documento correcto, completo y legible, y lo vuelvo a subir.",
-            correcta: true,
-            explicacion:
-              "Si lo rechaza dos veces y estás seguro de que está bien, solicita la verificación manual.",
-          },
-        ],
-      },
-      {
-        id: "manual",
-        enunciado: "¿Cuándo usas “Solicitar verificación manual”?",
-        opciones: [
-          {
-            texto: "Siempre, para que lo revise una persona.",
-            explicacion: "Solo aparece después de dos rechazos seguidos, y es para cuando el documento sí es correcto.",
+            id: "manual",
+            texto: "Intenta una vez más y, cuando aparezca, pide la verificación manual.",
+            pista: "El botón aparece después de dos rechazos seguidos del mismo documento.",
+            hecha: (s) => Boolean(cliente(s, "rosa")?.cotizacionRevision?.solicitudManual),
           },
           {
-            texto: "Cuando el mismo documento se rechazó dos veces y estoy seguro de que es correcto.",
-            correcta: true,
-            explicacion: "Exacto. Lo revisa una persona de Aviva y queda “En revisión” mientras tanto.",
+            id: "en-revision",
+            texto: "Encuentra a otro cliente con un documento “En revisión”.",
+            pista: "Es del mes pasado: cambia el periodo.",
+            hecha: (s) => seVe(s, "pedro"),
           },
-        ],
-      },
-    ],
+        ]}
+      />
+    ),
   },
   {
     id: "canceladas-reporte",
@@ -1157,41 +931,6 @@ export const LECCIONES: Leccion[] = [
     resumen: "Qué pasa con los créditos que ya no avanzan y cómo ver tus números.",
     minutos: 2,
     Contenido: CanceladasReporte,
-    preguntas: [
-      {
-        id: "cancelada",
-        enunciado:
-          "Llega un cliente que aparece en “Canceladas” y quiere usar su código. ¿Qué haces?",
-        opciones: [
-          {
-            texto: "Valido su código por si acaso todavía sirve.",
-            explicacion:
-              "Puedes hacerlo, pero un crédito cancelado se lleva su vale: no va a servir.",
-          },
-          {
-            texto: "No entrego material. Le explico que tiene que solicitar de nuevo con Aviva.",
-            correcta: true,
-            explicacion: "Su crédito ya no existe y su código no sirve.",
-          },
-        ],
-      },
-      {
-        id: "alcanzo",
-        enunciado: "En “Canceladas”, un cliente dice “Alcanzó a usarlo”. ¿Qué haces?",
-        opciones: [
-          {
-            texto: "Se lo reporto a mi ejecutivo de Aviva.",
-            correcta: true,
-            explicacion:
-              "Sí: se entregó material contra un crédito que después se canceló, y eso lo tiene que ver Aviva contigo.",
-          },
-          {
-            texto: "Nada, ya está cancelado.",
-            explicacion: "Es el único caso de esa lista donde hay material entregado. Hay que reportarlo.",
-          },
-        ],
-      },
-    ],
   },
 ];
 

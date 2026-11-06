@@ -57,19 +57,6 @@ export function numeroDeLeccion(id: LeccionId): number {
   return ORDEN_LECCIONES.indexOf(id) + 1;
 }
 
-/**
- * Una lección se da por pasada cuando cada pregunta tiene contestada la
- * opción correcta. Se puede reintentar sin castigo: el objetivo es que la
- * tienda salga sabiendo qué hacer, no ponerle calificación.
- */
-export function quizAprobado(
-  correctas: Record<string, number>,
-  respuestas: Record<string, number | undefined>,
-): boolean {
-  const ids = Object.keys(correctas);
-  return ids.length > 0 && ids.every((id) => respuestas[id] === correctas[id]);
-}
-
 /** Quita acentos y mayúsculas, para que buscar "codigo" encuentre "código". */
 export function normalizarBusqueda(texto: string): string {
   return texto

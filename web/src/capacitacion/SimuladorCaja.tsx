@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ResultadoValidacion } from "../components/ValidarCodigoPanel";
 import type { ValidacionVale } from "../types/vale";
 import {
@@ -23,13 +23,24 @@ type Estado =
  * caso —el verde, los rojos que frenan la entrega, los ámbar que se
  * arreglan— antes de encontrárselo con un cliente enfrente.
  */
-export function SimuladorCaja() {
+export function SimuladorCaja({ onCompletado }: { onCompletado?: () => void } = {}) {
   const [codigo, setCodigo] = useState("");
   const [estado, setEstado] = useState<Estado>({ tipo: "nada" });
   const [monto, setMonto] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [probados, setProbados] = useState<Set<string>>(new Set());
+  const [confirmoVenta, setConfirmoVenta] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const avisado = useRef(false);
+
+  // Se da por practicado cuando vio cada pantalla y cerró al menos una venta.
+  const completo = probados.size === CODIGOS_PRACTICA.length && confirmoVenta;
+  useEffect(() => {
+    if (completo && !avisado.current) {
+      avisado.current = true;
+      onCompletado?.();
+    }
+  }, [completo, onCompletado]);
 
   function validar(entrada: string) {
     setError(null);
@@ -61,6 +72,7 @@ export function SimuladorCaja() {
       setError(err);
       return;
     }
+    setConfirmoVenta(true);
     setEstado({ tipo: "confirmado", monto: Number(monto), cliente: estado.validacion.cliente });
   }
 
@@ -106,6 +118,7 @@ export function SimuladorCaja() {
           </ul>
           <p className="form-note">
             {probados.size} de {CODIGOS_PRACTICA.length} casos probados
+            {confirmoVenta ? " · venta confirmada ✓" : " · falta confirmar una venta"}
           </p>
         </div>
 

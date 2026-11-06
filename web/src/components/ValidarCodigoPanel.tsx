@@ -227,7 +227,9 @@ export function ValidarCodigoPanel({
             La pistola de la caja lo teclea sola. Si es de láser no va a leer la
             pantalla del cliente: usa la cámara, o escribe los 10 dígitos.
           </p>
-          <AyudaLink leccion="validar-codigo">¿Primera vez? Practica en el simulador</AyudaLink>
+          <AyudaLink leccion="validar-codigo" ancla="practica">
+            ¿Primera vez? Practica en el simulador
+          </AyudaLink>
         </div>
       </form>
 

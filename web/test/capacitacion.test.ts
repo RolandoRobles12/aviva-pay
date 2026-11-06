@@ -13,10 +13,18 @@ import {
   capacitacionDeTienda,
   coincideBusqueda,
   leccionSiguiente,
-  quizAprobado,
 } from "../src/capacitacion/progreso";
 import { LECCIONES } from "../src/capacitacion/lecciones";
 import { PREGUNTAS_FRECUENTES } from "../src/capacitacion/referencia";
+import {
+  CLIENTE_RECHAZADO,
+  dealsIniciales,
+  mensajeRechazo,
+  rolloutPractica,
+  subirPractica,
+} from "../src/capacitacion/tiendaPractica";
+import { aplicarFiltros, FILTROS_INICIALES } from "../src/components/DealFilters";
+import { requiereAccion, scopeOf } from "../src/lib/dealScope";
 import {
   CODIGOS_PRACTICA,
   errorMontoPractica,
@@ -35,26 +43,9 @@ describe("contenido de la capacitación", () => {
     expect(LECCIONES.map((l) => l.id)).toEqual([...ORDEN_LECCIONES]);
   });
 
-  it("cada pregunta tiene exactamente una respuesta correcta y explica cada opción", () => {
-    for (const l of LECCIONES) {
-      expect(l.preguntas.length, l.id).toBeGreaterThan(0);
-      for (const p of l.preguntas) {
-        expect(p.opciones.filter((o) => o.correcta).length, `${l.id}/${p.id}`).toBe(1);
-        expect(p.opciones.length, `${l.id}/${p.id}`).toBeGreaterThanOrEqual(2);
-        for (const o of p.opciones) {
-          expect(o.explicacion.trim(), `${l.id}/${p.id}`).not.toBe("");
-          // La pantalla ya antepone "Correcto." / "No exactamente.".
-          expect(o.explicacion, `${l.id}/${p.id}`).not.toMatch(/^(Correcto|No exactamente)\b/);
-        }
-      }
-    }
-  });
-
-  it("los ids de pregunta no se repiten dentro de una lección", () => {
-    for (const l of LECCIONES) {
-      const ids = l.preguntas.map((p) => p.id);
-      expect(new Set(ids).size, l.id).toBe(ids.length);
-    }
+  it("las lecciones que enseñan una tarea tienen práctica", () => {
+    const conPractica = LECCIONES.filter((l) => l.Practica).map((l) => l.id);
+    expect(conPractica).toEqual(["mis-clientes", "cotizacion", "validar-codigo", "comprobante", "revision"]);
   });
 
   it("las preguntas frecuentes no se repiten", () => {
@@ -92,18 +83,6 @@ describe("avance", () => {
   it("la lección que sigue y el final del curso", () => {
     expect(leccionSiguiente("bienvenida")).toBe("acceso");
     expect(leccionSiguiente(ORDEN_LECCIONES[ORDEN_LECCIONES.length - 1])).toBeNull();
-  });
-});
-
-describe("examen", () => {
-  const correctas = { a: 1, b: 0 };
-  it("se aprueba solo con todas correctas", () => {
-    expect(quizAprobado(correctas, { a: 1, b: 0 })).toBe(true);
-    expect(quizAprobado(correctas, { a: 1 })).toBe(false);
-    expect(quizAprobado(correctas, { a: 1, b: 1 })).toBe(false);
-  });
-  it("un examen sin preguntas no se da por aprobado", () => {
-    expect(quizAprobado({}, {})).toBe(false);
   });
 });
 
@@ -155,5 +134,72 @@ describe("simulador de caja", () => {
     expect(errorMontoPractica(25_000.01, 25_000)).toMatch(/no puede ser mayor/);
     expect(errorMontoPractica(19_300, 25_000)).toBeNull();
     expect(errorMontoPractica(25_000, 25_000)).toBeNull();
+  });
+});
+
+describe("tienda de práctica", () => {
+  // A mitad de mes, para que "este mes" y "mes pasado" no dependan del día.
+  const hoy = new Date(2026, 10, 15, 12);
+  const deals = dealsIniciales(hoy);
+  const rollout = rolloutPractica(hoy);
+  const id = (d: { dealId: string }[]) => d.map((x) => x.dealId);
+
+  it("con los filtros de entrada, Pedro (mes pasado) y Jorge (anterior) no se ven", () => {
+    const visibles = id(aplicarFiltros(deals, FILTROS_INICIALES, rollout));
+    expect(visibles).not.toContain("pedro");
+    expect(visibles).not.toContain("jorge");
+    expect(visibles).toContain("ana");
+  });
+
+  it("con “Mes pasado” aparece Pedro; con “Todo” y “Anteriores”, Jorge", () => {
+    expect(id(aplicarFiltros(deals, { ...FILTROS_INICIALES, periodo: "mes-pasado" }, rollout))).toContain("pedro");
+    expect(
+      id(aplicarFiltros(deals, { ...FILTROS_INICIALES, periodo: "todo", estado: "historicas" }, rollout)),
+    ).toEqual(["jorge"]);
+  });
+
+  it("Jorge es anterior y no se le pide nada; Ana sí espera un documento", () => {
+    const d = (x: string) => deals.find((y) => y.dealId === x)!;
+    expect(scopeOf(d("jorge"), rollout)).toBe("historica");
+    expect(requiereAccion(d("jorge"), rollout)).toBe(false);
+    expect(requiereAccion(d("ana"), rollout)).toBe(true);
+  });
+
+  it("subir la cotización la completa con lo capturado", () => {
+    const { deals: nuevos, resultado } = subirPractica(deals, {
+      tipo: "cotizacion",
+      dealId: "ana",
+      fecha: "2026-11-20",
+      montoTotalCompra: "18450",
+    });
+    expect(resultado).toEqual({ ok: true, enRevision: false, reemplazo: false });
+    const ana = nuevos.find((d) => d.dealId === "ana")!;
+    expect(ana.cotizacionEstatus).toBe("completado");
+    expect(ana.cotizacionMontoTotalCompra).toBe(18_450);
+    expect(requiereAccion(ana, rollout)).toBe(true); // falta el comprobante
+  });
+
+  it("corregir una cotización ya subida es un reemplazo", () => {
+    const una = subirPractica(deals, { tipo: "cotizacion", dealId: "ana", fecha: "2026-11-20", montoTotalCompra: "1" });
+    const dos = subirPractica(una.deals, { tipo: "cotizacion", dealId: "ana", fecha: "2026-11-20", montoTotalCompra: "2" });
+    expect(dos.resultado).toMatchObject({ ok: true, reemplazo: true });
+  });
+
+  it("el cliente rechazado ofrece verificación manual al segundo rechazo, y luego queda en revisión", () => {
+    const s = { tipo: "cotizacion" as const, dealId: CLIENTE_RECHAZADO, fecha: "2026-11-20", montoTotalCompra: "1" };
+    const r1 = subirPractica(deals, s);
+    expect(r1.resultado).toEqual({ ok: false, mensaje: mensajeRechazo("cotizacion"), revisionManualDisponible: false });
+    const r2 = subirPractica(r1.deals, s);
+    expect(r2.resultado).toMatchObject({ ok: false, revisionManualDisponible: true });
+    const r3 = subirPractica(r2.deals, { ...s, solicitudManual: true });
+    expect(r3.resultado).toEqual({ ok: true, enRevision: true, reemplazo: false });
+    const rosa = r3.deals.find((d) => d.dealId === CLIENTE_RECHAZADO)!;
+    expect(rosa.cotizacionRevision?.solicitudManual).toBe(true);
+    expect(rosa.cotizacionEstatus).toBe("pendiente");
+  });
+
+  it("el mensaje de rechazo concuerda en género", () => {
+    expect(mensajeRechazo("cotizacion")).toContain("la cotización correcta");
+    expect(mensajeRechazo("comprobante")).toContain("el comprobante de entrega correcto");
   });
 });

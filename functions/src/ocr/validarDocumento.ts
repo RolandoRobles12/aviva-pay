@@ -50,10 +50,14 @@ export class OcrRechazadoError extends Error {
 
 /** Lo que ve la tienda cuando su documento se rechaza al subirlo. */
 export function mensajeRechazoTienda(tipo: DocumentoTipo): string {
-  const doc = tipo === "cotizacion" ? "la cotización" : "el comprobante de entrega";
+  // Concordancia de género: "la cotización correcta", "el comprobante correcto".
+  const [doc, como] =
+    tipo === "cotizacion"
+      ? ["la cotización", "correcta, completa y legible"]
+      : ["el comprobante de entrega", "correcto, completo y legible"];
   return (
     `Hubo un problema con el archivo y no pudimos aceptarlo. ` +
-    `Revisa que sea ${doc} correcto, completo y legible, y vuelve a subirlo.`
+    `Revisa que sea ${doc} ${como}, y vuelve a subirlo.`
   );
 }
 

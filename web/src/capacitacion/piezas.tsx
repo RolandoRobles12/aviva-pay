@@ -13,7 +13,7 @@ export function Seccion({
   children,
 }: {
   titulo: string;
-  /** Para ligar directo a la sección, p. ej. /ayuda/validar-codigo#simulador. */
+  /** Para ligar directo a la sección, p. ej. /ayuda/validar-codigo#practica. */
   id?: string;
   children: ReactNode;
 }) {

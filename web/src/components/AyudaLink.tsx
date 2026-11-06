@@ -5,10 +5,19 @@ import type { LeccionId } from "../capacitacion/progreso";
  * abierta de la capacitación (/ayuda), en otra pestaña, para que la
  * persona no pierda lo que ya llevaba capturado en el formulario.
  */
-export function AyudaLink({ leccion, children = "¿Cómo se hace?" }: { leccion: LeccionId; children?: string }) {
+export function AyudaLink({
+  leccion,
+  ancla,
+  children = "¿Cómo se hace?",
+}: {
+  leccion: LeccionId;
+  /** Sección de la lección a la que salta, p. ej. "practica". */
+  ancla?: string;
+  children?: string;
+}) {
   return (
     <a
-      href={`/ayuda/${leccion}`}
+      href={`/ayuda/${leccion}${ancla ? `#${ancla}` : ""}`}
       target="_blank"
       rel="noopener noreferrer"
       className="ayuda-link"

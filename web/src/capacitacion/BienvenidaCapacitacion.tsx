@@ -28,7 +28,7 @@ export function BienvenidaCapacitacion({ onCerrar }: { onCerrar: () => void }) {
           comunes.
         </p>
         <ul className="cap-bienvenida__puntos">
-          <li>Practicas la caja en un simulador, sin tocar clientes reales.</li>
+          <li>Practicas cada tarea en simuladores con las pantallas reales, sin tocar clientes reales.</li>
           <li>Puedes dejarla a medias y seguir después donde te quedaste.</li>
           <li>Siempre la encuentras en la pestaña “Aprende”.</li>
         </ul>

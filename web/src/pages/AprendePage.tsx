@@ -14,7 +14,6 @@ import {
   numeroDeLeccion,
   ORDEN_LECCIONES,
 } from "../capacitacion/progreso";
-import { Quiz } from "../capacitacion/Quiz";
 import { CuandoLlamar, GuiaRapida, PreguntasFrecuentes } from "../capacitacion/referencia";
 import "../styles/capacitacion.css";
 
@@ -175,7 +174,7 @@ export function AprendeInicio() {
             <strong>Guía rápida para imprimir</strong>
             <span>Una hoja con tus tres tareas y qué hacer con cada respuesta del código.</span>
           </Link>
-          <Link to={`${base}/validar-codigo#simulador`} className="cap-atajo">
+          <Link to={`${base}/validar-codigo#practica`} className="cap-atajo">
             <strong>Simulador de caja</strong>
             <span>Practica la validación con códigos de prueba, sin tocar clientes reales.</span>
           </Link>
@@ -207,7 +206,7 @@ export function AprendeLeccion() {
   const [aprobadaAhora, setAprobadaAhora] = useState(false);
   const [errorGuardado, setErrorGuardado] = useState<string | null>(null);
 
-  // Cada lección empieza arriba y con su examen limpio, también al pasar
+  // Cada lección empieza arriba y con su práctica limpia, también al pasar
   // de una a otra con "Siguiente".
   useEffect(() => {
     setAprobadaAhora(false);
@@ -221,7 +220,7 @@ export function AprendeLeccion() {
 
   if (!leccion) return <Navigate to={base} replace />;
 
-  const { Contenido } = leccion;
+  const { Contenido, Practica } = leccion;
   const numero = numeroDeLeccion(leccion.id);
   const siguiente = leccionSiguiente(leccion.id);
   const anterior = ORDEN_LECCIONES[numero - 2];
@@ -260,16 +259,32 @@ export function AprendeLeccion() {
         <Contenido />
       </div>
 
-      <section className="cap-seccion cap-seccion--quiz" id="examen">
-        <h2>Comprueba lo que aprendiste</h2>
-        <Quiz key={leccion.id} preguntas={leccion.preguntas} aprobadaAntes={yaHecha} onAprobado={aprobado} />
-      </section>
+      {Practica ? (
+        <section className="cap-seccion cap-seccion--practica" id="practica">
+          <h2>Ahora hazlo tú</h2>
+          <p>
+            {yaHecha && modo === "tienda"
+              ? "Ya completaste esta práctica. Puedes repetirla cuando quieras."
+              : "Cumple las misiones para completar la lección. Son las mismas pantallas que vas a usar, con clientes inventados: equivócate todo lo que quieras."}
+          </p>
+          <Practica key={leccion.id} onCompletado={aprobado} />
+        </section>
+      ) : (
+        !aprobadaAhora &&
+        !(yaHecha && modo === "tienda") && (
+          <div className="cap-entendido">
+            <button type="button" className="cap-boton" onClick={aprobado}>
+              Entendido{siguiente ? ", siguiente lección" : ""}
+            </button>
+          </div>
+        )
+      )}
 
-      {/* El cierre sale al pasar el examen en esta visita; al repasar una ya hecha no estorba. */}
+      {/* El cierre sale al terminar la práctica en esta visita; al repasar una ya hecha no estorba. */}
       {aprobadaAhora && (
         <div className="cap-logro" role="status">
           <strong>
-            {modo === "tienda" ? "¡Lección completada!" : "¡Todo correcto!"}
+            {modo === "tienda" ? "¡Lección completada!" : "¡Listo!"}
           </strong>
           {modo === "publico" && (
             <span>

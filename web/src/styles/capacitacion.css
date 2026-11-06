@@ -342,11 +342,6 @@
   margin-top: 0.3rem;
 }
 
-.cap-seccion--quiz {
-  margin-top: 1.25rem;
-  border: 2px solid color-mix(in srgb, var(--verde-accion) 35%, transparent);
-}
-
 .cap-pasos {
   list-style: none;
   counter-reset: paso;
@@ -672,92 +667,15 @@
   letter-spacing: 0.25em;
 }
 
-/* --- Examen ----------------------------------------------------------- */
+/* --- Práctica --------------------------------------------------------- */
 
-.cap-quiz__intro {
-  color: var(--cap-tenue);
+.cap-seccion--practica {
+  margin-top: 1.25rem;
+  border: 2px solid color-mix(in srgb, var(--verde-accion) 35%, transparent);
 }
 
-.cap-pregunta {
-  border: none;
-  padding: 0;
-  margin: 0 0 1.25rem;
-}
-
-.cap-pregunta legend {
-  display: flex;
-  gap: 0.6rem;
-  font-weight: 700;
-  margin-bottom: 0.6rem;
-  padding: 0;
-}
-
-.cap-pregunta__num {
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-  width: 1.6rem;
-  height: 1.6rem;
-  border-radius: 50%;
-  background: var(--gris-frio);
-  color: var(--verde-musgo);
-  font-size: 0.85rem;
-}
-
-.cap-pregunta__opciones {
-  display: grid;
-  gap: 0.5rem;
-  padding-left: 2.2rem;
-}
-
-.cap-opcion {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 0.25rem 0.6rem;
-  align-items: start;
-  padding: 0.65rem 0.8rem;
-  border: 1.5px solid var(--gris-frio);
-  border-radius: 10px;
-  cursor: pointer;
-  background: var(--blanco);
-}
-
-.cap-opcion:hover {
-  border-color: color-mix(in srgb, var(--verde-accion) 50%, transparent);
-}
-
-.cap-opcion input {
-  margin: 0.25rem 0 0;
-  accent-color: var(--verde-accion);
-}
-
-.cap-opcion__explicacion {
-  grid-column: 2;
-  font-size: 0.9rem;
-}
-
-.cap-opcion--bien {
-  border-color: var(--verde-accion);
-  background: color-mix(in srgb, var(--verde-esmeralda) 40%, var(--blanco));
-}
-
-.cap-opcion--bien .cap-opcion__explicacion strong {
-  color: var(--verde-musgo);
-}
-
-.cap-opcion--mal {
-  border-color: var(--ambar);
-  background: var(--ambar-suave);
-}
-
-.cap-opcion--mal .cap-opcion__explicacion strong {
-  color: var(--ambar);
-}
-
-.cap-quiz__marcador {
-  margin: 0 !important;
-  font-weight: 700;
-  color: var(--verde-musgo);
+.cap-entendido {
+  margin-top: 1.25rem;
 }
 
 .cap-logro {
@@ -912,6 +830,56 @@
   margin-top: -0.5rem !important;
 }
 
+/* --- Tienda de práctica ----------------------------------------------- */
+
+.cap-tienda__misiones {
+  background: var(--blanco);
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid var(--cap-borde);
+}
+
+.cap-tienda__misiones ol {
+  list-style: none;
+  padding: 0 !important;
+  margin: 0.5rem 0 0 !important;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.cap-tienda__misiones li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.55rem;
+  align-items: start;
+  margin: 0 !important;
+}
+
+.cap-tienda__mision--hecha > span:last-child {
+  color: var(--cap-tenue);
+  text-decoration: line-through;
+}
+
+.cap-tienda__mision--hecha .cap-mision__check {
+  background: var(--verde-accion);
+  border-color: var(--verde-accion);
+}
+
+.cap-tienda__pista {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--cap-tenue);
+}
+
+.cap-tienda__lista {
+  min-width: 0;
+  padding: 1rem;
+  background: var(--gris-frio);
+}
+
+.cap-tienda__lista .deals-table-wrapper {
+  margin-bottom: 0;
+}
+
 /* --- Bienvenida (primer ingreso) -------------------------------------- */
 
 .cap-bienvenida h2 {
@@ -1043,10 +1011,6 @@
 
   .cap-seccion {
     padding: 1rem;
-  }
-
-  .cap-pregunta__opciones {
-    padding-left: 0;
   }
 
   .cap-tarjeta {
