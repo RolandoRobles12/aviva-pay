@@ -5,6 +5,7 @@ import { getConcesionariosByIds } from "../firestore/concesionariosRepository";
 import { getDealsByConcesionarioIds } from "../firestore/dealsRepository";
 import { getEtapas } from "../firestore/etapasRepository";
 import { clientesParaVendedor } from "../vendedor/proyeccion";
+import { getCapacitacion } from "../firestore/capacitacionRepository";
 
 /**
  * La vista de un vendedor externo: los clientes aprobados de sus tiendas
@@ -33,10 +34,12 @@ export const getVendedorClientes = onCall({ region: "us-central1" }, async (requ
   // en minutos no es alguien consultando.
   await limitar("getVendedorClientes", uid, { max: 120, ventanaSeg: 600 });
 
-  const [concesionarios, deals, etapas] = await Promise.all([
+  const [concesionarios, deals, etapas, capacitacion] = await Promise.all([
     getConcesionariosByIds(vendedorIds),
     getDealsByConcesionarioIds(vendedorIds),
     getEtapas(),
+    // Su avance en el curso del vendedor: decide la bienvenida y la pestaña "Aprende".
+    getCapacitacion(uid, "vendedor"),
   ]);
 
   return {
@@ -47,6 +50,7 @@ export const getVendedorClientes = onCall({ region: "us-central1" }, async (requ
     })),
     clientes: clientesParaVendedor(deals),
     etapas,
+    capacitacion,
     consultadoEn: new Date().toISOString(),
   };
 });

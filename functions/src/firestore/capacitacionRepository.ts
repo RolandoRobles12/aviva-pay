@@ -1,31 +1,48 @@
 import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
 import {
-  LECCIONES_CAPACITACION,
+  LECCIONES_POR_CURSO,
   resumirCapacitacion,
+  type Curso,
   type LeccionId,
 } from "../capacitacion/lecciones";
 
 const COLLECTION = "paydesk_capacitacion";
 
 /**
- * Avance de cada persona de tienda en la capacitación, por uid. Es por
- * persona y no por tienda porque quien atiende la caja es una persona, y
- * una tienda con tres correos invitados puede tener a dos capacitados y a
- * uno que nunca entró. El correo va copiado para que el panel lo cruce con
- * `usuarios` de cada tienda sin leer Firebase Auth.
+ * Avance de cada persona en la capacitación, por uid. Es por persona y no
+ * por tienda porque quien atiende la caja —o vende— es una persona, y una
+ * tienda con tres correos invitados puede tener a dos capacitados y a uno
+ * que nunca entró. El correo va copiado para que el panel lo cruce con las
+ * listas de cada tienda sin leer Firebase Auth.
+ *
+ * Hay dos cursos (tienda y vendedor) y cada persona toma el de su perfil.
+ * Las lecciones de los dos viven en la misma lista porque sus ids no se
+ * repiten; la fecha de término y la bienvenida van por curso, para que
+ * cambiar de perfil no herede las de otro. Los campos sin sufijo son los
+ * de la tienda (así se guardaban antes de existir el curso del vendedor).
  */
 interface CapacitacionDoc {
   uid: string;
   email: string | null;
+  /** El curso de la última vez que avanzó: el de su perfil. */
+  curso?: Curso;
   lecciones: string[];
-  /** Ya vio la bienvenida del primer ingreso (la tomara o no). */
-  bienvenidaVista: boolean;
+  bienvenidaVista?: boolean;
+  bienvenidaVistaVendedor?: boolean;
   iniciadaEn: Timestamp | null;
-  completaEn: Timestamp | null;
+  completaEn?: Timestamp | null;
+  completaEnVendedor?: Timestamp | null;
   actualizadaEn: Timestamp | null;
 }
 
-/** Lo que recibe la tienda de su propio avance. */
+const campo = {
+  bienvenida: (c: Curso): "bienvenidaVista" | "bienvenidaVistaVendedor" =>
+    c === "tienda" ? "bienvenidaVista" : "bienvenidaVistaVendedor",
+  completa: (c: Curso): "completaEn" | "completaEnVendedor" =>
+    c === "tienda" ? "completaEn" : "completaEnVendedor",
+};
+
+/** Lo que recibe cada persona de su propio avance. */
 export interface CapacitacionTienda {
   completadas: LeccionId[];
   total: number;
@@ -35,6 +52,7 @@ export interface CapacitacionTienda {
 
 /** Lo que ve Aviva de cada correo. */
 export interface CapacitacionAdmin {
+  curso: Curso;
   completadas: number;
   total: number;
   completaEn: string | null;
@@ -45,24 +63,25 @@ function coleccion() {
   return getFirestore().collection(COLLECTION);
 }
 
-function aTienda(doc: Partial<CapacitacionDoc> | undefined): CapacitacionTienda {
-  const r = resumirCapacitacion(doc?.lecciones);
-  return { ...r, bienvenidaVista: Boolean(doc?.bienvenidaVista) };
+function resumen(doc: Partial<CapacitacionDoc> | undefined, curso: Curso): CapacitacionTienda {
+  const r = resumirCapacitacion(doc?.lecciones, curso);
+  return { ...r, bienvenidaVista: Boolean(doc?.[campo.bienvenida(curso)]) };
 }
 
-export async function getCapacitacion(uid: string): Promise<CapacitacionTienda> {
+export async function getCapacitacion(uid: string, curso: Curso = "tienda"): Promise<CapacitacionTienda> {
   const snap = await coleccion().doc(uid).get();
-  return aTienda(snap.exists ? (snap.data() as CapacitacionDoc) : undefined);
+  return resumen(snap.exists ? (snap.data() as CapacitacionDoc) : undefined, curso);
 }
 
 /**
  * Anota una lección pasada y/o que ya vio la bienvenida. En transacción
- * porque `completaEn` depende de cuántas lleva: dos pestañas terminando
- * lecciones a la vez no deben dejarla sin fecha de término.
+ * porque la fecha de término depende de cuántas lleva: dos pestañas
+ * terminando lecciones a la vez no deben dejarla sin fecha.
  */
 export async function registrarCapacitacion(
   uid: string,
   email: string | null,
+  curso: Curso,
   cambio: { leccion?: LeccionId; bienvenidaVista?: boolean },
 ): Promise<CapacitacionTienda> {
   const db = getFirestore();
@@ -72,28 +91,34 @@ export async function registrarCapacitacion(
     const actual = snap.exists ? (snap.data() as CapacitacionDoc) : undefined;
     const lecciones = new Set(actual?.lecciones ?? []);
     if (cambio.leccion) lecciones.add(cambio.leccion);
-    const lista = LECCIONES_CAPACITACION.filter((id) => lecciones.has(id));
-    const completa = lista.length === LECCIONES_CAPACITACION.length;
-    const bienvenidaVista = Boolean(actual?.bienvenidaVista || cambio.bienvenidaVista);
+    // Se conservan las de cualquier curso, en el orden de cada uno.
+    const lista = [...LECCIONES_POR_CURSO.tienda, ...LECCIONES_POR_CURSO.vendedor].filter((id) =>
+      lecciones.has(id),
+    );
+    const completa = resumirCapacitacion(lista, curso).completa;
+    const bienvenida = campo.bienvenida(curso);
+    const termino = campo.completa(curso);
+    const bienvenidaVista = Boolean(actual?.[bienvenida] || cambio.bienvenidaVista);
 
     t.set(
       ref,
       {
         uid,
         email,
+        curso,
         lecciones: lista,
-        bienvenidaVista,
+        [bienvenida]: bienvenidaVista,
         actualizadaEn: FieldValue.serverTimestamp(),
         ...(actual?.iniciadaEn || !cambio.leccion
           ? {}
           : { iniciadaEn: FieldValue.serverTimestamp() }),
         // Se fija una vez: si después se agrega una lección, conserva
         // cuándo terminó el curso que había, y el panel muestra "7 de 8".
-        ...(completa && !actual?.completaEn ? { completaEn: FieldValue.serverTimestamp() } : {}),
+        ...(completa && !actual?.[termino] ? { [termino]: FieldValue.serverTimestamp() } : {}),
       },
       { merge: true },
     );
-    return aTienda({ lecciones: lista, bienvenidaVista });
+    return resumen({ lecciones: lista, [bienvenida]: bienvenidaVista }, curso);
   });
 }
 
@@ -104,11 +129,13 @@ export async function listCapacitacionPorCorreo(): Promise<Record<string, Capaci
   for (const doc of snap.docs) {
     const d = doc.data() as CapacitacionDoc;
     if (!d.email) continue;
-    const r = resumirCapacitacion(d.lecciones);
+    const curso = d.curso ?? "tienda";
+    const r = resumirCapacitacion(d.lecciones, curso);
     resultado[d.email.toLowerCase()] = {
+      curso,
       completadas: r.completadas.length,
       total: r.total,
-      completaEn: r.completa ? d.completaEn?.toDate().toISOString() ?? null : null,
+      completaEn: r.completa ? d[campo.completa(curso)]?.toDate().toISOString() ?? null : null,
       actualizadaEn: d.actualizadaEn?.toDate().toISOString() ?? null,
     };
   }

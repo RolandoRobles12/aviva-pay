@@ -32,7 +32,11 @@ import {
 } from "../src/capacitacion/simulador";
 // La lista contra la que el backend acepta avances. Si no coinciden, una
 // lección nueva nunca se podría guardar, o el panel contaría contra otro total.
-import { LECCIONES_CAPACITACION } from "../../functions/src/capacitacion/lecciones";
+import { LECCIONES_CAPACITACION, LECCIONES_VENDEDOR as VENDEDOR_BACKEND } from "../../functions/src/capacitacion/lecciones";
+import { ORDEN_VENDEDOR, esLeccionId } from "../src/capacitacion/progreso";
+import { LECCIONES_VENDEDOR, PREGUNTAS_VENDEDOR } from "../src/capacitacion/leccionesVendedor";
+import { clientesPracticaVendedor } from "../src/capacitacion/VendedorPractica";
+import { etapaActual } from "../src/lib/dealScope";
 
 describe("contenido de la capacitación", () => {
   it("el frontend y el backend tienen las mismas lecciones, en el mismo orden", () => {
@@ -201,5 +205,29 @@ describe("tienda de práctica", () => {
   it("el mensaje de rechazo concuerda en género", () => {
     expect(mensajeRechazo("cotizacion")).toContain("la cotización correcta");
     expect(mensajeRechazo("comprobante")).toContain("el comprobante de entrega correcto");
+  });
+});
+
+describe("curso del vendedor", () => {
+  it("el frontend y el backend tienen las mismas lecciones, en el mismo orden", () => {
+    expect([...ORDEN_VENDEDOR]).toEqual([...VENDEDOR_BACKEND]);
+    expect(LECCIONES_VENDEDOR.map((l) => l.id)).toEqual([...ORDEN_VENDEDOR]);
+  });
+
+  it("sus ids no chocan con los del curso de la tienda", () => {
+    for (const id of ORDEN_VENDEDOR) expect(esLeccionId(id)).toBe(false);
+  });
+
+  it("las preguntas frecuentes ligan solo a lecciones de su curso", () => {
+    for (const p of PREGUNTAS_VENDEDOR) {
+      if (p.leccion) expect(esLeccionId(p.leccion, ORDEN_VENDEDOR), p.pregunta).toBe(true);
+    }
+  });
+
+  it("los clientes de práctica cubren cada etapa, para que cada filtro tenga a alguien", () => {
+    const actuales = new Set(clientesPracticaVendedor().map((c) => etapaActual(c).actual?.id));
+    for (const id of ["solicitud", "kyc", "cotizacion", "credito", "disposicion", "comprobante", "desembolso"]) {
+      expect(actuales.has(id), id).toBe(true);
+    }
   });
 });

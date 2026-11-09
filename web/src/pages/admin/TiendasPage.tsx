@@ -34,7 +34,8 @@ export function TiendasPage() {
   const [soloSinCapacitar, setSoloSinCapacitar] = useState(false);
   /** Correo en minúsculas → avance en la capacitación de tiendas (pestaña "Aprende"). */
   const [capacitacion, setCapacitacion] = useState<Record<string, CapacitacionAdmin>>({});
-  const [ligaCopiada, setLigaCopiada] = useState(false);
+  /** Cuál de las dos ligas de la capacitación se acaba de copiar. */
+  const [ligaCopiada, setLigaCopiada] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editando, setEditando] = useState<AdminConcesionario | null>(null);
   const [sincronizando, setSincronizando] = useState(false);
@@ -96,7 +97,11 @@ export function TiendasPage() {
       sinUsuarios: lista.filter((t) => t.usuarios.length === 0).length,
       conVarios: lista.filter((t) => t.usuarios.length > 1).length,
       // Por persona, no por tienda: un correo en tres tiendas es una persona.
-      sinCapacitar: [...new Set(lista.flatMap((t) => t.usuarios.map((u) => u.toLowerCase())))].filter(
+      sinCapacitar: [
+        ...new Set(
+          lista.flatMap((t) => [...t.usuarios, ...(t.vendedores ?? [])].map((u) => u.toLowerCase())),
+        ),
+      ].filter(
         (email) => {
           const a = capacitacion[email];
           return !a || a.completadas < a.total;
@@ -106,12 +111,13 @@ export function TiendasPage() {
   }, [tiendas, capacitacion]);
 
   const ligaAyuda = `${window.location.origin}/ayuda`;
+  const ligaAyudaVendedores = `${window.location.origin}/ayuda/vendedores`;
 
-  async function copiarLiga() {
+  async function copiarLiga(liga: string) {
     try {
-      await navigator.clipboard.writeText(ligaAyuda);
-      setLigaCopiada(true);
-      setTimeout(() => setLigaCopiada(false), 2000);
+      await navigator.clipboard.writeText(liga);
+      setLigaCopiada(liga);
+      setTimeout(() => setLigaCopiada(null), 2000);
     } catch {
       // Sin permiso de portapapeles: la liga está a la vista para copiarla a mano.
     }
@@ -192,14 +198,35 @@ export function TiendasPage() {
 
       <Notice tono="info" titulo="Capacitación para tiendas">
         <p>
-          Cada persona invitada ve la pestaña “Aprende” con lecciones, simulador de caja y
-          preguntas frecuentes; su avance aparece abajo, en “Quién tiene acceso”. Para
-          mandarla antes de invitar a alguien, usa la versión abierta:{" "}
+          Cada persona invitada ve la pestaña “Aprende” con su curso: el personal con
+          acceso completo aprende documentos y caja; el vendedor, etapas y seguimiento.
+          Su avance aparece abajo, en “Quién tiene acceso”. Para mandarla antes de
+          invitar a alguien, usa la versión abierta:
+        </p>
+        <p>
+          Personal:{" "}
           <a href="/ayuda" target="_blank" rel="noopener noreferrer">
             {ligaAyuda}
           </a>{" "}
-          <button type="button" className="adm-btn adm-btn--texto adm-btn--chico" onClick={copiarLiga}>
-            {ligaCopiada ? "Copiada" : "Copiar liga"}
+          <button
+            type="button"
+            className="adm-btn adm-btn--texto adm-btn--chico"
+            onClick={() => copiarLiga(ligaAyuda)}
+          >
+            {ligaCopiada === ligaAyuda ? "Copiada" : "Copiar liga"}
+          </button>
+        </p>
+        <p>
+          Vendedores:{" "}
+          <a href="/ayuda/vendedores" target="_blank" rel="noopener noreferrer">
+            {ligaAyudaVendedores}
+          </a>{" "}
+          <button
+            type="button"
+            className="adm-btn adm-btn--texto adm-btn--chico"
+            onClick={() => copiarLiga(ligaAyudaVendedores)}
+          >
+            {ligaCopiada === ligaAyudaVendedores ? "Copiada" : "Copiar liga"}
           </button>
         </p>
       </Notice>
@@ -275,10 +302,12 @@ export function TiendasPage() {
                   {(t.vendedores ?? []).length > 0 && (
                     <div className="adm-field__ayuda" title={(t.vendedores ?? []).join(", ")}>
                       +{" "}
-                      {t.vendedores.length === 1
-                        ? "1 vendedor externo"
-                        : `${t.vendedores.length} vendedores externos`}{" "}
-                      (solo consulta)
+                      {t.vendedores.length === 1 ? "1 vendedor" : `${t.vendedores.length} vendedores`}
+                      {" · "}
+                      {(() => {
+                        const c = capacitacionDeTienda(t.vendedores, capacitacion);
+                        return `${c.completas} de ${c.personas} con capacitación completa`;
+                      })()}
                     </div>
                   )}
                 </td>
@@ -692,6 +721,7 @@ function EditarTiendaForm({
         {vendedores.map((email) => (
           <span key={email} className="chip chip--removable">
             {email}
+            <AvanceCorreoChip avance={capacitacion[email.toLowerCase()]} />
             <button
               type="button"
               aria-label={`Quitar a ${email}`}

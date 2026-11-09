@@ -1,22 +1,24 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
+import { NavLink, Outlet, useNavigate, useOutletContext } from "react-router-dom";
 import {
   accesoDeSesion,
   auth,
   getVendedorClientesCallable,
+  guardarCapacitacionCallable,
   logout,
+  type CapacitacionTienda,
   type DealVendedor,
 } from "../lib/firebase";
 import type { PayDeskConcesionario } from "../types/deal";
-import { completados, etapaActual, getEtapas, setEtapas } from "../lib/dealScope";
+import { setEtapas } from "../lib/dealScope";
 import { BrandMark } from "../components/BrandMark";
-import { Paginacion, POR_PAGINA } from "../components/Paginacion";
-import { Avance } from "../capacitacion/piezas";
-import { normalizarBusqueda } from "../capacitacion/progreso";
+import { VendedorLista } from "../components/VendedorLista";
+import { BienvenidaCapacitacion } from "../capacitacion/BienvenidaCapacitacion";
+import { LECCIONES_VENDEDOR, MINUTOS_VENDEDOR } from "../capacitacion/leccionesVendedor";
+import { calcularAvance, ORDEN_VENDEDOR } from "../capacitacion/progreso";
 
 /** Cada cuánto se vuelve a pedir la lista sola: no hay listener en vivo para el vendedor. */
 const REFRESCO_MS = 5 * 60 * 1000;
-const TODAS = "todas";
 
 type Estado =
   | { status: "cargando" }
@@ -28,33 +30,40 @@ type Estado =
       consultadoEn: string;
     };
 
-const moneda = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" });
+export interface VendedorContexto {
+  concesionarios: PayDeskConcesionario[];
+  clientes: DealVendedor[];
+  consultadoEn: string;
+  actualizando: boolean;
+  recargar: () => void;
+  /** Su avance en el curso del vendedor (pestaña "Aprende"). */
+  capacitacion: CapacitacionTienda | null;
+  /** Anota una lección como pasada. Rechaza si no se pudo guardar. */
+  marcarLeccion: (id: string) => Promise<void>;
+}
 
-function fecha(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" });
+export function useVendedor() {
+  return useOutletContext<VendedorContexto>();
 }
 
 /**
- * La vista del vendedor: personal de la tienda que solo vende. Ve los
- * clientes aprobados de su tienda y en qué etapa va cada uno, para darles
- * seguimiento y cerrar la venta. Solo lectura de punta a punta: no hay botones de subir, ni
- * caja, ni archivos, y aunque alguien los invocara a mano, el servidor no
- * le da permiso (su cuenta trae `vendedorIds`, no `concesionarioIds`).
+ * El marco de la vista del vendedor: personal de la tienda que solo vende.
+ * Ve los clientes aprobados de su tienda y en qué etapa va cada uno, para
+ * darles seguimiento, y tiene su propio curso en "Aprende".
  *
- * Los datos llegan ya recortados por el servidor (nombre, fecha, monto
- * aprobado y etapas;
- * ver functions/src/vendedor/proyeccion.ts), así que lo que no se ve aquí
- * tampoco está en el navegador.
+ * Solo lectura de punta a punta: no hay botones de subir, ni caja, ni
+ * archivos, y aunque alguien los invocara a mano, el servidor no le da
+ * permiso (su cuenta trae `vendedorIds`, no `concesionarioIds`). Los datos
+ * llegan ya recortados por el servidor (nombre, fecha, monto aprobado y
+ * etapas; ver functions/src/vendedor/proyeccion.ts), así que lo que no se
+ * ve aquí tampoco está en el navegador.
  */
-export function VendedorPage() {
+export function VendedorLayout() {
   const navigate = useNavigate();
   const [estado, setEstado] = useState<Estado>({ status: "cargando" });
   const [actualizando, setActualizando] = useState(false);
-  const [busqueda, setBusqueda] = useState("");
-  const [tienda, setTienda] = useState(TODAS);
-  const [etapa, setEtapa] = useState(TODAS);
-  const [pagina, setPagina] = useState(0);
+  // Aparte de `estado`: recargar la lista no debe pisar una lección recién pasada.
+  const [capacitacion, setCapacitacion] = useState<CapacitacionTienda | null>(null);
 
   const cargar = useCallback(async () => {
     setActualizando(true);
@@ -62,8 +71,8 @@ export function VendedorPage() {
       // Igual que en la tienda: sin forzar, una tienda recién asignada no
       // aparece hasta que el token vence (hasta una hora).
       await auth.currentUser?.getIdToken(true);
-      // Un correo es personal de tienda o vendedor, nunca las dos (lo
-      // impide el panel). Si llega aquí alguien de tienda, su vista es otra.
+      // Cada persona tiene un solo perfil (lo impide el panel). Si llega
+      // aquí alguien con acceso completo, su vista es otra.
       if (auth.currentUser) {
         const acceso = await accesoDeSesion(auth.currentUser);
         if (acceso.tienda && !acceso.vendedor) {
@@ -73,6 +82,7 @@ export function VendedorPage() {
       }
       const { data } = await getVendedorClientesCallable();
       setEtapas(data.etapas);
+      setCapacitacion((actual) => actual ?? data.capacitacion ?? null);
       setEstado({
         status: "listo",
         concesionarios: data.concesionarios,
@@ -102,35 +112,19 @@ export function VendedorPage() {
     return () => clearInterval(id);
   }, [cargar]);
 
-  useEffect(() => setPagina(0), [busqueda, tienda, etapa]);
+  const marcarLeccion = useCallback(async (id: string) => {
+    setCapacitacion((c) =>
+      c && !c.completadas.includes(id) ? { ...c, completadas: [...c.completadas, id] } : c,
+    );
+    const { data } = await guardarCapacitacionCallable({ leccion: id });
+    setCapacitacion(data);
+  }, []);
 
-  const clientes = estado.status === "listo" ? estado.clientes : [];
-  const concesionarios = estado.status === "listo" ? estado.concesionarios : [];
-  const nombres = useMemo(
-    () => Object.fromEntries(concesionarios.map((c) => [c.concesionarioId, c.nombre])),
-    [concesionarios],
-  );
-
-  // La etapa de cada cliente se calcula una vez; los chips y la tabla la comparten.
-  const conEtapa = useMemo(
-    () =>
-      clientes
-        .map((c) => ({ c, e: etapaActual(c) }))
-        .sort((a, b) => (b.c.fechaSolicitud ?? "").localeCompare(a.c.fechaSolicitud ?? "")),
-    // getEtapas() cambia con setEtapas, que ocurre junto con `clientes`.
-    [clientes],
-  );
-
-  const deTienda = conEtapa.filter((x) => tienda === TODAS || x.c.concesionarioId === tienda);
-  const q = normalizarBusqueda(busqueda);
-  const visibles = deTienda.filter(
-    (x) =>
-      (etapa === TODAS || x.e.actual?.id === etapa) &&
-      (!q || normalizarBusqueda(x.c.cliente ?? "").includes(q)),
-  );
-  const pag = visibles.slice(pagina * POR_PAGINA, (pagina + 1) * POR_PAGINA);
-  const etapas = getEtapas();
-  const varias = concesionarios.length > 1;
+  const cerrarBienvenida = useCallback(() => {
+    setCapacitacion((c) => (c ? { ...c, bienvenidaVista: true } : c));
+    // Si no se guarda, a lo más se le vuelve a ofrecer en el siguiente ingreso.
+    guardarCapacitacionCallable({ bienvenidaVista: true }).catch(() => {});
+  }, []);
 
   async function salir() {
     await logout();
@@ -152,6 +146,22 @@ export function VendedorPage() {
     );
   }
 
+  const { concesionarios } = estado;
+  const avance = capacitacion ? calcularAvance(capacitacion.completadas, ORDEN_VENDEDOR) : null;
+  // Solo a quien nunca la ha visto ni ha empezado: es una invitación, no un muro.
+  const mostrarBienvenida =
+    capacitacion !== null && !capacitacion.bienvenidaVista && capacitacion.completadas.length === 0;
+
+  const contexto: VendedorContexto = {
+    concesionarios,
+    clientes: estado.clientes,
+    consultadoEn: estado.consultadoEn,
+    actualizando,
+    recargar: () => void cargar(),
+    capacitacion,
+    marcarLeccion,
+  };
+
   return (
     <main className="app-shell">
       <header className="app-bar">
@@ -159,7 +169,9 @@ export function VendedorPage() {
         <div className="header-right">
           <div className="store-badge">
             <span className="store-badge__nombre">
-              {varias ? `${concesionarios.length} tiendas` : concesionarios[0]?.nombre ?? "Consulta"}
+              {concesionarios.length > 1
+                ? `${concesionarios.length} tiendas`
+                : concesionarios[0]?.nombre ?? "Consulta"}
             </span>
             <span className="store-badge__numero">Vendedor</span>
           </div>
@@ -169,170 +181,52 @@ export function VendedorPage() {
         </div>
       </header>
 
-      <div className="app-body">
-        <div className="vendedor-cabeza">
-          <div>
-            <h1 className="concesionario-page__title vendedor-cabeza__titulo">Clientes aprobados</h1>
-            <p className="concesionario-page__subtitle">
-              Los clientes aprobados de tu tienda, por cuánto y en qué etapa va cada
-              uno, para darles seguimiento. Los documentos y la caja los maneja el
-              personal administrativo.
-            </p>
-          </div>
-          <div className="vendedor-cabeza__refresco">
-            <button
-              type="button"
-              className="link-button"
-              onClick={() => void cargar()}
-              disabled={actualizando}
-            >
-              {actualizando ? "Actualizando..." : "Actualizar"}
-            </button>
-            <span className="form-note">
-              Al{" "}
-              {new Date(estado.consultadoEn).toLocaleTimeString("es-MX", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+      <nav className="tabs">
+        <NavLink to="/consulta" end>
+          Clientes
+        </NavLink>
+        <NavLink to="/consulta/aprende" className="tabs__aprende">
+          Aprende
+          {avance && !avance.completa && (
+            <span className="tabs__pill" title={`${avance.hechas} de ${avance.total} lecciones completadas`}>
+              {avance.hechas}/{avance.total}
             </span>
-          </div>
-        </div>
-
-        <div className="filters">
-          {varias && (
-            <div className="filters__row" role="group" aria-label="Filtrar por tienda">
-              <button
-                type="button"
-                aria-pressed={tienda === TODAS}
-                className={`chip${tienda === TODAS ? " chip--on" : ""}`}
-                onClick={() => setTienda(TODAS)}
-              >
-                Todas mis tiendas <span className="chip__count">{conEtapa.length}</span>
-              </button>
-              {concesionarios.map((c) => (
-                <button
-                  key={c.concesionarioId}
-                  type="button"
-                  aria-pressed={tienda === c.concesionarioId}
-                  className={`chip${tienda === c.concesionarioId ? " chip--on" : ""}`}
-                  onClick={() => setTienda(c.concesionarioId)}
-                >
-                  {c.nombre}{" "}
-                  <span className="chip__count">
-                    {conEtapa.filter((x) => x.c.concesionarioId === c.concesionarioId).length}
-                  </span>
-                </button>
-              ))}
-            </div>
           )}
+        </NavLink>
+      </nav>
 
-          <div className="filters__row" role="group" aria-label="Filtrar por etapa">
-            <button
-              type="button"
-              aria-pressed={etapa === TODAS}
-              className={`chip${etapa === TODAS ? " chip--on" : ""}`}
-              onClick={() => setEtapa(TODAS)}
-            >
-              Todas las etapas <span className="chip__count">{deTienda.length}</span>
-            </button>
-            {etapas.map((e) => {
-              const n = deTienda.filter((x) => x.e.actual?.id === e.id).length;
-              return (
-                <button
-                  key={e.id}
-                  type="button"
-                  title={`Clientes cuya última etapa alcanzada es "${e.label}"`}
-                  aria-pressed={etapa === e.id}
-                  className={`chip${etapa === e.id ? " chip--on" : ""}`}
-                  onClick={() => setEtapa(e.id)}
-                >
-                  {e.label} <span className="chip__count">{n}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="filters__row filters__row--secondary">
-            <input
-              type="search"
-              className="admin-search"
-              placeholder="Buscar cliente por nombre"
-              value={busqueda}
-              onChange={(ev) => setBusqueda(ev.target.value)}
-            />
-          </div>
-        </div>
-
-        {visibles.length === 0 ? (
-          <div className="empty-state">
-            <p className="empty-state__title">
-              {clientes.length === 0 ? "Todavía no hay clientes aprobados" : "Nadie coincide"}
-            </p>
-            <p className="empty-state__hint">
-              {clientes.length === 0
-                ? "Aquí aparecerán en cuanto Aviva apruebe la solicitud de un cliente de tu tienda."
-                : "Prueba con otra etapa o quita la búsqueda."}
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="deals-table-wrapper">
-              <table className="deals-table">
-                <thead>
-                  <tr>
-                    {/* La etapa va pegada al nombre: es a lo que viene el vendedor,
-                        y en celular lo demás queda a un deslizamiento. */}
-                    <th className="col-sticky">Cliente</th>
-                    <th>Va en</th>
-                    <th>Sigue</th>
-                    <th className="col-num">Monto aprobado</th>
-                    <th>Avance</th>
-                    <th>Aprobado el</th>
-                    {varias && <th>Tienda</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {pag.map(({ c, e }) => (
-                    <tr key={c.dealId}>
-                      <td className="col-sticky cell-cliente">{c.cliente ?? "—"}</td>
-                      <td>
-                        {e.actual ? (
-                          <span className="cell-done">
-                            <span className="cell-done__check" aria-hidden>
-                              ✓
-                            </span>
-                            {e.actual.label}
-                          </span>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                      <td>
-                        {e.completa ? (
-                          <span className="vendedor-terminado">Terminado</span>
-                        ) : (
-                          <span className="cell-pending">{e.siguiente?.label ?? "—"}</span>
-                        )}
-                      </td>
-                      <td className="col-num">
-                        {c.montoAprobado === null ? "—" : moneda.format(c.montoAprobado)}
-                      </td>
-                      <td>
-                        <Avance hechas={completados(c)} total={etapas.length} />
-                      </td>
-                      <td>{fecha(c.fechaSolicitud)}</td>
-                      {varias && (
-                        <td className="cell-tienda">{(c.concesionarioId && nombres[c.concesionarioId]) ?? "—"}</td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <Paginacion total={visibles.length} pagina={pagina} onPagina={setPagina} />
-          </>
-        )}
+      <div className="app-body">
+        <Outlet context={contexto} />
       </div>
+
+      {mostrarBienvenida && (
+        <BienvenidaCapacitacion
+          onCerrar={cerrarBienvenida}
+          primeraLeccion="/consulta/aprende/vendedor-inicio"
+          lecciones={LECCIONES_VENDEDOR.length}
+          minutos={MINUTOS_VENDEDOR}
+          aprenderas="qué significa cada etapa del crédito y qué seguimiento darle a cada cliente para cerrar la venta."
+          puntos={[
+            "Practicas con tu misma pantalla y clientes inventados.",
+            "Puedes dejarla a medias y seguir después donde te quedaste.",
+            "Siempre la encuentras en la pestaña “Aprende”.",
+          ]}
+        />
+      )}
     </main>
+  );
+}
+
+/** La pestaña "Clientes": la lista de seguimiento. */
+export function VendedorClientes() {
+  const { concesionarios, clientes, consultadoEn, actualizando, recargar } = useVendedor();
+  return (
+    <VendedorLista
+      concesionarios={concesionarios}
+      clientes={clientes}
+      consultadoEn={consultadoEn}
+      actualizando={actualizando}
+      onActualizar={recargar}
+    />
   );
 }

@@ -50,8 +50,8 @@ Rutas:
 
 - `/` — login de la tienda (correo y contraseña)
 - `/solicitudes` — clientes de la tienda; `/solicitudes/validar` valida el vale en caja; `/solicitudes/canceladas`, `/solicitudes/reporte` y `/solicitudes/aprende` (capacitación, con avance guardado)
-- `/consulta` — vendedor externo: solo ve los clientes aprobados de sus tiendas y en qué etapa va cada uno
-- `/ayuda` — la misma capacitación, abierta y sin sesión, para mandarla antes de invitar a una tienda
+- `/consulta` — vendedor (personal que solo vende): ve los clientes aprobados de su tienda, su monto y en qué etapa va cada uno; `/consulta/aprende` es su capacitación
+- `/ayuda` — la misma capacitación, abierta y sin sesión, para mandarla antes de invitar a una tienda; `/ayuda/vendedores`, la del vendedor
 - `/vale/:token` — el vale del cliente final, sin sesión (le llega por WhatsApp)
 - `/admin` — panel de Aviva, con menú lateral (en celular, botón "Menú"). Empieza en **Inicio** (`/admin/inicio`), que resume lo que hay que atender.
   - Día a día (todos los admins): Revisión de documentos, Tiendas, Vales (buscar un vale / reporte) y Métricas.

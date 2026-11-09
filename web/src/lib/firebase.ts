@@ -206,6 +206,8 @@ export const getVendedorClientesCallable = httpsCallable<
     concesionarios: PayDeskConcesionario[];
     clientes: DealVendedor[];
     etapas: EtapaConfig[];
+    /** Su avance en el curso del vendedor; null solo con un backend anterior. */
+    capacitacion?: CapacitacionTienda | null;
     consultadoEn: string;
   }
 >(functions, "getVendedorClientes");
@@ -222,6 +224,8 @@ export interface CapacitacionTienda {
 
 /** Lo que ve Aviva de cada correo invitado. */
 export interface CapacitacionAdmin {
+  /** El curso de su perfil; ausente en respuestas de antes del curso del vendedor. */
+  curso?: "tienda" | "vendedor";
   completadas: number;
   total: number;
   completaEn: string | null;

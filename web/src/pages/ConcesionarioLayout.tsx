@@ -17,6 +17,7 @@ import { setEtapas, type RolloutMap } from "../lib/dealScope";
 import { BrandMark } from "../components/BrandMark";
 import { SelectorTiendas } from "../components/SelectorTiendas";
 import { BienvenidaCapacitacion } from "../capacitacion/BienvenidaCapacitacion";
+import { LECCIONES, MINUTOS_TOTALES } from "../capacitacion/lecciones";
 import { calcularAvance } from "../capacitacion/progreso";
 import {
   FILTROS_INICIALES,
@@ -286,7 +287,20 @@ export function ConcesionarioLayout() {
         <Outlet context={context} />
       </div>
 
-      {mostrarBienvenida && <BienvenidaCapacitacion onCerrar={cerrarBienvenida} />}
+      {mostrarBienvenida && (
+        <BienvenidaCapacitacion
+          onCerrar={cerrarBienvenida}
+          primeraLeccion="/solicitudes/aprende/bienvenida"
+          lecciones={LECCIONES.length}
+          minutos={MINUTOS_TOTALES}
+          aprenderas="a subir documentos, a validar el código de tus clientes en caja y a resolver por tu cuenta las dudas más comunes."
+          puntos={[
+            "Practicas cada tarea en simuladores con las pantallas reales, sin tocar clientes reales.",
+            "Puedes dejarla a medias y seguir después donde te quedaste.",
+            "Siempre la encuentras en la pestaña “Aprende”.",
+          ]}
+        />
+      )}
     </main>
   );
 }
