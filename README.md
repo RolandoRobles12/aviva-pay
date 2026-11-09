@@ -28,7 +28,7 @@ React + Firebase Hosting · Cloud Functions · Firestore · Firebase Storage · 
 
 ## Desarrollo local
 
-Requiere Node 20 y el [Firebase CLI](https://firebase.google.com/docs/cli).
+Requiere Node 22 y el [Firebase CLI](https://firebase.google.com/docs/cli).
 
 ```bash
 npm install                 # instala functions/ y web/ (workspaces)
