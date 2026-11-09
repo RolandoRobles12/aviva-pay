@@ -22,7 +22,7 @@ import {
   mensajeRechazo,
   rolloutPractica,
   subirPractica,
-} from "../src/capacitacion/tiendaPractica";
+} from "../src/capacitacion/datosTiendaPractica";
 import { aplicarFiltros, FILTROS_INICIALES } from "../src/components/DealFilters";
 import { requiereAccion, scopeOf } from "../src/lib/dealScope";
 import {
