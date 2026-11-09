@@ -1,6 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { enviarRestablecerContrasena, loginConcesionario } from "../lib/firebase";
+import {
+  destinoDeSesionAbierta,
+  enviarRestablecerContrasena,
+  loginConcesionario,
+} from "../lib/firebase";
 import { BrandMark } from "../components/BrandMark";
 import { PasswordInput } from "../components/PasswordInput";
 
@@ -19,6 +23,27 @@ export function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recuperado, setRecuperado] = useState(false);
+  // Mientras se revisa si ya hay sesión, no se enseña el formulario: verlo
+  // un instante y luego saltar a la lista se lee como "me sacó".
+  const [revisandoSesion, setRevisandoSesion] = useState(true);
+
+  // Con la sesión abierta (otra ventana, un marcador a la dirección
+  // principal), se entra directo en vez de pedir la contraseña otra vez.
+  useEffect(() => {
+    let cancelado = false;
+    destinoDeSesionAbierta("tienda")
+      .then((destino) => {
+        if (cancelado) return;
+        if (destino) navigate(destino, { replace: true });
+        else setRevisandoSesion(false);
+      })
+      .catch(() => {
+        if (!cancelado) setRevisandoSesion(false);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [navigate]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -51,6 +76,10 @@ export function LoginPage() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (revisandoSesion) {
+    return <p className="page-message">Cargando...</p>;
   }
 
   if (modo === "recuperar") {
@@ -150,6 +179,13 @@ export function LoginPage() {
           />
           Mantener sesión iniciada en este dispositivo
         </label>
+        {!recordar && (
+          <p className="form-note">
+            Sin esta opción, la sesión vale solo en esta pestaña: cada pestaña o
+            ventana nueva te pedirá entrar otra vez. Úsala así solo en equipos
+            compartidos.
+          </p>
+        )}
 
         {error && <p className="form-error">{error}</p>}
 

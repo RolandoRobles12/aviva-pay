@@ -131,9 +131,37 @@ async function requireConcesionarioClaim(user: User): Promise<DestinoTienda> {
 }
 
 /**
+ * Si ya hay una sesión abierta en este navegador, a dónde debe entrar:
+ * su lista de tienda, la consulta de vendedor o el panel. Null si no hay
+ * sesión (o la cuenta no tiene ningún acceso).
+ *
+ * Existe porque las pantallas de entrada (`/` y `/admin`) mostraban el
+ * formulario aunque la sesión siguiera viva: quien abría una ventana nueva
+ * en la dirección principal creía que Paydesk lo había sacado. Espera a
+ * que Firebase restaure la sesión guardada antes de responder.
+ */
+export async function destinoDeSesionAbierta(
+  perfil: "tienda" | "admin",
+): Promise<DestinoTienda | "/admin/inicio" | null> {
+  await auth.authStateReady();
+  const user = auth.currentUser;
+  if (!user) return null;
+  if (perfil === "admin") {
+    const { claims } = await user.getIdTokenResult();
+    return claims.admin === true ? "/admin/inicio" : null;
+  }
+  const acceso = await accesoDeSesion(user);
+  if (acceso.tienda) return "/solicitudes";
+  if (acceso.vendedor) return "/consulta";
+  return null;
+}
+
+/**
  * Signs a concesionario in with email + password. `recordar` picks
- * whether the session survives closing the browser (local) or ends with
- * it (session) — set before signing in, since Firebase applies
+ * whether the session is saved on this device (local: every tab and
+ * window, and it survives closing the browser) or only in this tab
+ * (session: Firebase keeps it per tab, so a new tab or window asks to
+ * sign in again) — set before signing in, since Firebase applies
  * persistence to the sign-in call itself.
  */
 export async function loginConcesionario(
