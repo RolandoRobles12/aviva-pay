@@ -2,6 +2,7 @@ import { getAuth, type UserRecord } from "firebase-admin/auth";
 import {
   getConcesionarioUser,
   setConcesionarioUserStores,
+  type CampoAcceso,
 } from "../firestore/concesionarioUsersRepository";
 
 /**
@@ -48,6 +49,12 @@ export async function syncConcesionarioUsuarios(
   concesionarioId: string,
   previousEmails: string[],
   nextEmails: string[],
+  /**
+   * `concesionarioIds` para la gente de la tienda (acceso completo);
+   * `vendedorIds` para vendedores externos (solo consulta). Mismo flujo de
+   * invitación, distinto claim.
+   */
+  campo: CampoAcceso = "concesionarioIds",
 ): Promise<{ invitados: string[]; yaActivos: string[] }> {
   const before = new Set(previousEmails);
   const after = new Set(nextEmails);
@@ -70,11 +77,11 @@ export async function syncConcesionarioUsuarios(
       invitados.push(email);
     }
     const record = await getConcesionarioUser(user.uid);
-    const ids = new Set(record?.concesionarioIds ?? []);
+    const ids = new Set(record?.[campo] ?? []);
     ids.add(concesionarioId);
-    const concesionarioIds = [...ids];
-    await setConcesionarioUserStores(user.uid, email, concesionarioIds);
-    await auth.setCustomUserClaims(user.uid, { ...user.customClaims, concesionarioIds });
+    const lista = [...ids];
+    await setConcesionarioUserStores(user.uid, email, lista, campo);
+    await auth.setCustomUserClaims(user.uid, { ...user.customClaims, [campo]: lista });
   }
 
   for (const email of removed) {
@@ -86,11 +93,9 @@ export async function syncConcesionarioUsuarios(
       throw err;
     }
     const record = await getConcesionarioUser(user.uid);
-    const concesionarioIds = (record?.concesionarioIds ?? []).filter(
-      (id) => id !== concesionarioId,
-    );
-    await setConcesionarioUserStores(user.uid, email, concesionarioIds);
-    await auth.setCustomUserClaims(user.uid, { ...user.customClaims, concesionarioIds });
+    const lista = (record?.[campo] ?? []).filter((id) => id !== concesionarioId);
+    await setConcesionarioUserStores(user.uid, email, lista, campo);
+    await auth.setCustomUserClaims(user.uid, { ...user.customClaims, [campo]: lista });
   }
 
   return { invitados, yaActivos };

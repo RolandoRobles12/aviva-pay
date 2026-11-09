@@ -2459,3 +2459,29 @@ h3 {
   background: var(--ambar-suave);
   color: var(--ambar);
 }
+
+/* --- Vendedor externo (solo consulta) ------------------------------------ */
+
+.vendedor-cabeza {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.vendedor-cabeza__titulo {
+  margin-top: 0;
+}
+
+.vendedor-cabeza__refresco {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+
+.vendedor-terminado {
+  font-weight: 700;
+  color: var(--verde-musgo);
+}

@@ -25,8 +25,8 @@ export function LoginPage() {
     setSubmitting(true);
     setError(null);
     try {
-      await loginConcesionario(email, password, recordar);
-      navigate("/solicitudes", { replace: true });
+      const destino = await loginConcesionario(email, password, recordar);
+      navigate(destino, { replace: true });
     } catch (err) {
       setError(
         err instanceof Error && err.message.includes("tienda")

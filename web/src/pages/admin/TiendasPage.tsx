@@ -74,7 +74,8 @@ export function TiendasPage() {
       (t) =>
         t.nombre.toLowerCase().includes(q) ||
         t.kiosco.toLowerCase().includes(q) ||
-        t.usuarios.some((u) => u.includes(q)),
+        t.usuarios.some((u) => u.includes(q)) ||
+        (t.vendedores ?? []).some((u) => u.includes(q)),
     );
   }, [tiendas, busqueda]);
 
@@ -271,6 +272,15 @@ export function TiendasPage() {
                       </div>
                     </>
                   )}
+                  {(t.vendedores ?? []).length > 0 && (
+                    <div className="adm-field__ayuda" title={(t.vendedores ?? []).join(", ")}>
+                      +{" "}
+                      {t.vendedores.length === 1
+                        ? "1 vendedor externo"
+                        : `${t.vendedores.length} vendedores externos`}{" "}
+                      (solo consulta)
+                    </div>
+                  )}
                 </td>
                 <td>{t.rolloutDesde ?? <span className="adm-field__ayuda">General</span>}</td>
                 <td className="adm-oculto-movil">
@@ -428,6 +438,8 @@ function EditarTiendaForm({
   const [nombre, setNombre] = useState(tienda.nombre);
   const [usuarios, setUsuarios] = useState<string[]>(tienda.usuarios);
   const [nuevoCorreo, setNuevoCorreo] = useState("");
+  const [vendedores, setVendedores] = useState<string[]>(tienda.vendedores ?? []);
+  const [nuevoVendedor, setNuevoVendedor] = useState("");
   const esSuper = useEsSuperAdmin();
   const [rolloutDesde, setRolloutDesde] = useState(tienda.rolloutDesde ?? "");
   const [submitting, setSubmitting] = useState(false);
@@ -485,6 +497,10 @@ function EditarTiendaForm({
       setNuevoCorreo("");
       return;
     }
+    if (vendedores.includes(email)) {
+      setError(`${email} ya está como vendedor externo. Quítalo de esa lista primero.`);
+      return;
+    }
     setUsuarios([...usuarios, email]);
     setNuevoCorreo("");
     setError(null);
@@ -492,6 +508,22 @@ function EditarTiendaForm({
 
   function quitarCorreo(email: string) {
     setUsuarios(usuarios.filter((u) => u !== email));
+  }
+
+  function agregarVendedor() {
+    const email = nuevoVendedor.trim().toLowerCase();
+    if (!email) return;
+    if (!EMAIL_RE.test(email)) {
+      setError(`"${email}" no parece un correo válido.`);
+      return;
+    }
+    if (usuarios.includes(email)) {
+      setError(`${email} ya es usuario de la tienda. Quítalo de esa lista primero.`);
+      return;
+    }
+    if (!vendedores.includes(email)) setVendedores([...vendedores, email]);
+    setNuevoVendedor("");
+    setError(null);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -507,6 +539,7 @@ function EditarTiendaForm({
         concesionarioId: tienda.concesionarioId,
         nombre,
         usuarios,
+        vendedores,
         rolloutDesde: rolloutDesde || null,
       });
       invitados = result.data.invitados;
@@ -628,6 +661,43 @@ function EditarTiendaForm({
         Un correo nuevo recibe una liga por email para crear su contraseña en
         cuanto guardes.
       </p>
+
+      <label>Vendedores externos (solo consulta)</label>
+      <p className="form-note">
+        Ven a los clientes aprobados de esta tienda y en qué etapa va cada uno. No
+        ven montos ni documentos, y no pueden subir nada ni validar códigos en caja.
+      </p>
+      <div className="chip-input">
+        {vendedores.map((email) => (
+          <span key={email} className="chip chip--removable">
+            {email}
+            <button
+              type="button"
+              aria-label={`Quitar a ${email}`}
+              onClick={() => setVendedores(vendedores.filter((v) => v !== email))}
+            >
+              ×
+            </button>
+          </span>
+        ))}
+      </div>
+      <div className="chip-input__add">
+        <input
+          type="email"
+          placeholder="vendedor@ejemplo.com"
+          value={nuevoVendedor}
+          onChange={(e) => setNuevoVendedor(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              agregarVendedor();
+            }
+          }}
+        />
+        <button type="button" className="button-secondary" onClick={agregarVendedor}>
+          Agregar
+        </button>
+      </div>
 
       <label>
         Arranque solo para esta tienda (opcional)

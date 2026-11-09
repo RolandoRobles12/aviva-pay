@@ -40,6 +40,15 @@ Esto también resuelve el pendiente que traía la sección 8: el control de acce
 
 Los endpoints de subida (`uploadCotizacion`, `uploadComprobante`) también verifican el token y que el deal pertenezca a una de las tiendas de `concesionarioIds` que llama — antes dependían de que la URL fuera secreta.
 
+## Vendedores externos: solo consulta
+
+Un vendedor externo ve los clientes aprobados de una tienda y en qué etapa va cada uno, y nada más: no sube cotizaciones ni comprobantes, no usa la caja y no abre archivos. Se da de alta en `/admin/tiendas` → "Editar" → "Vendedores externos (solo consulta)", con la misma invitación por correo que la gente de la tienda.
+
+- **Claim aparte, no una marca.** El vendedor recibe `vendedorIds`, nunca `concesionarioIds`. Las funciones que escriben o entregan datos sensibles (`uploadCotizacion`, `uploadComprobante`, `validarVale`, `confirmarDisposicion`, `getArchivoUrl`, `getConcesionarioDeals`) ya exigen `concesionarioIds`, así que lo rechazan sin saber que existe; una función nueva de escritura queda cerrada para él por defecto. Las reglas de Firestore tampoco le dejan leer `paydesk_deals`.
+- **Proyección en el servidor.** Lee por `getVendedorClientes`, que pasa cada deal por `vendedor/proyeccion.ts`: una lista cerrada de campos (cliente, fecha de solicitud y lo necesario para calcular las etapas). Quedan fuera montos, archivos y rutas, datos capturados por la tienda, revisiones y comentarios, el vale y la verificación. Los cancelados no se envían. Por eso no hay listener en vivo: la pantalla recarga cada 5 minutos y con "Actualizar".
+- **Una lista o la otra.** En la misma tienda, un correo es de la tienda o es vendedor, nunca las dos (`adminUpdateConcesionario` lo rechaza). Sí puede ser de la tienda en una y vendedor en otra: entra a `/solicitudes` y ve la pestaña "Solo consulta".
+- `/consulta` muestra cliente, etapa actual (la última alcanzada; `etapaActual` en `lib/dealScope.ts`), la siguiente, el avance y la fecha, con filtros por tienda y por etapa.
+
 ## Vale de un solo uso
 
 La tienda tenía que creerle a un WhatsApp que el cliente estaba aprobado y por cuánto. Un mensaje así se fabrica con un screenshot, así que la validación del saldo autorizado pasa a ser un **vale**: un código de 10 dígitos, impreso como código de barras, que el cliente presenta en el mostrador y que la caja valida contra Paydesk.

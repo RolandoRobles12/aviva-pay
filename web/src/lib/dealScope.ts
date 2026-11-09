@@ -11,6 +11,23 @@ import type { EtapaConfig } from "../types/admin";
  */
 export type RolloutMap = Record<string, string | null>;
 
+/**
+ * Lo mínimo de un deal para saber en qué etapa va. Es lo que recibe un
+ * vendedor externo (ver functions/src/vendedor/proyeccion.ts), así que el
+ * avance y la etapa actual se calculan igual para él que para la tienda.
+ */
+export type DealEtapas = Pick<
+  PayDeskDeal,
+  | "fechaSolicitud"
+  | "estatusKyc"
+  | "cotizacionEstatus"
+  | "creditoLiberadoFecha"
+  | "disposicionCreditoFecha"
+  | "comprobanteEntregaEstatus"
+  | "desembolsoFecha"
+  | "etapasExtra"
+>;
+
 function cutoffFor(deal: PayDeskDeal, rolloutPorTienda: RolloutMap): string | null {
   return rolloutPorTienda[deal.concesionarioId ?? ""] ?? null;
 }
@@ -54,7 +71,7 @@ export function scopeOf(deal: PayDeskDeal, rolloutPorTienda: RolloutMap): DealSc
  * pendiente" when the money already disbursed reads as broken, not as
  * "some data is missing."
  */
-function desembolsada(deal: PayDeskDeal): boolean {
+function desembolsada(deal: DealEtapas): boolean {
   return Boolean(deal.desembolsoFecha);
 }
 
@@ -101,7 +118,7 @@ export function getEtapas(): EtapaConfig[] {
   return etapasActivas;
 }
 
-function alcanzada(deal: PayDeskDeal, etapa: EtapaConfig): boolean {
+function alcanzada(deal: DealEtapas, etapa: EtapaConfig): boolean {
   if (etapa.tipo === "personalizada") return Boolean(deal.etapasExtra?.[etapa.id]);
   switch (etapa.id) {
     case "solicitud":
@@ -124,16 +141,37 @@ function alcanzada(deal: PayDeskDeal, etapa: EtapaConfig): boolean {
 }
 
 /** Las etapas configuradas, en orden, como booleanos — alimenta la barra de avance y el embudo del reporte. */
-export function milestones(deal: PayDeskDeal): boolean[] {
+export function milestones(deal: DealEtapas): boolean[] {
   if (desembolsada(deal)) return etapasActivas.map(() => true);
   return etapasActivas.map((e) => alcanzada(deal, e));
 }
 
-export function completados(deal: PayDeskDeal): number {
+export function completados(deal: DealEtapas): number {
   return milestones(deal).filter(Boolean).length;
 }
 
 /** A deal is done when every milestone is in. */
-export function estaCompleta(deal: PayDeskDeal): boolean {
+export function estaCompleta(deal: DealEtapas): boolean {
   return completados(deal) === milestones(deal).length;
+}
+
+/**
+ * En qué va un cliente, dicho como lo leería alguien de fuera de la
+ * tienda: la última etapa que alcanzó y la que sigue. Si alguna etapa
+ * intermedia no trae fecha (pasa con deals viejos), manda la más avanzada:
+ * eso es lo que de verdad ocurrió.
+ */
+export function etapaActual(deal: DealEtapas): {
+  actual: EtapaConfig | null;
+  siguiente: EtapaConfig | null;
+  completa: boolean;
+} {
+  const hitos = milestones(deal);
+  const ultima = hitos.lastIndexOf(true);
+  const siguiente = etapasActivas.find((_, i) => i > ultima && !hitos[i]) ?? null;
+  return {
+    actual: ultima >= 0 ? etapasActivas[ultima] : null,
+    siguiente,
+    completa: hitos.every(Boolean),
+  };
 }

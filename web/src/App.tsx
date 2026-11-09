@@ -15,6 +15,7 @@ import {
   AyudaPublicaLayout,
 } from "./pages/AprendePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
+import { VendedorPage } from "./pages/VendedorPage";
 import { RequireAuth } from "./components/RequireAuth";
 import { AdminLoginPage } from "./pages/admin/AdminLoginPage";
 import { SoloSuperAdmin } from "./lib/adminRol";
@@ -79,6 +80,18 @@ export function App() {
           <Route path=":leccionId" element={<AprendeLeccion />} />
         </Route>
       </Route>
+
+      {/* Vendedor externo: solo consulta de etapas. Los permisos los pone
+          el servidor (claim vendedorIds); esta ruta solo pinta lo que él
+          manda. */}
+      <Route
+        path="/consulta"
+        element={
+          <RequireAuth redirectTo="/">
+            <VendedorPage />
+          </RequireAuth>
+        }
+      />
 
       {/* Admin */}
       <Route path="/admin" element={<AdminLoginPage />} />

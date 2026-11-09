@@ -14,6 +14,14 @@ export interface ConcesionarioUserRecord {
   uid: string;
   email: string;
   concesionarioIds: string[];
+  /**
+   * Tiendas donde esta cuenta es vendedor externo: solo consulta, sin
+   * subir documentos ni usar la caja. Es un claim aparte (`vendedorIds`)
+   * y no una marca dentro de `concesionarioIds`, para que cada función
+   * que escribe — que ya revisa `concesionarioIds` — lo rechace sin tener
+   * que acordarse de este caso. Ver vendedor/proyeccion.ts.
+   */
+  vendedorIds?: string[];
   invitadoEn: Timestamp;
   ultimoAccesoEn: Timestamp | null;
 }
@@ -29,11 +37,15 @@ export async function getConcesionarioUser(
   return snap.exists ? (snap.data() as ConcesionarioUserRecord) : null;
 }
 
+/** Qué lista de tiendas se está cambiando: acceso completo, o solo consulta. */
+export type CampoAcceso = "concesionarioIds" | "vendedorIds";
+
 /** Upserts the full set of stores this uid can see. Empty array is valid — it means "account exists, sees nothing yet." */
 export async function setConcesionarioUserStores(
   uid: string,
   email: string,
-  concesionarioIds: string[],
+  ids: string[],
+  campo: CampoAcceso = "concesionarioIds",
 ): Promise<void> {
   const existing = await usersCollection().doc(uid).get();
   await usersCollection()
@@ -42,7 +54,7 @@ export async function setConcesionarioUserStores(
       {
         uid,
         email,
-        concesionarioIds,
+        [campo]: ids,
         ...(existing.exists ? {} : { invitadoEn: FieldValue.serverTimestamp() }),
       },
       { merge: true },

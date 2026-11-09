@@ -176,6 +176,13 @@ export interface PayDeskConcesionario {
   usuarios: string[];
 
   /**
+   * Vendedores externos de esta tienda, en minúsculas: entran a consultar
+   * en qué etapa van sus clientes aprobados, sin subir documentos ni usar
+   * la caja. Un correo no puede estar en las dos listas de la misma tienda.
+   */
+  vendedores?: string[];
+
+  /**
    * This store's own rollout cutoff (ISO date), when it went live in a
    * different wave than the rest. Null falls back to the global date —
    * see firestore/rolloutRepository.ts.

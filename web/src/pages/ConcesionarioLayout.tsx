@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useNavigate, useOutletContext } from "react-router-dom";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import {
+  accesoDeSesion,
   auth,
   db,
   getConcesionarioDealsCallable,
@@ -81,6 +82,8 @@ export function ConcesionarioLayout() {
   // Aparte de `state` porque el listener de deals reescribe `state` en cada
   // cambio y no debe pisar una lección recién pasada.
   const [capacitacion, setCapacitacion] = useState<CapacitacionTienda | null>(null);
+  /** Además es vendedor externo en otras tiendas: se le enseña la pestaña de consulta. */
+  const [tieneConsulta, setTieneConsulta] = useState(false);
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -95,6 +98,17 @@ export function ConcesionarioLayout() {
         // signing out was the only way to see it. Forcing it here makes a
         // plain page reload enough.
         await auth.currentUser?.getIdToken(true);
+
+        // Un vendedor externo no tiene lista de tienda: su vista es otra.
+        if (auth.currentUser) {
+          const acceso = await accesoDeSesion(auth.currentUser);
+          if (cancelled) return;
+          if (!acceso.tienda && acceso.vendedor) {
+            navigate("/consulta", { replace: true });
+            return;
+          }
+          setTieneConsulta(acceso.vendedor);
+        }
 
         const result = await getConcesionarioDealsCallable();
         const { concesionarios, deals, labels, etapas, rolloutPorTienda, origenDisposicion } =
@@ -258,6 +272,7 @@ export function ConcesionarioLayout() {
         <NavLink to="/solicitudes/validar">Validar código</NavLink>
         <NavLink to="/solicitudes/canceladas">Canceladas</NavLink>
         <NavLink to="/solicitudes/reporte">Reporte</NavLink>
+        {tieneConsulta && <NavLink to="/consulta">Solo consulta</NavLink>}
         <NavLink to="/solicitudes/aprende" className="tabs__aprende">
           Aprende
           {avanceCapacitacion && !avanceCapacitacion.completa && (

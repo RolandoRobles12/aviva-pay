@@ -26,6 +26,7 @@ export const adminListConcesionarios = onCall(
         nombre: c.nombre,
         numero: c.numero,
         usuarios: c.usuarios ?? [],
+        vendedores: c.vendedores ?? [],
         rolloutDesde: c.rolloutDesde ?? null,
       })),
       // Por correo y no por tienda: el mismo correo puede estar en varias
