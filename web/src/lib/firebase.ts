@@ -7,7 +7,6 @@ import {
 } from "firebase/app-check";
 import {
   browserLocalPersistence,
-  browserSessionPersistence,
   getAuth,
   GoogleAuthProvider,
   sendPasswordResetEmail,
@@ -131,20 +130,44 @@ async function requireConcesionarioClaim(user: User): Promise<DestinoTienda> {
 }
 
 /**
- * Signs a concesionario in with email + password. `recordar` picks
- * whether the session survives closing the browser (local) or ends with
- * it (session) — set before signing in, since Firebase applies
- * persistence to the sign-in call itself.
+ * Si ya hay una sesión abierta en este navegador, a dónde debe entrar:
+ * su lista de tienda, la consulta de vendedor o el panel. Null si no hay
+ * sesión (o la cuenta no tiene ningún acceso).
+ *
+ * Existe porque las pantallas de entrada (`/` y `/admin`) mostraban el
+ * formulario aunque la sesión siguiera viva: quien abría una ventana nueva
+ * en la dirección principal creía que Paydesk lo había sacado. Espera a
+ * que Firebase restaure la sesión guardada antes de responder.
  */
-export async function loginConcesionario(
-  email: string,
-  password: string,
-  recordar: boolean,
-) {
-  await setPersistence(
-    auth,
-    recordar ? browserLocalPersistence : browserSessionPersistence,
-  );
+export async function destinoDeSesionAbierta(
+  perfil: "tienda" | "admin",
+): Promise<DestinoTienda | "/admin/inicio" | null> {
+  await auth.authStateReady();
+  const user = auth.currentUser;
+  if (!user) return null;
+  if (perfil === "admin") {
+    const { claims } = await user.getIdTokenResult();
+    return claims.admin === true ? "/admin/inicio" : null;
+  }
+  const acceso = await accesoDeSesion(user);
+  if (acceso.tienda) return "/solicitudes";
+  if (acceso.vendedor) return "/consulta";
+  return null;
+}
+
+/**
+ * Signs a concesionario (or vendedor) in with email + password.
+ *
+ * The session is always saved on this device, the same as the admin's:
+ * every tab and window shares it and it survives closing the browser,
+ * until the person taps "Salir". There used to be a "Mantener sesión
+ * iniciada" checkbox, but unchecked it made Firebase keep the session per
+ * tab, so every new tab or window asked to sign in again — which stores
+ * read as Paydesk kicking them out. Set before signing in, since Firebase
+ * applies persistence to the sign-in call itself.
+ */
+export async function loginConcesionario(email: string, password: string) {
+  await setPersistence(auth, browserLocalPersistence);
   const credential = await signInWithEmailAndPassword(auth, email, password);
   return requireConcesionarioClaim(credential.user);
 }
@@ -289,11 +312,9 @@ const googleProvider = new GoogleAuthProvider();
 
 /**
  * Admins only ever sign in with Google (see docs/ARCHITECTURE.md — "Alta de
- * administradores"), so there's no "recordar" checkbox to key off of —
- * always persist across browser restarts, same as `recordar: true` would
- * for a concesionario. Set before signing in, since Firebase applies
- * persistence to the sign-in call itself, and `auth` is shared with the
- * concesionario login, which may have last set it to session-only.
+ * administradores"). Like the store login, the session always persists
+ * across tabs and browser restarts. Set before signing in, since Firebase
+ * applies persistence to the sign-in call itself.
  */
 export async function loginAdminWithGoogle() {
   await setPersistence(auth, browserLocalPersistence);

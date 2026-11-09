@@ -1,6 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { enviarRestablecerContrasena, loginConcesionario } from "../lib/firebase";
+import {
+  destinoDeSesionAbierta,
+  enviarRestablecerContrasena,
+  loginConcesionario,
+} from "../lib/firebase";
 import { BrandMark } from "../components/BrandMark";
 import { PasswordInput } from "../components/PasswordInput";
 
@@ -15,17 +19,37 @@ export function LoginPage() {
   const [modo, setModo] = useState<"entrar" | "recuperar">("entrar");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [recordar, setRecordar] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recuperado, setRecuperado] = useState(false);
+  // Mientras se revisa si ya hay sesión, no se enseña el formulario: verlo
+  // un instante y luego saltar a la lista se lee como "me sacó".
+  const [revisandoSesion, setRevisandoSesion] = useState(true);
+
+  // Con la sesión abierta (otra ventana, un marcador a la dirección
+  // principal), se entra directo en vez de pedir la contraseña otra vez.
+  useEffect(() => {
+    let cancelado = false;
+    destinoDeSesionAbierta("tienda")
+      .then((destino) => {
+        if (cancelado) return;
+        if (destino) navigate(destino, { replace: true });
+        else setRevisandoSesion(false);
+      })
+      .catch(() => {
+        if (!cancelado) setRevisandoSesion(false);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [navigate]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
     try {
-      const destino = await loginConcesionario(email, password, recordar);
+      const destino = await loginConcesionario(email, password);
       navigate(destino, { replace: true });
     } catch (err) {
       setError(
@@ -51,6 +75,10 @@ export function LoginPage() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (revisandoSesion) {
+    return <p className="page-message">Cargando...</p>;
   }
 
   if (modo === "recuperar") {
@@ -140,15 +168,6 @@ export function LoginPage() {
             autoComplete="current-password"
             required
           />
-        </label>
-
-        <label className="upload-form__checkbox">
-          <input
-            type="checkbox"
-            checked={recordar}
-            onChange={(e) => setRecordar(e.target.checked)}
-          />
-          Mantener sesión iniciada en este dispositivo
         </label>
 
         {error && <p className="form-error">{error}</p>}

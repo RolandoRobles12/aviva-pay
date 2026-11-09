@@ -34,7 +34,7 @@ El requerimiento (sección 2) dice "una página web... por cada solicitud de cr�
 - El acceso de cada cuenta vive en `paydesk_concesionario_users/{uid}` (índice inverso uid → lista de `concesionarioId`), mantenido en sync con el `usuarios` de cada tienda por `syncConcesionarioUsuarios`. De ahí se recalcula el custom claim `concesionarioIds: string[]` en el token — la lista completa de tiendas que esa cuenta puede ver.
 - El cliente abre un listener `onSnapshot` sobre `paydesk_deals` filtrado con `where("concesionarioId", "in", ids)` (troceado de 30 en 30, el límite de Firestore para `in`).
 - Las reglas de Firestore (`firestore.rules`) solo permiten `get`/`list` cuando `resource.data.concesionarioId` está en `request.auth.token.concesionarioIds`. Firestore rechaza cualquier query que no incluya ese filtro exacto, así que el cliente no puede pedir un listado más amplio que sus propias tiendas.
-- El checkbox "Mantener sesión iniciada" en el login decide la persistencia (`browserLocalPersistence` vs `browserSessionPersistence`) antes de autenticar.
+- La sesión siempre se guarda en el equipo (`browserLocalPersistence`), igual que la del admin: la comparten todas las pestañas y ventanas y sobrevive a cerrar el navegador, hasta "Salir". Antes había una casilla "Mantener sesión iniciada"; desmarcada, Firebase guardaba la sesión por pestaña y cada ventana nueva pedía entrar otra vez, lo que se leía como que Paydesk sacaba a la tienda. Por lo mismo, `/` y `/admin` mandan directo a su vista a quien ya tiene sesión (`destinoDeSesionAbierta`).
 
 Esto también resuelve el pendiente que traía la sección 8: el control de acceso ya no depende de que una URL no se adivine.
 
@@ -195,7 +195,7 @@ Las pantallas lo dicen según cómo esté configurado, no con una regla condicio
 
 ## Panel de administración
 
-En `/admin`, con cuentas de **Firebase Auth (Google)** que llevan un custom claim `admin: true`. Cada endpoint admin verifica el claim vía `assertAdmin()`. El login de admin siempre persiste la sesión entre reinicios del navegador (`browserLocalPersistence`) — no hay checkbox "recordar" como en el login de concesionario.
+En `/admin`, con cuentas de **Firebase Auth (Google)** que llevan un custom claim `admin: true`. Cada endpoint admin verifica el claim vía `assertAdmin()`. El login de admin siempre persiste la sesión entre reinicios del navegador (`browserLocalPersistence`), igual que el de las tiendas.
 
 ### Alta de administradores
 

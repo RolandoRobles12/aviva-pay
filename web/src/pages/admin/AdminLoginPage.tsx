@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { loginAdminWithGoogle } from "../../lib/firebase";
+import { destinoDeSesionAbierta, loginAdminWithGoogle } from "../../lib/firebase";
 import { BrandMark } from "../../components/BrandMark";
 
 /** Aviva team sign-in. Google only — accounts are created by the team, not self-service. */
@@ -8,6 +8,24 @@ export function AdminLoginPage() {
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [revisandoSesion, setRevisandoSesion] = useState(true);
+
+  // Igual que en la entrada de tiendas: con la sesión abierta se entra directo.
+  useEffect(() => {
+    let cancelado = false;
+    destinoDeSesionAbierta("admin")
+      .then((destino) => {
+        if (cancelado) return;
+        if (destino) navigate(destino, { replace: true });
+        else setRevisandoSesion(false);
+      })
+      .catch(() => {
+        if (!cancelado) setRevisandoSesion(false);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [navigate]);
 
   async function handleGoogleLogin() {
     setSubmitting(true);
@@ -28,6 +46,10 @@ export function AdminLoginPage() {
       }
       setSubmitting(false);
     }
+  }
+
+  if (revisandoSesion) {
+    return <p className="page-message">Cargando...</p>;
   }
 
   return (
