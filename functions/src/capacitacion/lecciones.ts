@@ -20,10 +20,34 @@ export const LECCIONES_CAPACITACION = [
   "canceladas-reporte",
 ] as const;
 
-export type LeccionId = (typeof LECCIONES_CAPACITACION)[number];
+/**
+ * El curso del vendedor: lo que ve en /consulta y cómo dar seguimiento.
+ * Copia de ORDEN_VENDEDOR en web/src/capacitacion/progreso.ts.
+ */
+export const LECCIONES_VENDEDOR = [
+  "vendedor-inicio",
+  "vendedor-etapas",
+  "vendedor-seguimiento",
+] as const;
 
-export function esLeccion(id: unknown): id is LeccionId {
-  return typeof id === "string" && (LECCIONES_CAPACITACION as readonly string[]).includes(id);
+/**
+ * Cada persona toma el curso de su perfil (un correo es personal con
+ * acceso completo o vendedor, nunca las dos cosas).
+ */
+export type Curso = "tienda" | "vendedor";
+
+export const LECCIONES_POR_CURSO: Record<Curso, readonly string[]> = {
+  tienda: LECCIONES_CAPACITACION,
+  vendedor: LECCIONES_VENDEDOR,
+};
+
+export type LeccionId =
+  | (typeof LECCIONES_CAPACITACION)[number]
+  | (typeof LECCIONES_VENDEDOR)[number];
+
+/** ¿Existe esta lección en ese curso? Por omisión, el de la tienda. */
+export function esLeccion(id: unknown, curso: Curso = "tienda"): id is LeccionId {
+  return typeof id === "string" && LECCIONES_POR_CURSO[curso].includes(id);
 }
 
 export interface ResumenCapacitacion {
@@ -34,15 +58,17 @@ export interface ResumenCapacitacion {
 }
 
 /**
- * Cuenta solo lecciones que siguen existiendo: una que se retiró del
- * curso no debe inflar el avance de nadie.
+ * Cuenta solo lecciones que siguen existiendo en el curso: una que se
+ * retiró no debe inflar el avance de nadie, y las de otro curso (alguien
+ * que cambió de perfil) tampoco cuentan.
  */
-export function resumirCapacitacion(guardadas: unknown): ResumenCapacitacion {
+export function resumirCapacitacion(guardadas: unknown, curso: Curso = "tienda"): ResumenCapacitacion {
   const lista = Array.isArray(guardadas) ? guardadas : [];
-  const completadas = LECCIONES_CAPACITACION.filter((id) => lista.includes(id));
+  const orden = LECCIONES_POR_CURSO[curso];
+  const completadas = orden.filter((id) => lista.includes(id)) as LeccionId[];
   return {
     completadas,
-    total: LECCIONES_CAPACITACION.length,
-    completa: completadas.length === LECCIONES_CAPACITACION.length,
+    total: orden.length,
+    completa: completadas.length === orden.length,
   };
 }

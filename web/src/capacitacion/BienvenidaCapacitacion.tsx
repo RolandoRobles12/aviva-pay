@@ -1,6 +1,5 @@
 import { useNavigate } from "react-router-dom";
 import { Modal } from "../components/Modal";
-import { LECCIONES, MINUTOS_TOTALES } from "./lecciones";
 
 /**
  * Lo primero que ve alguien la primera vez que entra a Paydesk. Es una
@@ -8,13 +7,32 @@ import { LECCIONES, MINUTOS_TOTALES } from "./lecciones";
  * "Aprende" sigue marcando cuántas lecciones le faltan. Se muestra una
  * sola vez por persona (se guarda en el servidor, no en el navegador),
  * así que no reaparece en el celular después de verla en la caja.
+ *
+ * Sirve a los dos cursos: cada perfil le pasa su primera lección y qué va
+ * a aprender.
  */
-export function BienvenidaCapacitacion({ onCerrar }: { onCerrar: () => void }) {
+export function BienvenidaCapacitacion({
+  onCerrar,
+  primeraLeccion,
+  lecciones,
+  minutos,
+  aprenderas,
+  puntos,
+}: {
+  onCerrar: () => void;
+  /** Ruta de la primera lección del curso. */
+  primeraLeccion: string;
+  lecciones: number;
+  minutos: number;
+  /** "Aprenderás a …", sin el arranque. */
+  aprenderas: string;
+  puntos: string[];
+}) {
   const navigate = useNavigate();
 
   function empezar() {
     onCerrar();
-    navigate("/solicitudes/aprende/bienvenida");
+    navigate(primeraLeccion);
   }
 
   return (
@@ -22,15 +40,13 @@ export function BienvenidaCapacitacion({ onCerrar }: { onCerrar: () => void }) {
       <div className="upload-form cap-bienvenida">
         <h2>Te damos la bienvenida a Paydesk</h2>
         <p>
-          Antes de empezar, toma la capacitación: {LECCIONES.length} lecciones cortas,
-          unos {MINUTOS_TOTALES} minutos. Aprenderás a subir documentos, a validar el
-          código de tus clientes en caja y a resolver por tu cuenta las dudas más
-          comunes.
+          Antes de empezar, toma la capacitación: {lecciones} lecciones cortas, unos{" "}
+          {minutos} minutos. Aprenderás {aprenderas}
         </p>
         <ul className="cap-bienvenida__puntos">
-          <li>Practicas cada tarea en simuladores con las pantallas reales, sin tocar clientes reales.</li>
-          <li>Puedes dejarla a medias y seguir después donde te quedaste.</li>
-          <li>Siempre la encuentras en la pestaña “Aprende”.</li>
+          {puntos.map((p) => (
+            <li key={p}>{p}</li>
+          ))}
         </ul>
         <div className="upload-form__actions">
           <button type="button" className="button-secondary" onClick={onCerrar}>

@@ -12,10 +12,12 @@ import {
   AprendeInicio,
   AprendeLeccion,
   AprendeTiendaLayout,
+  AprendeVendedorLayout,
   AyudaPublicaLayout,
 } from "./pages/AprendePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
-import { VendedorPage } from "./pages/VendedorPage";
+import { VendedorClientes, VendedorLayout } from "./pages/VendedorPage";
+import { CURSO_VENDEDOR } from "./capacitacion/cursos";
 import { RequireAuth } from "./components/RequireAuth";
 import { AdminLoginPage } from "./pages/admin/AdminLoginPage";
 import { SoloSuperAdmin } from "./lib/adminRol";
@@ -57,6 +59,14 @@ export function App() {
           tienda antes de invitarla, y la que abren las ayudas de los
           formularios. La misma capacitación vive con sesión en
           /solicitudes/aprende, donde además guarda el avance. */}
+      {/* El curso del vendedor, abierto: va antes que /ayuda/:leccionId. */}
+      <Route
+        path="/ayuda/vendedores"
+        element={<AyudaPublicaLayout curso={CURSO_VENDEDOR} base="/ayuda/vendedores" />}
+      >
+        <Route index element={<AprendeInicio />} />
+        <Route path=":leccionId" element={<AprendeLeccion />} />
+      </Route>
       <Route path="/ayuda" element={<AyudaPublicaLayout />}>
         <Route index element={<AprendeInicio />} />
         <Route path="guia-rapida" element={<AprendeGuiaRapida />} />
@@ -88,10 +98,16 @@ export function App() {
         path="/consulta"
         element={
           <RequireAuth redirectTo="/">
-            <VendedorPage />
+            <VendedorLayout />
           </RequireAuth>
         }
-      />
+      >
+        <Route index element={<VendedorClientes />} />
+        <Route path="aprende" element={<AprendeVendedorLayout />}>
+          <Route index element={<AprendeInicio />} />
+          <Route path=":leccionId" element={<AprendeLeccion />} />
+        </Route>
+      </Route>
 
       {/* Admin */}
       <Route path="/admin" element={<AdminLoginPage />} />

@@ -1,6 +1,7 @@
 import { createContext, useContext } from "react";
 import type { FieldLabels } from "../types/admin";
 import type { OrigenDisposicion } from "../lib/firebase";
+import type { Curso } from "./cursos";
 
 /**
  * Lo que una lección necesita saber de quien la está tomando. La misma
@@ -11,10 +12,15 @@ import type { OrigenDisposicion } from "../lib/firebase";
  * - `publico` (/ayuda): sin sesión, para mandarle la liga a una tienda
  *   antes de darle acceso o para abrirla desde un formulario sin perder
  *   lo capturado. Usa los nombres por defecto y no guarda nada.
+ *
+ * Y hay dos cursos (`curso`): el del personal de la tienda y el del
+ * vendedor (/consulta/aprende y /ayuda/vendedores).
  */
 export interface CapacitacionContexto {
+  /** `tienda`: con sesión y avance guardado (también para el vendedor). */
   modo: "tienda" | "publico";
-  /** Ruta base de las lecciones: "/solicitudes/aprende" o "/ayuda". */
+  curso: Curso;
+  /** Ruta base de las lecciones, p. ej. "/solicitudes/aprende" o "/ayuda". */
   base: string;
   completadas: string[];
   /** Anota una lección como pasada. En modo público no hace nada. */

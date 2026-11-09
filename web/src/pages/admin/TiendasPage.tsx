@@ -34,7 +34,8 @@ export function TiendasPage() {
   const [soloSinCapacitar, setSoloSinCapacitar] = useState(false);
   /** Correo en minúsculas → avance en la capacitación de tiendas (pestaña "Aprende"). */
   const [capacitacion, setCapacitacion] = useState<Record<string, CapacitacionAdmin>>({});
-  const [ligaCopiada, setLigaCopiada] = useState(false);
+  /** Cuál de las dos ligas de la capacitación se acaba de copiar. */
+  const [ligaCopiada, setLigaCopiada] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editando, setEditando] = useState<AdminConcesionario | null>(null);
   const [sincronizando, setSincronizando] = useState(false);
@@ -96,7 +97,11 @@ export function TiendasPage() {
       sinUsuarios: lista.filter((t) => t.usuarios.length === 0).length,
       conVarios: lista.filter((t) => t.usuarios.length > 1).length,
       // Por persona, no por tienda: un correo en tres tiendas es una persona.
-      sinCapacitar: [...new Set(lista.flatMap((t) => t.usuarios.map((u) => u.toLowerCase())))].filter(
+      sinCapacitar: [
+        ...new Set(
+          lista.flatMap((t) => [...t.usuarios, ...(t.vendedores ?? [])].map((u) => u.toLowerCase())),
+        ),
+      ].filter(
         (email) => {
           const a = capacitacion[email];
           return !a || a.completadas < a.total;
@@ -106,12 +111,13 @@ export function TiendasPage() {
   }, [tiendas, capacitacion]);
 
   const ligaAyuda = `${window.location.origin}/ayuda`;
+  const ligaAyudaVendedores = `${window.location.origin}/ayuda/vendedores`;
 
-  async function copiarLiga() {
+  async function copiarLiga(liga: string) {
     try {
-      await navigator.clipboard.writeText(ligaAyuda);
-      setLigaCopiada(true);
-      setTimeout(() => setLigaCopiada(false), 2000);
+      await navigator.clipboard.writeText(liga);
+      setLigaCopiada(liga);
+      setTimeout(() => setLigaCopiada(null), 2000);
     } catch {
       // Sin permiso de portapapeles: la liga está a la vista para copiarla a mano.
     }
@@ -192,14 +198,35 @@ export function TiendasPage() {
 
       <Notice tono="info" titulo="Capacitación para tiendas">
         <p>
-          Cada persona invitada ve la pestaña “Aprende” con lecciones, simulador de caja y
-          preguntas frecuentes; su avance aparece abajo, en “Quién tiene acceso”. Para
-          mandarla antes de invitar a alguien, usa la versión abierta:{" "}
+          Cada persona invitada ve la pestaña “Aprende” con su curso: el personal con
+          acceso completo aprende documentos y caja; el vendedor, etapas y seguimiento.
+          Su avance aparece abajo, en “Quién tiene acceso”. Para mandarla antes de
+          invitar a alguien, usa la versión abierta:
+        </p>
+        <p>
+          Personal:{" "}
           <a href="/ayuda" target="_blank" rel="noopener noreferrer">
             {ligaAyuda}
           </a>{" "}
-          <button type="button" className="adm-btn adm-btn--texto adm-btn--chico" onClick={copiarLiga}>
-            {ligaCopiada ? "Copiada" : "Copiar liga"}
+          <button
+            type="button"
+            className="adm-btn adm-btn--texto adm-btn--chico"
+            onClick={() => copiarLiga(ligaAyuda)}
+          >
+            {ligaCopiada === ligaAyuda ? "Copiada" : "Copiar liga"}
+          </button>
+        </p>
+        <p>
+          Vendedores:{" "}
+          <a href="/ayuda/vendedores" target="_blank" rel="noopener noreferrer">
+            {ligaAyudaVendedores}
+          </a>{" "}
+          <button
+            type="button"
+            className="adm-btn adm-btn--texto adm-btn--chico"
+            onClick={() => copiarLiga(ligaAyudaVendedores)}
+          >
+            {ligaCopiada === ligaAyudaVendedores ? "Copiada" : "Copiar liga"}
           </button>
         </p>
       </Notice>
@@ -275,10 +302,12 @@ export function TiendasPage() {
                   {(t.vendedores ?? []).length > 0 && (
                     <div className="adm-field__ayuda" title={(t.vendedores ?? []).join(", ")}>
                       +{" "}
-                      {t.vendedores.length === 1
-                        ? "1 vendedor externo"
-                        : `${t.vendedores.length} vendedores externos`}{" "}
-                      (solo consulta)
+                      {t.vendedores.length === 1 ? "1 vendedor" : `${t.vendedores.length} vendedores`}
+                      {" · "}
+                      {(() => {
+                        const c = capacitacionDeTienda(t.vendedores, capacitacion);
+                        return `${c.completas} de ${c.personas} con capacitación completa`;
+                      })()}
                     </div>
                   )}
                 </td>
@@ -498,7 +527,16 @@ function EditarTiendaForm({
       return;
     }
     if (vendedores.includes(email)) {
-      setError(`${email} ya está como vendedor externo. Quítalo de esa lista primero.`);
+      setError(`${email} ya está como vendedor en esta tienda. Quítalo de esa lista primero.`);
+      return;
+    }
+    const comoVendedor = todasLasTiendas.find(
+      (t) => t.concesionarioId !== tienda.concesionarioId && (t.vendedores ?? []).includes(email),
+    );
+    if (comoVendedor) {
+      setError(
+        `${email} es vendedor en ${comoVendedor.nombre}. Cada persona tiene un solo perfil: acceso completo o vendedor.`,
+      );
       return;
     }
     setUsuarios([...usuarios, email]);
@@ -518,7 +556,16 @@ function EditarTiendaForm({
       return;
     }
     if (usuarios.includes(email)) {
-      setError(`${email} ya es usuario de la tienda. Quítalo de esa lista primero.`);
+      setError(`${email} ya tiene acceso completo en esta tienda. Quítalo de esa lista primero.`);
+      return;
+    }
+    const comoPersonal = todasLasTiendas.find(
+      (t) => t.concesionarioId !== tienda.concesionarioId && t.usuarios.includes(email),
+    );
+    if (comoPersonal) {
+      setError(
+        `${email} ya tiene acceso completo en ${comoPersonal.nombre}. Cada persona tiene un solo perfil: acceso completo o vendedor.`,
+      );
       return;
     }
     if (!vendedores.includes(email)) setVendedores([...vendedores, email]);
@@ -664,13 +711,17 @@ function EditarTiendaForm({
 
       <label>Vendedores externos (solo consulta)</label>
       <p className="form-note">
-        Ven a los clientes aprobados de esta tienda y en qué etapa va cada uno. No
-        ven montos ni documentos, y no pueden subir nada ni validar códigos en caja.
+        Personal de la tienda que solo vende. Ven a los clientes aprobados de esta
+        tienda, su monto aprobado y en qué etapa va cada uno, para darles
+        seguimiento. No ven documentos, y no pueden subir nada ni validar códigos en
+        caja. Cada persona tiene un solo perfil: quien ya tiene acceso completo en
+        alguna tienda no puede ser vendedor.
       </p>
       <div className="chip-input">
         {vendedores.map((email) => (
           <span key={email} className="chip chip--removable">
             {email}
+            <AvanceCorreoChip avance={capacitacion[email.toLowerCase()]} />
             <button
               type="button"
               aria-label={`Quitar a ${email}`}

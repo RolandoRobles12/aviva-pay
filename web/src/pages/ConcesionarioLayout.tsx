@@ -17,6 +17,7 @@ import { setEtapas, type RolloutMap } from "../lib/dealScope";
 import { BrandMark } from "../components/BrandMark";
 import { SelectorTiendas } from "../components/SelectorTiendas";
 import { BienvenidaCapacitacion } from "../capacitacion/BienvenidaCapacitacion";
+import { LECCIONES, MINUTOS_TOTALES } from "../capacitacion/lecciones";
 import { calcularAvance } from "../capacitacion/progreso";
 import {
   FILTROS_INICIALES,
@@ -82,8 +83,6 @@ export function ConcesionarioLayout() {
   // Aparte de `state` porque el listener de deals reescribe `state` en cada
   // cambio y no debe pisar una lección recién pasada.
   const [capacitacion, setCapacitacion] = useState<CapacitacionTienda | null>(null);
-  /** Además es vendedor externo en otras tiendas: se le enseña la pestaña de consulta. */
-  const [tieneConsulta, setTieneConsulta] = useState(false);
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -107,7 +106,6 @@ export function ConcesionarioLayout() {
             navigate("/consulta", { replace: true });
             return;
           }
-          setTieneConsulta(acceso.vendedor);
         }
 
         const result = await getConcesionarioDealsCallable();
@@ -272,7 +270,6 @@ export function ConcesionarioLayout() {
         <NavLink to="/solicitudes/validar">Validar código</NavLink>
         <NavLink to="/solicitudes/canceladas">Canceladas</NavLink>
         <NavLink to="/solicitudes/reporte">Reporte</NavLink>
-        {tieneConsulta && <NavLink to="/consulta">Solo consulta</NavLink>}
         <NavLink to="/solicitudes/aprende" className="tabs__aprende">
           Aprende
           {avanceCapacitacion && !avanceCapacitacion.completa && (
@@ -290,7 +287,20 @@ export function ConcesionarioLayout() {
         <Outlet context={context} />
       </div>
 
-      {mostrarBienvenida && <BienvenidaCapacitacion onCerrar={cerrarBienvenida} />}
+      {mostrarBienvenida && (
+        <BienvenidaCapacitacion
+          onCerrar={cerrarBienvenida}
+          primeraLeccion="/solicitudes/aprende/bienvenida"
+          lecciones={LECCIONES.length}
+          minutos={MINUTOS_TOTALES}
+          aprenderas="a subir documentos, a validar el código de tus clientes en caja y a resolver por tu cuenta las dudas más comunes."
+          puntos={[
+            "Practicas cada tarea en simuladores con las pantallas reales, sin tocar clientes reales.",
+            "Puedes dejarla a medias y seguir después donde te quedaste.",
+            "Siempre la encuentras en la pestaña “Aprende”.",
+          ]}
+        />
+      )}
     </main>
   );
 }

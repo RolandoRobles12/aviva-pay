@@ -9,7 +9,7 @@ import { coincideBusqueda, type LeccionId } from "./progreso";
  * hoy termina en llamada o en WhatsApp a Aviva; la respuesta dice qué hacer
  * y, si hace falta más, a qué lección ir.
  */
-interface PreguntaFrecuente {
+export interface PreguntaFrecuente {
   pregunta: string;
   respuesta: string;
   leccion?: LeccionId;
@@ -129,10 +129,16 @@ export const PREGUNTAS_FRECUENTES: PreguntaFrecuente[] = [
   },
 ];
 
-export function PreguntasFrecuentes() {
+export function PreguntasFrecuentes({
+  preguntas = PREGUNTAS_FRECUENTES,
+  placeholder = "Busca tu duda: contraseña, pistola, revisión…",
+}: {
+  preguntas?: PreguntaFrecuente[];
+  placeholder?: string;
+} = {}) {
   const { base } = useCapacitacion();
   const [busqueda, setBusqueda] = useState("");
-  const visibles = PREGUNTAS_FRECUENTES.filter((p) =>
+  const visibles = preguntas.filter((p) =>
     coincideBusqueda(`${p.pregunta} ${p.respuesta}`, busqueda),
   );
 
@@ -141,15 +147,15 @@ export function PreguntasFrecuentes() {
       <input
         type="search"
         className="admin-search cap-faq__buscar"
-        placeholder="Busca tu duda: contraseña, pistola, revisión…"
+        placeholder={placeholder}
         aria-label="Buscar en preguntas frecuentes"
         value={busqueda}
         onChange={(e) => setBusqueda(e.target.value)}
       />
       {visibles.length === 0 ? (
         <p className="form-note">
-          No encontramos nada con esas palabras. Prueba con otras, o revisa la tabla de
-          abajo para saber si hay que llamar a Aviva.
+          No encontramos nada con esas palabras. Prueba con otras, o pregúntale a tu
+          ejecutivo de Aviva.
         </p>
       ) : (
         visibles.map((p) => (

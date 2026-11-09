@@ -3,10 +3,11 @@ import { logger } from "firebase-functions/v2";
 import { assertAdmin } from "../../auth/adminGuard";
 import {
   getConcesionario,
+  listConcesionarios,
   updateConcesionarioFields,
 } from "../../firestore/concesionariosRepository";
 import { syncConcesionarioUsuarios } from "../../concesionario/userSync";
-import { correosEnAmbas, limpiarCorreos } from "../../vendedor/proyeccion";
+import { conflictosDeRol, limpiarCorreos } from "../../vendedor/proyeccion";
 
 interface UpdateRequest {
   concesionarioId?: string;
@@ -81,18 +82,19 @@ export const adminUpdateConcesionario = onCall<UpdateRequest>(
       cambios.vendedores = nuevosVendedores;
     }
 
-    // En la misma tienda, un correo es de la tienda o es vendedor externo,
-    // nunca las dos: con las dos tendría acceso completo y la etiqueta de
-    // "solo consulta" mentiría.
-    const repetidos = correosEnAmbas(
-      nuevosUsuarios ?? concesionario.usuarios ?? [],
-      nuevosVendedores ?? concesionario.vendedores ?? [],
-    );
-    if (repetidos.length > 0) {
-      throw new HttpsError(
-        "invalid-argument",
-        `${repetidos.join(", ")} no puede ser usuario de la tienda y vendedor externo a la vez. Déjalo en una sola lista.`,
+    // Cada persona tiene un solo perfil en todo Paydesk: acceso completo o
+    // vendedor (ver conflictosDeRol). Se revisa contra todas las
+    // tiendas solo cuando cambia alguna de las dos listas.
+    if (nuevosUsuarios !== undefined || nuevosVendedores !== undefined) {
+      const conflictos = conflictosDeRol(
+        concesionarioId,
+        nuevosUsuarios ?? concesionario.usuarios ?? [],
+        nuevosVendedores ?? concesionario.vendedores ?? [],
+        await listConcesionarios(),
       );
+      if (conflictos.length > 0) {
+        throw new HttpsError("invalid-argument", conflictos.join(" "));
+      }
     }
 
     if (rolloutDesde !== undefined) {

@@ -176,9 +176,10 @@ export interface PayDeskConcesionario {
   usuarios: string[];
 
   /**
-   * Vendedores externos de esta tienda, en minúsculas: entran a consultar
-   * en qué etapa van sus clientes aprobados, sin subir documentos ni usar
-   * la caja. Un correo no puede estar en las dos listas de la misma tienda.
+   * Vendedores de esta tienda, en minúsculas: personal que solo vende y
+   * entra a dar seguimiento a los clientes aprobados (monto y etapa), sin
+   * subir documentos ni usar la caja. Un correo que es vendedor no puede
+   * tener acceso completo en ninguna tienda, y al revés.
    */
   vendedores?: string[];
 

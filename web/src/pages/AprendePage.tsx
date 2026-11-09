@@ -7,14 +7,11 @@ import {
   useCapacitacion,
   type CapacitacionContexto,
 } from "../capacitacion/contexto";
-import { LECCIONES, MINUTOS_TOTALES, getLeccion } from "../capacitacion/lecciones";
-import {
-  calcularAvance,
-  leccionSiguiente,
-  numeroDeLeccion,
-  ORDEN_LECCIONES,
-} from "../capacitacion/progreso";
-import { CuandoLlamar, GuiaRapida, PreguntasFrecuentes } from "../capacitacion/referencia";
+import { getLeccion } from "../capacitacion/lecciones";
+import { CURSO_TIENDA, CURSO_VENDEDOR, type Curso } from "../capacitacion/cursos";
+import { calcularAvance, leccionSiguiente, numeroDeLeccion } from "../capacitacion/progreso";
+import { GuiaRapida } from "../capacitacion/referencia";
+import { useVendedor } from "./VendedorPage";
 import "../styles/capacitacion.css";
 
 /* --- Envolturas ---------------------------------------------------------- */
@@ -25,6 +22,7 @@ export function AprendeTiendaLayout() {
   const ctx: CapacitacionContexto = useMemo(
     () => ({
       modo: "tienda",
+      curso: CURSO_TIENDA,
       base: "/solicitudes/aprende",
       completadas: capacitacion?.completadas ?? [],
       marcarCompletada: marcarLeccion,
@@ -42,8 +40,33 @@ export function AprendeTiendaLayout() {
   );
 }
 
+/** Dentro de /consulta: el curso del vendedor, con su avance guardado. */
+export function AprendeVendedorLayout() {
+  const { capacitacion, marcarLeccion } = useVendedor();
+  const ctx: CapacitacionContexto = useMemo(
+    () => ({
+      modo: "tienda",
+      curso: CURSO_VENDEDOR,
+      base: "/consulta/aprende",
+      completadas: capacitacion?.completadas ?? [],
+      marcarCompletada: marcarLeccion,
+      labels: {},
+      origenDisposicion: "paydesk",
+    }),
+    [capacitacion, marcarLeccion],
+  );
+  return (
+    <CapacitacionProvider value={ctx}>
+      <div className="cap">
+        <Outlet />
+      </div>
+    </CapacitacionProvider>
+  );
+}
+
 const CTX_PUBLICO: CapacitacionContexto = {
   modo: "publico",
+  curso: CURSO_TIENDA,
   base: "/ayuda",
   completadas: [],
   marcarCompletada: async () => {},
@@ -58,9 +81,10 @@ const CTX_PUBLICO: CapacitacionContexto = {
  * invitarla, y la que abren las ligas de ayuda de los formularios (en otra
  * pestaña, para no perder lo capturado). No guarda avance.
  */
-export function AyudaPublicaLayout() {
+export function AyudaPublicaLayout({ curso = CURSO_TIENDA, base = "/ayuda" }: { curso?: Curso; base?: string }) {
+  const ctx = useMemo(() => ({ ...CTX_PUBLICO, curso, base }), [curso, base]);
   return (
-    <CapacitacionProvider value={CTX_PUBLICO}>
+    <CapacitacionProvider value={ctx}>
       <main className="app-shell">
         <header className="app-bar">
           <BrandMark />
@@ -96,9 +120,10 @@ function BarraAvance({ hechas, total }: { hechas: number; total: number }) {
 }
 
 export function AprendeInicio() {
-  const { modo, base, completadas } = useCapacitacion();
-  const avance = calcularAvance(completadas);
-  const siguiente = avance.siguiente ? getLeccion(avance.siguiente) : null;
+  const { modo, base, completadas, curso } = useCapacitacion();
+  const avance = calcularAvance(completadas, curso.orden);
+  const siguiente = avance.siguiente ? getLeccion(avance.siguiente, curso.lecciones) : null;
+  const { Referencia } = curso;
 
   return (
     <>
@@ -106,9 +131,8 @@ export function AprendeInicio() {
         <div>
           <h1>Aprende a usar Paydesk</h1>
           <p>
-            {LECCIONES.length} lecciones cortas, unos {MINUTOS_TOTALES} minutos en total.
-            Al terminar sabrás hacer tus tres tareas y resolver por tu cuenta lo que
-            hoy te haría llamar a Aviva.
+            {curso.lecciones.length} lecciones cortas, unos {curso.minutos} minutos en
+            total. {curso.promesa}
           </p>
           {modo === "publico" && (
             <p className="cap-hero__nota">
@@ -137,16 +161,16 @@ export function AprendeInicio() {
             <Link to={`${base}/${siguiente.id}`} className="cap-boton">
               {avance.hechas === 0 ? "Empezar" : `Continuar: ${siguiente.titulo}`} →
             </Link>
-          ) : (
+          ) : curso.id === "tienda" ? (
             <Link to={`${base}/guia-rapida`} className="cap-boton cap-boton--secundario">
               Ver la guía rápida
             </Link>
-          )}
+          ) : null}
         </div>
       </section>
 
       <ol className="cap-lista">
-        {LECCIONES.map((l, i) => {
+        {curso.lecciones.map((l, i) => {
           const hecha = completadas.includes(l.id);
           return (
             <li key={l.id}>
@@ -167,32 +191,7 @@ export function AprendeInicio() {
         })}
       </ol>
 
-      <section className="cap-bloque">
-        <h2>Para tener a la mano en la caja</h2>
-        <div className="cap-atajos">
-          <Link to={`${base}/guia-rapida`} className="cap-atajo">
-            <strong>Guía rápida para imprimir</strong>
-            <span>Una hoja con tus tres tareas y qué hacer con cada respuesta del código.</span>
-          </Link>
-          <Link to={`${base}/validar-codigo#practica`} className="cap-atajo">
-            <strong>Simulador de caja</strong>
-            <span>Practica la validación con códigos de prueba, sin tocar clientes reales.</span>
-          </Link>
-        </div>
-      </section>
-
-      <section className="cap-bloque">
-        <h2>Preguntas frecuentes</h2>
-        <PreguntasFrecuentes />
-      </section>
-
-      <section className="cap-bloque">
-        <h2>¿Lo resuelvo yo o llamo a Aviva?</h2>
-        <p className="cap-bloque__intro">
-          Antes de llamar, revisa si es algo que puedes resolver tú en un minuto.
-        </p>
-        <CuandoLlamar />
-      </section>
+      <Referencia />
     </>
   );
 }
@@ -201,8 +200,8 @@ export function AprendeInicio() {
 
 export function AprendeLeccion() {
   const { leccionId } = useParams();
-  const { modo, base, completadas, marcarCompletada } = useCapacitacion();
-  const leccion = getLeccion(leccionId);
+  const { modo, base, completadas, marcarCompletada, curso } = useCapacitacion();
+  const leccion = getLeccion(leccionId, curso.lecciones);
   const [aprobadaAhora, setAprobadaAhora] = useState(false);
   const [errorGuardado, setErrorGuardado] = useState<string | null>(null);
 
@@ -221,9 +220,9 @@ export function AprendeLeccion() {
   if (!leccion) return <Navigate to={base} replace />;
 
   const { Contenido, Practica } = leccion;
-  const numero = numeroDeLeccion(leccion.id);
-  const siguiente = leccionSiguiente(leccion.id);
-  const anterior = ORDEN_LECCIONES[numero - 2];
+  const numero = numeroDeLeccion(leccion.id, curso.orden);
+  const siguiente = leccionSiguiente(leccion.id, curso.orden);
+  const anterior = curso.orden[numero - 2];
   const yaHecha = completadas.includes(leccion.id);
 
   async function guardar() {
@@ -245,7 +244,7 @@ export function AprendeLeccion() {
       <nav className="cap-leccion__nav">
         <Link to={base}>← Todas las lecciones</Link>
         <span>
-          Lección {numero} de {ORDEN_LECCIONES.length} · {leccion.minutos} min
+          Lección {numero} de {curso.orden.length} · {leccion.minutos} min
         </span>
       </nav>
 
@@ -301,7 +300,7 @@ export function AprendeLeccion() {
           )}
           {siguiente ? (
             <Link to={`${base}/${siguiente}`} className="cap-boton">
-              Siguiente: {getLeccion(siguiente)?.titulo} →
+              Siguiente: {getLeccion(siguiente, curso.lecciones)?.titulo} →
             </Link>
           ) : (
             <Link to={base} className="cap-boton">
@@ -313,11 +312,11 @@ export function AprendeLeccion() {
 
       <nav className="cap-leccion__pie">
         {anterior ? (
-          <Link to={`${base}/${anterior}`}>← {getLeccion(anterior)?.titulo}</Link>
+          <Link to={`${base}/${anterior}`}>← {getLeccion(anterior, curso.lecciones)?.titulo}</Link>
         ) : (
           <span />
         )}
-        {siguiente && <Link to={`${base}/${siguiente}`}>{getLeccion(siguiente)?.titulo} →</Link>}
+        {siguiente && <Link to={`${base}/${siguiente}`}>{getLeccion(siguiente, curso.lecciones)?.titulo} →</Link>}
       </nav>
     </article>
   );

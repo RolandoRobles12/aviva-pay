@@ -46,7 +46,7 @@ export const getConcesionarioDeals = onCall(
       getOrigenDisposicion(),
       // El avance de quien entra, no de la tienda: decide si se le da la
       // bienvenida a la capacitación y qué lección le sigue.
-      request.auth?.uid ? getCapacitacion(request.auth.uid) : null,
+      request.auth?.uid ? getCapacitacion(request.auth.uid, "tienda") : null,
     ]);
 
     return {

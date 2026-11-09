@@ -15,10 +15,19 @@ export const ORDEN_LECCIONES = [
   "canceladas-reporte",
 ] as const;
 
-export type LeccionId = (typeof ORDEN_LECCIONES)[number];
+/**
+ * El curso del vendedor (personal que solo vende). Tiene que coincidir con
+ * LECCIONES_VENDEDOR en el backend; también lo revisa una prueba.
+ */
+export const ORDEN_VENDEDOR = ["vendedor-inicio", "vendedor-etapas", "vendedor-seguimiento"] as const;
 
-export function esLeccionId(id: string | undefined): id is LeccionId {
-  return id !== undefined && (ORDEN_LECCIONES as readonly string[]).includes(id);
+export type LeccionId = (typeof ORDEN_LECCIONES)[number] | (typeof ORDEN_VENDEDOR)[number];
+
+/** El orden de un curso. Por omisión, el de la tienda. */
+export type Orden = readonly LeccionId[];
+
+export function esLeccionId(id: string | undefined, orden: Orden = ORDEN_LECCIONES): id is LeccionId {
+  return id !== undefined && (orden as readonly string[]).includes(id);
 }
 
 export interface Avance {
@@ -35,26 +44,26 @@ export interface Avance {
  * Cuánto lleva alguien, contando solo lecciones que existen: un id viejo
  * guardado no debe sumar.
  */
-export function calcularAvance(completadas: readonly string[]): Avance {
-  const hechas = ORDEN_LECCIONES.filter((id) => completadas.includes(id)).length;
-  const total = ORDEN_LECCIONES.length;
+export function calcularAvance(completadas: readonly string[], orden: Orden = ORDEN_LECCIONES): Avance {
+  const hechas = orden.filter((id) => completadas.includes(id)).length;
+  const total = orden.length;
   return {
     hechas,
     total,
     porcentaje: Math.round((hechas / total) * 100),
     completa: hechas === total,
-    siguiente: ORDEN_LECCIONES.find((id) => !completadas.includes(id)) ?? null,
+    siguiente: orden.find((id) => !completadas.includes(id)) ?? null,
   };
 }
 
 /** La que sigue a `id` en el curso, para el botón "Siguiente lección". */
-export function leccionSiguiente(id: LeccionId): LeccionId | null {
-  const i = ORDEN_LECCIONES.indexOf(id);
-  return ORDEN_LECCIONES[i + 1] ?? null;
+export function leccionSiguiente(id: LeccionId, orden: Orden = ORDEN_LECCIONES): LeccionId | null {
+  const i = orden.indexOf(id);
+  return orden[i + 1] ?? null;
 }
 
-export function numeroDeLeccion(id: LeccionId): number {
-  return ORDEN_LECCIONES.indexOf(id) + 1;
+export function numeroDeLeccion(id: LeccionId, orden: Orden = ORDEN_LECCIONES): number {
+  return orden.indexOf(id) + 1;
 }
 
 /** Quita acentos y mayúsculas, para que buscar "codigo" encuentre "código". */

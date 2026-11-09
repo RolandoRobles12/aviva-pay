@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   CAMPOS_VENDEDOR,
   clientesParaVendedor,
-  correosEnAmbas,
+  conflictosDeRol,
   limpiarCorreos,
   proyectarParaVendedor,
 } from "../src/vendedor/proyeccion";
@@ -39,9 +39,13 @@ describe("lo que ve un vendedor externo", () => {
     expect(Object.keys(proyectarParaVendedor(deal())).sort()).toEqual([...CAMPOS_VENDEDOR].sort());
   });
 
-  it("nunca trae montos, archivos, revisiones ni el vale", () => {
+  it("trae el monto aprobado", () => {
+    expect(proyectarParaVendedor(deal()).montoAprobado).toBe(20000);
+  });
+
+  it("nunca trae el total de la cotización, archivos, revisiones ni el vale", () => {
     const visto = JSON.stringify(proyectarParaVendedor(deal()));
-    for (const secreto of ["20000", "18450", "archivo", "cotizacion.pdf", "nota interna", "1234567890", "TEQ"]) {
+    for (const secreto of ["18450", "archivo", "cotizacion.pdf", "nota interna", "1234567890", "TEQ"]) {
       expect(visto).not.toContain(secreto);
     }
   });
@@ -68,7 +72,34 @@ describe("correos de una tienda", () => {
   it("señala el correo inválido", () => {
     expect(limpiarCorreos(["ana@x.mx", "no-es-correo"])).toEqual({ invalido: "no-es-correo" });
   });
-  it("detecta a quien está en las dos listas", () => {
-    expect(correosEnAmbas(["a@x.mx", "b@x.mx"], ["b@x.mx", "c@x.mx"])).toEqual(["b@x.mx"]);
+});
+
+describe("cada persona tiene un solo perfil: acceso completo o vendedor", () => {
+  const todas = [
+    { concesionarioId: "t1", nombre: "Centro", usuarios: ["cajero@x.mx"], vendedores: [] },
+    { concesionarioId: "t2", nombre: "El Marqués", usuarios: [], vendedores: ["vende@x.mx"] },
+  ];
+
+  it("sin cruces, no hay conflicto", () => {
+    expect(conflictosDeRol("t1", ["cajero@x.mx", "nuevo@x.mx"], ["otro@x.mx"], todas)).toEqual([]);
+  });
+
+  it("no deja a alguien en las dos listas de la misma tienda", () => {
+    expect(conflictosDeRol("t1", ["a@x.mx"], ["a@x.mx"], todas)).toHaveLength(1);
+  });
+
+  it("no deja hacer vendedor a quien ya tiene acceso completo en otra tienda", () => {
+    const [m] = conflictosDeRol("t2", [], ["vende@x.mx", "cajero@x.mx"], todas);
+    expect(m).toContain("cajero@x.mx ya tiene acceso completo en Centro");
+  });
+
+  it("no deja dar acceso completo a quien es vendedor en otra tienda", () => {
+    const [m] = conflictosDeRol("t1", ["cajero@x.mx", "vende@x.mx"], [], todas);
+    expect(m).toContain("vende@x.mx es vendedor en El Marqués");
+  });
+
+  it("la tienda que se guarda se revisa con sus listas nuevas, no con las guardadas", () => {
+    // Pasar a cajero@ de usuario a vendedor en su propia tienda sí se puede.
+    expect(conflictosDeRol("t1", [], ["cajero@x.mx"], todas)).toEqual([]);
   });
 });

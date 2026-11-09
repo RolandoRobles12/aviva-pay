@@ -2,14 +2,16 @@ import type { PayDeskDeal } from "../types/deal";
 
 /**
  * Lo que un vendedor externo puede ver de una solicitud: quién es el
- * cliente, cuándo se aprobó y qué etapas ya alcanzó. Nada más.
+ * cliente, cuándo se aprobó, por cuánto y qué etapas ya alcanzó. Nada más.
  *
  * Es una lista cerrada a propósito: el vendedor no lee `paydesk_deals`
  * (las reglas de Firestore solo dejan leer a `concesionarioIds`), así que
  * todo lo que ve pasa por aquí. Un campo nuevo en el deal no le llega
- * hasta que alguien lo agregue a esta lista. Quedan fuera montos, archivos
- * y sus rutas, fechas y montos capturados por la tienda, revisiones con
- * comentarios de Aviva, el vale y el resultado de la verificación.
+ * hasta que alguien lo agregue a esta lista. El único monto que va es el
+ * aprobado (decisión del negocio: el vendedor lo necesita para vender).
+ * Quedan fuera archivos y sus rutas, fechas y montos capturados por la
+ * tienda (como el total de la cotización), lo dispuesto en caja,
+ * revisiones con comentarios de Aviva, el vale y la verificación.
  *
  * Los estatus de cotización y comprobante sí van, pero solo como
  * "pendiente"/"completado": son etapas del avance, no los documentos.
@@ -19,6 +21,7 @@ export const CAMPOS_VENDEDOR = [
   "concesionarioId",
   "cliente",
   "fechaSolicitud",
+  "montoAprobado",
   "estatusKyc",
   "cotizacionEstatus",
   "creditoLiberadoFecha",
@@ -36,6 +39,7 @@ export function proyectarParaVendedor(deal: PayDeskDeal): DealVendedor {
     concesionarioId: deal.concesionarioId,
     cliente: deal.cliente,
     fechaSolicitud: deal.fechaSolicitud,
+    montoAprobado: deal.montoAprobado,
     estatusKyc: deal.estatusKyc,
     cotizacionEstatus: deal.cotizacionEstatus,
     creditoLiberadoFecha: deal.creditoLiberadoFecha,
@@ -65,8 +69,53 @@ export function limpiarCorreos(lista: string[]): { correos: string[] } | { inval
   return { correos: [...new Set(limpios)] };
 }
 
-/** Correos que aparecen en las dos listas de una misma tienda. */
-export function correosEnAmbas(usuarios: string[], vendedores: string[]): string[] {
-  const enTienda = new Set(usuarios);
-  return vendedores.filter((e) => enTienda.has(e));
+interface TiendaConCorreos {
+  concesionarioId: string;
+  nombre: string;
+  usuarios?: string[];
+  vendedores?: string[];
+}
+
+/**
+ * El vendedor es personal de la tienda cuyo trabajo es vender: da
+ * seguimiento a sus clientes, sin labores administrativas (documentos,
+ * caja). Cada persona tiene un solo perfil en todo Paydesk —acceso
+ * completo o vendedor—, no uno distinto por tienda: así nadie termina
+ * con acceso completo en una tienda y de vendedor en otra.
+ *
+ * Revisa las listas que quedarían en la tienda que se está guardando
+ * contra las de todas las demás, y devuelve un mensaje por correo en
+ * conflicto (vacío si no hay).
+ */
+export function conflictosDeRol(
+  concesionarioId: string,
+  usuarios: string[],
+  vendedores: string[],
+  todas: TiendaConCorreos[],
+): string[] {
+  const mensajes: string[] = [];
+  const enUsuarios = new Set(usuarios);
+  for (const email of vendedores) {
+    if (enUsuarios.has(email)) {
+      mensajes.push(`${email} está en las dos listas de esta tienda. Déjalo en una sola. Cada persona tiene un solo perfil: acceso completo o vendedor.`);
+    }
+  }
+  const otras = todas.filter((t) => t.concesionarioId !== concesionarioId);
+  for (const email of vendedores) {
+    const t = otras.find((o) => (o.usuarios ?? []).includes(email));
+    if (t) {
+      mensajes.push(
+        `${email} ya tiene acceso completo en ${t.nombre}. Cada persona tiene un solo perfil: acceso completo o vendedor.`,
+      );
+    }
+  }
+  for (const email of usuarios) {
+    const t = otras.find((o) => (o.vendedores ?? []).includes(email));
+    if (t) {
+      mensajes.push(
+        `${email} es vendedor en ${t.nombre}. Cada persona tiene un solo perfil: acceso completo o vendedor.`,
+      );
+    }
+  }
+  return mensajes;
 }

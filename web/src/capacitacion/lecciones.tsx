@@ -934,8 +934,8 @@ export const LECCIONES: Leccion[] = [
   },
 ];
 
-export function getLeccion(id: string | undefined): Leccion | undefined {
-  return LECCIONES.find((l) => l.id === id);
+export function getLeccion(id: string | undefined, lista: Leccion[] = LECCIONES): Leccion | undefined {
+  return lista.find((l) => l.id === id);
 }
 
 export const MINUTOS_TOTALES = LECCIONES.reduce((s, l) => s + l.minutos, 0);
