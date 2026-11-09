@@ -7,6 +7,7 @@ import {
 } from "firebase/app-check";
 import {
   browserLocalPersistence,
+  connectAuthEmulator,
   getAuth,
   GoogleAuthProvider,
   sendPasswordResetEmail,
@@ -78,6 +79,31 @@ export async function encabezadoAppCheck(): Promise<Record<string, string>> {
   }
 }
 export const auth = getAuth(app);
+
+/**
+ * Solo para desarrollo y pruebas: con VITE_AUTH_EMULATOR_URL (p. ej.
+ * http://127.0.0.1:9099) la sesión se hace contra el emulador de Firebase
+ * Auth. En producción la variable va vacía.
+ */
+const AUTH_EMULATOR_URL = import.meta.env.VITE_AUTH_EMULATOR_URL as string | undefined;
+if (AUTH_EMULATOR_URL) {
+  connectAuthEmulator(auth, AUTH_EMULATOR_URL, { disableWarnings: true });
+}
+
+/**
+ * Toda sesión vive en el equipo, no en la pestaña (ver loginConcesionario).
+ * Las que se abrieron cuando el login todavía tenía la casilla "Mantener
+ * sesión iniciada" desmarcada quedaron guardadas por pestaña, y con ellas
+ * cada pestaña nueva seguía pidiendo entrar aunque el login ya no tuviera
+ * la casilla. Al abrir Paydesk, setPersistence mueve la sesión que haya
+ * al almacenamiento del equipo; con una que ya estaba ahí no hace nada.
+ */
+void auth
+  .authStateReady()
+  .then(() => setPersistence(auth, browserLocalPersistence))
+  .catch(() => {
+    // Si falla, la sesión sigue donde estaba: a lo más hay que entrar otra vez.
+  });
 // Which language Firebase renders its auth emails in (invite, password
 // reset) — independent of the template's configured language in Console.
 // Without this it defaults to English regardless of that setting, which is
