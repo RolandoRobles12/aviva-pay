@@ -15,7 +15,7 @@ import {
   rolloutPractica,
   subirPractica,
   type SubidaPractica,
-} from "./tiendaPractica";
+} from "./datosTiendaPractica";
 
 export interface EstadoTienda {
   deals: PayDeskDeal[];
@@ -40,7 +40,7 @@ type Ventana = { tipo: "cotizacion" | "comprobante"; dealId: string } | null;
 /**
  * "Mis clientes" en modo práctica: la lista, los filtros y las ventanas
  * de subida son los componentes reales; los clientes y las respuestas del
- * servidor salen de tiendaPractica.ts. La persona hace la tarea de verdad
+ * servidor salen de datosTiendaPractica.ts. La persona hace la tarea de verdad
  * —elige un archivo, captura la fecha, marca la firma— y ve cómo cambia
  * la fila, sin que nada salga de su navegador.
  *
