@@ -7,7 +7,9 @@ import {
   adminSyncConstruramaCallable,
   adminUpdateConcesionarioCallable,
   enviarRestablecerContrasena,
+  type CapacitacionAdmin,
 } from "../../lib/firebase";
+import { capacitacionDeTienda } from "../../capacitacion/progreso";
 import { useEsSuperAdmin } from "../../lib/adminRol";
 import type { AdminConcesionario } from "../../types/admin";
 import { Modal } from "../../components/Modal";
@@ -29,6 +31,10 @@ export function TiendasPage() {
   const [tiendas, setTiendas] = useState<AdminConcesionario[] | null>(null);
   const [busqueda, setBusqueda] = useState("");
   const [soloSinUsuarios, setSoloSinUsuarios] = useState(false);
+  const [soloSinCapacitar, setSoloSinCapacitar] = useState(false);
+  /** Correo en minúsculas → avance en la capacitación de tiendas (pestaña "Aprende"). */
+  const [capacitacion, setCapacitacion] = useState<Record<string, CapacitacionAdmin>>({});
+  const [ligaCopiada, setLigaCopiada] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editando, setEditando] = useState<AdminConcesionario | null>(null);
   const [sincronizando, setSincronizando] = useState(false);
@@ -41,6 +47,7 @@ export function TiendasPage() {
     try {
       const result = await adminListConcesionariosCallable();
       setTiendas(result.data.concesionarios);
+      setCapacitacion(result.data.capacitacionPorCorreo ?? {});
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo cargar el catálogo.");
@@ -67,11 +74,20 @@ export function TiendasPage() {
       (t) =>
         t.nombre.toLowerCase().includes(q) ||
         t.kiosco.toLowerCase().includes(q) ||
-        t.usuarios.some((u) => u.includes(q)),
+        t.usuarios.some((u) => u.includes(q)) ||
+        (t.vendedores ?? []).some((u) => u.includes(q)),
     );
   }, [tiendas, busqueda]);
 
-  const visibles = soloSinUsuarios ? filtradas.filter((t) => t.usuarios.length === 0) : filtradas;
+  const visibles = filtradas
+    .filter((t) => !soloSinUsuarios || t.usuarios.length === 0)
+    // Con gente invitada y alguien que no ha terminado: a quién hay que
+    // empujar antes de que empiece a llamar con dudas.
+    .filter((t) => {
+      if (!soloSinCapacitar) return true;
+      const c = capacitacionDeTienda(t.usuarios, capacitacion);
+      return c.personas > 0 && c.completas < c.personas;
+    });
 
   const resumen = useMemo(() => {
     const lista = tiendas ?? [];
@@ -79,8 +95,27 @@ export function TiendasPage() {
       total: lista.length,
       sinUsuarios: lista.filter((t) => t.usuarios.length === 0).length,
       conVarios: lista.filter((t) => t.usuarios.length > 1).length,
+      // Por persona, no por tienda: un correo en tres tiendas es una persona.
+      sinCapacitar: [...new Set(lista.flatMap((t) => t.usuarios.map((u) => u.toLowerCase())))].filter(
+        (email) => {
+          const a = capacitacion[email];
+          return !a || a.completadas < a.total;
+        },
+      ).length,
     };
-  }, [tiendas]);
+  }, [tiendas, capacitacion]);
+
+  const ligaAyuda = `${window.location.origin}/ayuda`;
+
+  async function copiarLiga() {
+    try {
+      await navigator.clipboard.writeText(ligaAyuda);
+      setLigaCopiada(true);
+      setTimeout(() => setLigaCopiada(false), 2000);
+    } catch {
+      // Sin permiso de portapapeles: la liga está a la vista para copiarla a mano.
+    }
+  }
 
   async function sincronizar() {
     setSincronizando(true);
@@ -147,8 +182,27 @@ export function TiendasPage() {
             label: "Con más de una persona",
             value: resumen.conVarios.toLocaleString("es-MX"),
           },
+          {
+            label: "Personas sin terminar la capacitación",
+            value: resumen.sinCapacitar.toLocaleString("es-MX"),
+            tone: resumen.sinCapacitar > 0 ? "accion" : "neutral",
+          },
         ]}
       />
+
+      <Notice tono="info" titulo="Capacitación para tiendas">
+        <p>
+          Cada persona invitada ve la pestaña “Aprende” con lecciones, simulador de caja y
+          preguntas frecuentes; su avance aparece abajo, en “Quién tiene acceso”. Para
+          mandarla antes de invitar a alguien, usa la versión abierta:{" "}
+          <a href="/ayuda" target="_blank" rel="noopener noreferrer">
+            {ligaAyuda}
+          </a>{" "}
+          <button type="button" className="adm-btn adm-btn--texto adm-btn--chico" onClick={copiarLiga}>
+            {ligaCopiada ? "Copiada" : "Copiar liga"}
+          </button>
+        </p>
+      </Notice>
 
       <div className="adm-filtros">
         <input
@@ -165,6 +219,14 @@ export function TiendasPage() {
             onChange={(e) => setSoloSinUsuarios(e.target.checked)}
           />
           Solo sin nadie con acceso
+        </label>
+        <label className={`adm-check${soloSinCapacitar ? " adm-check--on" : ""}`}>
+          <input
+            type="checkbox"
+            checked={soloSinCapacitar}
+            onChange={(e) => setSoloSinCapacitar(e.target.checked)}
+          />
+          Solo con capacitación pendiente
         </label>
       </div>
 
@@ -201,9 +263,23 @@ export function TiendasPage() {
                   {t.usuarios.length === 0 ? (
                     <Badge tono="warn">Nadie todavía</Badge>
                   ) : (
-                    <span title={t.usuarios.join(", ")}>
-                      {t.usuarios.length === 1 ? t.usuarios[0] : `${t.usuarios.length} personas`}
-                    </span>
+                    <>
+                      <span title={t.usuarios.join(", ")}>
+                        {t.usuarios.length === 1 ? t.usuarios[0] : `${t.usuarios.length} personas`}
+                      </span>
+                      <div>
+                        <EstadoCapacitacion usuarios={t.usuarios} porCorreo={capacitacion} />
+                      </div>
+                    </>
+                  )}
+                  {(t.vendedores ?? []).length > 0 && (
+                    <div className="adm-field__ayuda" title={(t.vendedores ?? []).join(", ")}>
+                      +{" "}
+                      {t.vendedores.length === 1
+                        ? "1 vendedor externo"
+                        : `${t.vendedores.length} vendedores externos`}{" "}
+                      (solo consulta)
+                    </div>
                   )}
                 </td>
                 <td>{t.rolloutDesde ?? <span className="adm-field__ayuda">General</span>}</td>
@@ -263,6 +339,7 @@ export function TiendasPage() {
           <EditarTiendaForm
             tienda={editando}
             todasLasTiendas={tiendas}
+            capacitacion={capacitacion}
             onCancel={() => setEditando(null)}
             onSaved={async (mensaje) => {
               setEditando(null);
@@ -276,21 +353,93 @@ export function TiendasPage() {
   );
 }
 
+/** Una línea por tienda: ¿su gente ya se capacitó? El detalle por correo está en "Editar". */
+function EstadoCapacitacion({
+  usuarios,
+  porCorreo,
+}: {
+  usuarios: string[];
+  porCorreo: Record<string, CapacitacionAdmin>;
+}) {
+  const c = capacitacionDeTienda(usuarios, porCorreo);
+  const detalle = usuarios
+    .map((u) => {
+      const a = porCorreo[u.toLowerCase()];
+      return `${u}: ${a ? `${a.completadas} de ${a.total} lecciones` : "sin empezar"}`;
+    })
+    .join("\n");
+  if (c.completas === c.personas) {
+    return (
+      <Badge tono="ok" title={detalle}>
+        Capacitación completa
+      </Badge>
+    );
+  }
+  if (c.completas === 0 && c.enCurso === 0) {
+    return (
+      <Badge tono="warn" title={detalle}>
+        Sin capacitación
+      </Badge>
+    );
+  }
+  return (
+    <Badge tono="warn" title={detalle}>
+      {c.personas === 1
+        ? "Capacitación a medias"
+        : `${c.completas} de ${c.personas} capacitados`}
+    </Badge>
+  );
+}
+
+function AvanceCorreoChip({ avance }: { avance: CapacitacionAdmin | undefined }) {
+  if (!avance || avance.completadas === 0) {
+    return (
+      <span className="chip__badge chip__badge--muted" title="No ha pasado ninguna lección de la capacitación">
+        sin capacitación
+      </span>
+    );
+  }
+  if (avance.completadas >= avance.total) {
+    return (
+      <span
+        className="chip__badge"
+        title={
+          avance.completaEn
+            ? `Terminó la capacitación el ${new Date(avance.completaEn).toLocaleDateString("es-MX")}`
+            : "Terminó la capacitación"
+        }
+      >
+        ✓ capacitado
+      </span>
+    );
+  }
+  return (
+    <span className="chip__badge chip__badge--muted" title="Lecciones de la capacitación que ya pasó">
+      {avance.completadas}/{avance.total} lecciones
+    </span>
+  );
+}
+
 function EditarTiendaForm({
   tienda,
   todasLasTiendas,
+  capacitacion,
   onCancel,
   onSaved,
 }: {
   tienda: AdminConcesionario;
   /** The whole catalog, so the form can tell which emails already work at other stores. */
   todasLasTiendas: AdminConcesionario[];
+  /** Avance de cada correo en la capacitación, para mostrarlo junto a cada uno. */
+  capacitacion: Record<string, CapacitacionAdmin>;
   onCancel: () => void;
   onSaved: (mensaje: string | null) => void;
 }) {
   const [nombre, setNombre] = useState(tienda.nombre);
   const [usuarios, setUsuarios] = useState<string[]>(tienda.usuarios);
   const [nuevoCorreo, setNuevoCorreo] = useState("");
+  const [vendedores, setVendedores] = useState<string[]>(tienda.vendedores ?? []);
+  const [nuevoVendedor, setNuevoVendedor] = useState("");
   const esSuper = useEsSuperAdmin();
   const [rolloutDesde, setRolloutDesde] = useState(tienda.rolloutDesde ?? "");
   const [submitting, setSubmitting] = useState(false);
@@ -348,6 +497,10 @@ function EditarTiendaForm({
       setNuevoCorreo("");
       return;
     }
+    if (vendedores.includes(email)) {
+      setError(`${email} ya está como vendedor externo. Quítalo de esa lista primero.`);
+      return;
+    }
     setUsuarios([...usuarios, email]);
     setNuevoCorreo("");
     setError(null);
@@ -355,6 +508,22 @@ function EditarTiendaForm({
 
   function quitarCorreo(email: string) {
     setUsuarios(usuarios.filter((u) => u !== email));
+  }
+
+  function agregarVendedor() {
+    const email = nuevoVendedor.trim().toLowerCase();
+    if (!email) return;
+    if (!EMAIL_RE.test(email)) {
+      setError(`"${email}" no parece un correo válido.`);
+      return;
+    }
+    if (usuarios.includes(email)) {
+      setError(`${email} ya es usuario de la tienda. Quítalo de esa lista primero.`);
+      return;
+    }
+    if (!vendedores.includes(email)) setVendedores([...vendedores, email]);
+    setNuevoVendedor("");
+    setError(null);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -370,6 +539,7 @@ function EditarTiendaForm({
         concesionarioId: tienda.concesionarioId,
         nombre,
         usuarios,
+        vendedores,
         rolloutDesde: rolloutDesde || null,
       });
       invitados = result.data.invitados;
@@ -439,6 +609,7 @@ function EditarTiendaForm({
         {usuarios.map((email) => (
           <span key={email} className="chip chip--removable">
             {email}
+            <AvanceCorreoChip avance={capacitacion[email.toLowerCase()]} />
             {otrasTiendas.has(email) && (
               <span
                 className="chip__badge"
@@ -490,6 +661,43 @@ function EditarTiendaForm({
         Un correo nuevo recibe una liga por email para crear su contraseña en
         cuanto guardes.
       </p>
+
+      <label>Vendedores externos (solo consulta)</label>
+      <p className="form-note">
+        Ven a los clientes aprobados de esta tienda y en qué etapa va cada uno. No
+        ven montos ni documentos, y no pueden subir nada ni validar códigos en caja.
+      </p>
+      <div className="chip-input">
+        {vendedores.map((email) => (
+          <span key={email} className="chip chip--removable">
+            {email}
+            <button
+              type="button"
+              aria-label={`Quitar a ${email}`}
+              onClick={() => setVendedores(vendedores.filter((v) => v !== email))}
+            >
+              ×
+            </button>
+          </span>
+        ))}
+      </div>
+      <div className="chip-input__add">
+        <input
+          type="email"
+          placeholder="vendedor@ejemplo.com"
+          value={nuevoVendedor}
+          onChange={(e) => setNuevoVendedor(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              agregarVendedor();
+            }
+          }}
+        />
+        <button type="button" className="button-secondary" onClick={agregarVendedor}>
+          Agregar
+        </button>
+      </div>
 
       <label>
         Arranque solo para esta tienda (opcional)

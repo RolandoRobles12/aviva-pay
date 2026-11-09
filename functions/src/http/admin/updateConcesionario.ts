@@ -6,14 +6,15 @@ import {
   updateConcesionarioFields,
 } from "../../firestore/concesionariosRepository";
 import { syncConcesionarioUsuarios } from "../../concesionario/userSync";
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { correosEnAmbas, limpiarCorreos } from "../../vendedor/proyeccion";
 
 interface UpdateRequest {
   concesionarioId?: string;
   nombre?: string;
   /** Full replacement list of invited emails for this store, or omit to leave untouched. */
   usuarios?: string[];
+  /** Lista completa de vendedores externos (solo consulta), u omitir para no tocarla. */
+  vendedores?: string[];
   /** ISO date (YYYY-MM-DD), or null to fall back to the global rollout date. */
   rolloutDesde?: string | null;
 }
@@ -34,7 +35,7 @@ export const adminUpdateConcesionario = onCall<UpdateRequest>(
   { region: "us-central1" },
   async (request) => {
     const admin = assertAdmin(request);
-    const { concesionarioId, nombre, usuarios, rolloutDesde } = request.data ?? {};
+    const { concesionarioId, nombre, usuarios, vendedores, rolloutDesde } = request.data ?? {};
 
     if (!concesionarioId) {
       throw new HttpsError("invalid-argument", "concesionarioId es requerido");
@@ -48,6 +49,7 @@ export const adminUpdateConcesionario = onCall<UpdateRequest>(
     const cambios: {
       nombre?: string;
       usuarios?: string[];
+      vendedores?: string[];
       rolloutDesde?: string | null;
     } = {};
 
@@ -59,16 +61,38 @@ export const adminUpdateConcesionario = onCall<UpdateRequest>(
       cambios.nombre = limpio;
     }
 
+    const limpiar = (lista: string[]) => {
+      const r = limpiarCorreos(lista);
+      if ("invalido" in r) {
+        throw new HttpsError("invalid-argument", `Correo inválido: "${r.invalido}"`);
+      }
+      return r.correos;
+    };
+
     let nuevosUsuarios: string[] | undefined;
     if (usuarios !== undefined) {
-      const limpios = usuarios.map((e) => e.trim().toLowerCase()).filter(Boolean);
-      for (const email of limpios) {
-        if (!EMAIL_RE.test(email)) {
-          throw new HttpsError("invalid-argument", `Correo inválido: "${email}"`);
-        }
-      }
-      nuevosUsuarios = [...new Set(limpios)];
+      nuevosUsuarios = limpiar(usuarios);
       cambios.usuarios = nuevosUsuarios;
+    }
+
+    let nuevosVendedores: string[] | undefined;
+    if (vendedores !== undefined) {
+      nuevosVendedores = limpiar(vendedores);
+      cambios.vendedores = nuevosVendedores;
+    }
+
+    // En la misma tienda, un correo es de la tienda o es vendedor externo,
+    // nunca las dos: con las dos tendría acceso completo y la etiqueta de
+    // "solo consulta" mentiría.
+    const repetidos = correosEnAmbas(
+      nuevosUsuarios ?? concesionario.usuarios ?? [],
+      nuevosVendedores ?? concesionario.vendedores ?? [],
+    );
+    if (repetidos.length > 0) {
+      throw new HttpsError(
+        "invalid-argument",
+        `${repetidos.join(", ")} no puede ser usuario de la tienda y vendedor externo a la vez. Déjalo en una sola lista.`,
+      );
     }
 
     if (rolloutDesde !== undefined) {
@@ -105,6 +129,16 @@ export const adminUpdateConcesionario = onCall<UpdateRequest>(
       );
       invitados = resultado.invitados;
       yaActivos = resultado.yaActivos;
+    }
+    if (nuevosVendedores !== undefined) {
+      const resultado = await syncConcesionarioUsuarios(
+        concesionarioId,
+        concesionario.vendedores ?? [],
+        nuevosVendedores,
+        "vendedorIds",
+      );
+      invitados = [...invitados, ...resultado.invitados];
+      yaActivos = [...yaActivos, ...resultado.yaActivos];
     }
 
     await updateConcesionarioFields(concesionarioId, cambios);

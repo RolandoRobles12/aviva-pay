@@ -40,6 +40,15 @@ Esto también resuelve el pendiente que traía la sección 8: el control de acce
 
 Los endpoints de subida (`uploadCotizacion`, `uploadComprobante`) también verifican el token y que el deal pertenezca a una de las tiendas de `concesionarioIds` que llama — antes dependían de que la URL fuera secreta.
 
+## Vendedores externos: solo consulta
+
+Un vendedor externo ve los clientes aprobados de una tienda y en qué etapa va cada uno, y nada más: no sube cotizaciones ni comprobantes, no usa la caja y no abre archivos. Se da de alta en `/admin/tiendas` → "Editar" → "Vendedores externos (solo consulta)", con la misma invitación por correo que la gente de la tienda.
+
+- **Claim aparte, no una marca.** El vendedor recibe `vendedorIds`, nunca `concesionarioIds`. Las funciones que escriben o entregan datos sensibles (`uploadCotizacion`, `uploadComprobante`, `validarVale`, `confirmarDisposicion`, `getArchivoUrl`, `getConcesionarioDeals`) ya exigen `concesionarioIds`, así que lo rechazan sin saber que existe; una función nueva de escritura queda cerrada para él por defecto. Las reglas de Firestore tampoco le dejan leer `paydesk_deals`.
+- **Proyección en el servidor.** Lee por `getVendedorClientes`, que pasa cada deal por `vendedor/proyeccion.ts`: una lista cerrada de campos (cliente, fecha de solicitud y lo necesario para calcular las etapas). Quedan fuera montos, archivos y rutas, datos capturados por la tienda, revisiones y comentarios, el vale y la verificación. Los cancelados no se envían. Por eso no hay listener en vivo: la pantalla recarga cada 5 minutos y con "Actualizar".
+- **Una lista o la otra.** En la misma tienda, un correo es de la tienda o es vendedor, nunca las dos (`adminUpdateConcesionario` lo rechaza). Sí puede ser de la tienda en una y vendedor en otra: entra a `/solicitudes` y ve la pestaña "Solo consulta".
+- `/consulta` muestra cliente, etapa actual (la última alcanzada; `etapaActual` en `lib/dealScope.ts`), la siguiente, el avance y la fecha, con filtros por tienda y por etapa.
+
 ## Vale de un solo uso
 
 La tienda tenía que creerle a un WhatsApp que el cliente estaba aprobado y por cuánto. Un mensaje así se fabrica con un screenshot, así que la validación del saldo autorizado pasa a ser un **vale**: un código de 10 dígitos, impreso como código de barras, que el cliente presenta en el mostrador y que la caja valida contra Paydesk.
@@ -248,6 +257,32 @@ La propiedad Kiosco es de tipo **multiple checkboxes**, con ~481 opciones cuyo t
 - **Como identificador interno**: `concesionarioId` es el slug del valor (`0046-teq-cr`). Determinístico, así que dos deals de una tienda nueva sincronizando a la vez convergen al mismo documento sin tabla de lookup ni condición de carrera. No aparece en ninguna URL pública, así que no necesita ser secreto — y siendo legible, el catálogo y los logs se leen mejor.
 - **Como nombre visible**: `#0046 - TEQ CR` no le dice nada a un concesionario. Se muestra `Construrama TEQ` con `Tienda 0046` como dato secundario, **y el panel permite reemplazarlo por el nombre real de la tienda**. El valor crudo se guarda para trazabilidad pero nunca se le muestra a la tienda.
 - Como es *multi-checkbox*, HubSpot puede devolver varios valores separados por `;`. Una solicitud pertenece a una sola tienda, así que se toma el primero y se deja un `logger.warn` cuando llegan varios — pendiente confirmar con el admin de HubSpot si eso puede pasar legítimamente.
+
+## Capacitación de tiendas (onboarding autónomo)
+
+El objetivo es que una tienda nueva arranque sin llamadas ni WhatsApps a Aviva: que sepa qué le toca, cómo se hace y qué hacer cuando algo sale distinto. Vive en el mismo portal, no en un PDF aparte, para que lo que aprende se vea idéntico a lo que después usa.
+
+| Pieza | Dónde | Qué hace |
+|---|---|---|
+| Pestaña **Aprende** | `/solicitudes/aprende` | 8 lecciones cortas (~30 min). Cada una dice para qué sirve, cómo se hace paso a paso y qué hacer cuando sale distinto. **No hay exámenes**: las que enseñan una tarea cierran con su simulador ("Ahora hazlo tú", `#practica`) y se dan por pasadas al cumplir sus misiones; las demás (bienvenida, acceso, canceladas) con "Entendido". |
+| **Tienda de práctica** | Lecciones de lista, cotización, comprobante y revisión | La lista, los filtros y las ventanas de subida reales (`DealsTable`, `DealFilters`, `CotizacionUploadForm`, `ComprobanteUploadForm`) sobre siete clientes inventados (`capacitacion/tiendaPractica.ts`), uno por situación: pendientes, del mes pasado, en revisión, anterior, terminado. Las subidas las resuelve `subirPractica` en el navegador (el archivo no sale de él): Rosa Díaz siempre se rechaza para practicar el rechazo y la verificación manual. Cada lección define sus misiones; quedan cumplidas aunque después cambien los filtros. |
+| **Simulador de caja** | Lección "Validar el código" (`#practica`) | La pantalla real de resultados (`ResultadoValidacion`) con códigos de práctica (`capacitacion/simulador.ts`). Nunca llama a `validarVale` ni a `confirmarDisposicion`: no deja lecturas ni intentos sospechosos. Aplica la misma regla de monto que el backend. Se completa al probar los 7 casos y confirmar una venta. |
+| **Guía rápida** | `/solicitudes/aprende/guia-rapida` | Una hoja para imprimir y pegar en la caja. |
+| **Preguntas frecuentes** y **¿Lo resuelvo yo o llamo a Aviva?** | Inicio de Aprende | Salen de lo que hoy termina en llamada. Separan lo que resuelve la tienda, lo que tiene que hacer el cliente con Aviva y lo que sí necesita al ejecutivo. |
+| **Bienvenida** | Primer ingreso | Invita a la capacitación; "Ahora no" la cierra. Se muestra una vez por persona. La pestaña sigue marcando cuántas lecciones faltan. |
+| **Ayudas en contexto** | Formularios de cotización y comprobante, caja, aviso de "En revisión" | "¿Cómo se hace?" abre la lección en `/ayuda` en otra pestaña, para no perder lo capturado. |
+| **Versión abierta** | `/ayuda` | La misma capacitación sin sesión (nombres de columna por defecto, sin guardar avance). Se liga desde el login y desde `/admin/tiendas`. |
+
+**Avance.** Por persona (uid), no por tienda: quien atiende la caja es una persona. `guardarCapacitacion` solo agrega lecciones (lista cerrada en `functions/src/capacitacion/lecciones.ts`) y `bienvenidaVista`; el uid sale del token. Vive en `paydesk_capacitacion/{uid}` con el correo copiado, sin acceso desde el cliente. `getConcesionarioDeals` devuelve el avance propio; `adminListConcesionarios` devuelve `capacitacionPorCorreo`, y `/admin/tiendas` lo muestra por tienda y por correo, con filtro "Solo con capacitación pendiente" y la liga de `/ayuda` para copiar.
+
+**Reglas del contenido** (`web/src/capacitacion/lecciones.tsx`):
+
+- Describe lo que la app hace hoy, con los mismos textos de botones y mensajes. Si cambia uno, cambia ahí.
+- Nunca explica qué revisa la verificación automática de documentos (ver "Qué ve la tienda"): dice qué debe tener un buen documento, no qué se detecta.
+- No promete plazos ni políticas que no estén en la app.
+- Usa los nombres de columna que Aviva configuró (`labels`) y las etapas configuradas; la explicación de la disposición cambia según su origen.
+- Las respuestas de la práctica copian las del servidor (mensaje de rechazo, dos rechazos para la verificación manual, regla del monto). Si cambian allá, cambian en `tiendaPractica.ts` y `simulador.ts`.
+- Agregar o quitar una lección: `ORDEN_LECCIONES` (web) y `LECCIONES_CAPACITACION` (functions). Una prueba revisa que coincidan. Agregar una deja a quien había terminado en "8 de 9", que es lo correcto.
 
 ## Componentes
 

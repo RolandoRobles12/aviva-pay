@@ -5,6 +5,7 @@ import {
 } from "../lib/firebase";
 import { CurrencyInput } from "./CurrencyInput";
 import { EscanerCamara } from "./EscanerCamara";
+import { AyudaLink } from "./AyudaLink";
 import type { ValidacionVale } from "../types/vale";
 
 const moneda = new Intl.NumberFormat("es-MX", {
@@ -226,6 +227,9 @@ export function ValidarCodigoPanel({
             La pistola de la caja lo teclea sola. Si es de láser no va a leer la
             pantalla del cliente: usa la cámara, o escribe los 10 dígitos.
           </p>
+          <AyudaLink leccion="validar-codigo" ancla="practica">
+            ¿Primera vez? Practica en el simulador
+          </AyudaLink>
         </div>
       </form>
 
@@ -274,7 +278,7 @@ export function ValidarCodigoPanel({
  * ámbar son recuperables — esa es la única distinción que el cajero tiene
  * que procesar rápido, y por eso cada una cierra con qué hacer.
  */
-function ResultadoValidacion({
+export function ResultadoValidacion({
   validacion,
   dealIdEsperado,
   clienteEsperado,

@@ -7,6 +7,8 @@ export interface AdminConcesionario {
   numero: string | null;
   /** Emails invited to sign in to this store. */
   usuarios: string[];
+  /** Vendedores externos: solo consultan en qué etapa van los clientes. */
+  vendedores: string[];
   /** Per-store rollout cutoff (ISO date), or null to follow the global one. */
   rolloutDesde: string | null;
 }

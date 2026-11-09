@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { completados, ETAPAS_DEFAULT, milestones, requiereAccion, setEtapas } from "../src/lib/dealScope";
+import {
+  completados,
+  ETAPAS_DEFAULT,
+  etapaActual,
+  milestones,
+  requiereAccion,
+  setEtapas,
+} from "../src/lib/dealScope";
 import type { PayDeskDeal } from "../src/types/deal";
 
 const deal = (cambios: Partial<PayDeskDeal> = {}): PayDeskDeal =>
@@ -71,5 +78,41 @@ describe("requiereAccion", () => {
 
   it("antes del arranque de la tienda no se le pide nada", () => {
     expect(requiereAccion(deal({ fechaSolicitud: "2025-12-01T00:00:00Z" }), rollout)).toBe(false);
+  });
+});
+
+describe("etapa actual (vista del vendedor externo)", () => {
+  it("dice la última etapa alcanzada y la que sigue", () => {
+    const e = etapaActual(deal());
+    expect(e.actual?.id).toBe("kyc");
+    expect(e.siguiente?.id).toBe("cotizacion");
+    expect(e.completa).toBe(false);
+  });
+
+  it("si falta una fecha intermedia, manda la etapa más avanzada", () => {
+    const e = etapaActual(
+      deal({ estatusKyc: null, cotizacionEstatus: "completado", creditoLiberadoFecha: "2026-05-05T00:00:00Z" }),
+    );
+    expect(e.actual?.id).toBe("credito");
+    expect(e.siguiente?.id).toBe("disposicion");
+  });
+
+  it("desembolsado: terminado y sin siguiente", () => {
+    const e = etapaActual(deal({ desembolsoFecha: "2026-06-01T00:00:00Z" }));
+    expect(e).toMatchObject({ completa: true, siguiente: null });
+    expect(e.actual?.id).toBe("desembolso");
+  });
+
+  it("funciona con lo poco que recibe el vendedor", () => {
+    const soloEtapas = {
+      fechaSolicitud: "2026-05-01T00:00:00Z",
+      estatusKyc: null,
+      cotizacionEstatus: "pendiente" as const,
+      creditoLiberadoFecha: null,
+      disposicionCreditoFecha: null,
+      comprobanteEntregaEstatus: "pendiente" as const,
+      desembolsoFecha: null,
+    };
+    expect(etapaActual(soloEtapas).actual?.id).toBe("solicitud");
   });
 });

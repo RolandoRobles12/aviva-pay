@@ -72,7 +72,9 @@ export async function ensureConcesionario(params: {
 
 export async function updateConcesionarioFields(
   concesionarioId: string,
-  fields: Partial<Pick<PayDeskConcesionario, "nombre" | "usuarios" | "rolloutDesde">>,
+  fields: Partial<
+    Pick<PayDeskConcesionario, "nombre" | "usuarios" | "vendedores" | "rolloutDesde">
+  >,
 ): Promise<void> {
   await concesionariosCollection()
     .doc(concesionarioId)

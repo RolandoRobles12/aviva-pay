@@ -25,8 +25,8 @@ export function LoginPage() {
     setSubmitting(true);
     setError(null);
     try {
-      await loginConcesionario(email, password, recordar);
-      navigate("/solicitudes", { replace: true });
+      const destino = await loginConcesionario(email, password, recordar);
+      navigate(destino, { replace: true });
     } catch (err) {
       setError(
         err instanceof Error && err.message.includes("tienda")
@@ -172,6 +172,10 @@ export function LoginPage() {
           ¿No tienes cuenta? Pídele a tu ejecutivo de Aviva que invite tu
           correo desde el panel.
         </p>
+
+        <Link to="/ayuda" className="link-button link-button--centered">
+          ¿Primera vez? Conoce cómo funciona Paydesk
+        </Link>
 
         <Link to="/admin" className="link-button link-button--centered">
           Ingreso para personal de Aviva

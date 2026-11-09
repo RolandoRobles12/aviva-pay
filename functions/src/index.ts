@@ -11,6 +11,10 @@ export { uploadCotizacion } from "./http/uploadCotizacion";
 export { uploadComprobante } from "./http/uploadComprobante";
 export { validarVale } from "./http/validarVale";
 export { confirmarDisposicion } from "./http/confirmarDisposicion";
+export { guardarCapacitacion } from "./http/capacitacion";
+
+// --- Vendedor externo (solo consulta; acceso con el claim vendedorIds) ---
+export { getVendedorClientes } from "./http/getVendedorClientes";
 
 // --- Cliente final (sin sesión: el token de la URL es lo que autoriza) ---
 export { getVale } from "./http/getVale";

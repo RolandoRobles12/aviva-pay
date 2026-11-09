@@ -7,7 +7,15 @@ import { ReportePage } from "./pages/ReportePage";
 import { ValidarCodigoPage } from "./pages/ValidarCodigoPage";
 import { CanceladasPage } from "./pages/CanceladasPage";
 import { ValePage } from "./pages/ValePage";
+import {
+  AprendeGuiaRapida,
+  AprendeInicio,
+  AprendeLeccion,
+  AprendeTiendaLayout,
+  AyudaPublicaLayout,
+} from "./pages/AprendePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
+import { VendedorPage } from "./pages/VendedorPage";
 import { RequireAuth } from "./components/RequireAuth";
 import { AdminLoginPage } from "./pages/admin/AdminLoginPage";
 import { SoloSuperAdmin } from "./lib/adminRol";
@@ -44,6 +52,16 @@ export function App() {
       {/* Cliente final: sin sesión — el token de la URL es lo que autoriza.
           Es el link que HubSpot le manda por WhatsApp. */}
       <Route path="/vale/:token" element={<ValePage />} />
+
+      {/* Capacitación abierta, sin sesión: la liga que se le manda a una
+          tienda antes de invitarla, y la que abren las ayudas de los
+          formularios. La misma capacitación vive con sesión en
+          /solicitudes/aprende, donde además guarda el avance. */}
+      <Route path="/ayuda" element={<AyudaPublicaLayout />}>
+        <Route index element={<AprendeInicio />} />
+        <Route path="guia-rapida" element={<AprendeGuiaRapida />} />
+        <Route path=":leccionId" element={<AprendeLeccion />} />
+      </Route>
       <Route
         path="/solicitudes"
         element={
@@ -56,7 +74,24 @@ export function App() {
         <Route path="validar" element={<ValidarCodigoPage />} />
         <Route path="canceladas" element={<CanceladasPage />} />
         <Route path="reporte" element={<ReportePage />} />
+        <Route path="aprende" element={<AprendeTiendaLayout />}>
+          <Route index element={<AprendeInicio />} />
+          <Route path="guia-rapida" element={<AprendeGuiaRapida />} />
+          <Route path=":leccionId" element={<AprendeLeccion />} />
+        </Route>
       </Route>
+
+      {/* Vendedor externo: solo consulta de etapas. Los permisos los pone
+          el servidor (claim vendedorIds); esta ruta solo pinta lo que él
+          manda. */}
+      <Route
+        path="/consulta"
+        element={
+          <RequireAuth redirectTo="/">
+            <VendedorPage />
+          </RequireAuth>
+        }
+      />
 
       {/* Admin */}
       <Route path="/admin" element={<AdminLoginPage />} />

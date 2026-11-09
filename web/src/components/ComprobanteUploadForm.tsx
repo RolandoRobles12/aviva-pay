@@ -6,6 +6,7 @@ import { prepararArchivo } from "../lib/imagenes";
 import type { Verificacion } from "../lib/uploads";
 import { RECHAZOS_PARA_REVISION_MANUAL, SubidaError, uploadComprobante } from "../lib/uploads";
 import type { FieldLabels } from "../types/admin";
+import { AyudaLink } from "./AyudaLink";
 
 /** "Comprobante de entrega" module (section 5.3) — also used to replace an already-uploaded comprobante. */
 export function ComprobanteUploadForm({
@@ -110,7 +111,10 @@ export function ComprobanteUploadForm({
 
   return (
     <form className="upload-form" onSubmit={handleSubmit} ref={formRef}>
-      <h3>{reemplazo ? "Reemplazar comprobante de entrega" : "Comprobante de entrega"}</h3>
+      <div className="upload-form__titulo">
+        <h3>{reemplazo ? "Reemplazar comprobante de entrega" : "Comprobante de entrega"}</h3>
+        <AyudaLink leccion="comprobante" />
+      </div>
 
       {reemplazo && (
         <p className="callout callout--warn">

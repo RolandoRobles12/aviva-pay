@@ -99,20 +99,35 @@ export const functions = getFunctions(app);
 // to send that email ourselves — see the "Envío de correo" decision this
 // was built around.
 
+/** A dónde entra cada cuenta: la tienda completa, o la consulta de vendedor externo. */
+export type DestinoTienda = "/solicitudes" | "/consulta";
+
+/**
+ * Qué tipo de acceso trae una sesión. Quien es de la tienda en al menos
+ * una entra a /solicitudes (y, si además es vendedor en otras, ve la
+ * pestaña de consulta); quien solo es vendedor externo, a /consulta.
+ */
+export async function accesoDeSesion(user: User): Promise<{
+  tienda: boolean;
+  vendedor: boolean;
+}> {
+  const { claims } = await user.getIdTokenResult();
+  const lleno = (v: unknown) => Array.isArray(v) && v.length > 0;
+  return { tienda: lleno(claims.concesionarioIds), vendedor: lleno(claims.vendedorIds) };
+}
+
 /**
  * Signed in, but this account isn't invited to any store — drop the
  * session rather than leave the user in a half-authenticated state the
  * page would keep rejecting. Access is granted from the admin catalog,
  * never by the app itself.
  */
-async function requireConcesionarioClaim(user: User) {
-  const token = await user.getIdTokenResult();
-  const ids = token.claims.concesionarioIds as string[] | undefined;
-  if (!ids || ids.length === 0) {
-    await signOut(auth);
-    throw new Error("Esta cuenta no tiene acceso a ninguna tienda todavía.");
-  }
-  return user;
+async function requireConcesionarioClaim(user: User): Promise<DestinoTienda> {
+  const acceso = await accesoDeSesion(user);
+  if (acceso.tienda) return "/solicitudes";
+  if (acceso.vendedor) return "/consulta";
+  await signOut(auth);
+  throw new Error("Esta cuenta no tiene acceso a ninguna tienda todavía.");
 }
 
 /**
@@ -160,8 +175,63 @@ export const getConcesionarioDealsCallable = httpsCallable<
     /** Rollout cutoff per store (concesionarioId → ISO date | null). */
     rolloutPorTienda: Record<string, string | null>;
     origenDisposicion: OrigenDisposicion;
+    /** Avance de quien entró en la capacitación; null solo con un backend anterior. */
+    capacitacion: CapacitacionTienda | null;
   }
 >(functions, "getConcesionarioDeals");
+
+// --- Vendedor externo ---
+
+/** Lo que ve un vendedor externo de cada cliente (ver functions/src/vendedor/proyeccion.ts). */
+export type DealVendedor = Pick<
+  PayDeskDeal,
+  | "dealId"
+  | "concesionarioId"
+  | "cliente"
+  | "fechaSolicitud"
+  | "estatusKyc"
+  | "cotizacionEstatus"
+  | "creditoLiberadoFecha"
+  | "disposicionCreditoFecha"
+  | "comprobanteEntregaEstatus"
+  | "desembolsoFecha"
+  | "etapasExtra"
+>;
+
+/** Solo lectura: clientes aprobados de las tiendas donde la cuenta es vendedor externo. */
+export const getVendedorClientesCallable = httpsCallable<
+  void,
+  {
+    concesionarios: PayDeskConcesionario[];
+    clientes: DealVendedor[];
+    etapas: EtapaConfig[];
+    consultadoEn: string;
+  }
+>(functions, "getVendedorClientes");
+
+// --- Capacitación ---
+
+/** Avance propio en la capacitación (ver functions/src/firestore/capacitacionRepository.ts). */
+export interface CapacitacionTienda {
+  completadas: string[];
+  total: number;
+  completa: boolean;
+  bienvenidaVista: boolean;
+}
+
+/** Lo que ve Aviva de cada correo invitado. */
+export interface CapacitacionAdmin {
+  completadas: number;
+  total: number;
+  completaEn: string | null;
+  actualizadaEn: string | null;
+}
+
+/** Anota una lección pasada y/o que ya vio la bienvenida. Solo agrega. */
+export const guardarCapacitacionCallable = httpsCallable<
+  { leccion?: string; bienvenidaVista?: boolean },
+  CapacitacionTienda
+>(functions, "guardarCapacitacion");
 
 // --- Vale de un solo uso ---
 
@@ -228,7 +298,11 @@ export async function loginAdminWithGoogle() {
 
 export const adminListConcesionariosCallable = httpsCallable<
   void,
-  { concesionarios: AdminConcesionario[] }
+  {
+    concesionarios: AdminConcesionario[];
+    /** Correo en minúsculas → avance. Quien nunca entró a la capacitación no aparece. */
+    capacitacionPorCorreo?: Record<string, CapacitacionAdmin>;
+  }
 >(functions, "adminListConcesionarios");
 
 export const adminUpdateConcesionarioCallable = httpsCallable<
@@ -237,6 +311,8 @@ export const adminUpdateConcesionarioCallable = httpsCallable<
     nombre?: string;
     /** Full replacement list of invited emails, or omit to leave untouched. */
     usuarios?: string[];
+    /** Lista completa de vendedores externos (solo consulta), u omitir para no tocarla. */
+    vendedores?: string[];
     rolloutDesde?: string | null;
   },
   {

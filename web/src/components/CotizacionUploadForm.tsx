@@ -6,6 +6,7 @@ import { prepararArchivo } from "../lib/imagenes";
 import type { Verificacion } from "../lib/uploads";
 import { RECHAZOS_PARA_REVISION_MANUAL, SubidaError, uploadCotizacion } from "../lib/uploads";
 import { CurrencyInput } from "./CurrencyInput";
+import { AyudaLink } from "./AyudaLink";
 import type { FieldLabels } from "../types/admin";
 
 /** "Nueva cotización" module (section 5.2) — also used to replace an already-uploaded cotización. */
@@ -107,7 +108,10 @@ export function CotizacionUploadForm({
 
   return (
     <form className="upload-form" onSubmit={handleSubmit} ref={formRef}>
-      <h3>{reemplazo ? "Reemplazar cotización" : "Nueva cotización"}</h3>
+      <div className="upload-form__titulo">
+        <h3>{reemplazo ? "Reemplazar cotización" : "Nueva cotización"}</h3>
+        <AyudaLink leccion="cotizacion" />
+      </div>
 
       {reemplazo && (
         <p className="callout callout--warn">
