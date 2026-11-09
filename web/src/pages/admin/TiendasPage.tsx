@@ -498,7 +498,16 @@ function EditarTiendaForm({
       return;
     }
     if (vendedores.includes(email)) {
-      setError(`${email} ya está como vendedor externo. Quítalo de esa lista primero.`);
+      setError(`${email} ya está como vendedor en esta tienda. Quítalo de esa lista primero.`);
+      return;
+    }
+    const comoVendedor = todasLasTiendas.find(
+      (t) => t.concesionarioId !== tienda.concesionarioId && (t.vendedores ?? []).includes(email),
+    );
+    if (comoVendedor) {
+      setError(
+        `${email} es vendedor en ${comoVendedor.nombre}. Cada persona tiene un solo perfil: acceso completo o vendedor.`,
+      );
       return;
     }
     setUsuarios([...usuarios, email]);
@@ -518,7 +527,16 @@ function EditarTiendaForm({
       return;
     }
     if (usuarios.includes(email)) {
-      setError(`${email} ya es usuario de la tienda. Quítalo de esa lista primero.`);
+      setError(`${email} ya tiene acceso completo en esta tienda. Quítalo de esa lista primero.`);
+      return;
+    }
+    const comoPersonal = todasLasTiendas.find(
+      (t) => t.concesionarioId !== tienda.concesionarioId && t.usuarios.includes(email),
+    );
+    if (comoPersonal) {
+      setError(
+        `${email} ya tiene acceso completo en ${comoPersonal.nombre}. Cada persona tiene un solo perfil: acceso completo o vendedor.`,
+      );
       return;
     }
     if (!vendedores.includes(email)) setVendedores([...vendedores, email]);
@@ -664,8 +682,11 @@ function EditarTiendaForm({
 
       <label>Vendedores externos (solo consulta)</label>
       <p className="form-note">
-        Ven a los clientes aprobados de esta tienda, su monto aprobado y en qué etapa
-        va cada uno. No ven documentos, y no pueden subir nada ni validar códigos en caja.
+        Personal de la tienda que solo vende. Ven a los clientes aprobados de esta
+        tienda, su monto aprobado y en qué etapa va cada uno, para darles
+        seguimiento. No ven documentos, y no pueden subir nada ni validar códigos en
+        caja. Cada persona tiene un solo perfil: quien ya tiene acceso completo en
+        alguna tienda no puede ser vendedor.
       </p>
       <div className="chip-input">
         {vendedores.map((email) => (

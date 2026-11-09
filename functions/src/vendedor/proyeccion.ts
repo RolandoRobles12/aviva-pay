@@ -69,8 +69,53 @@ export function limpiarCorreos(lista: string[]): { correos: string[] } | { inval
   return { correos: [...new Set(limpios)] };
 }
 
-/** Correos que aparecen en las dos listas de una misma tienda. */
-export function correosEnAmbas(usuarios: string[], vendedores: string[]): string[] {
-  const enTienda = new Set(usuarios);
-  return vendedores.filter((e) => enTienda.has(e));
+interface TiendaConCorreos {
+  concesionarioId: string;
+  nombre: string;
+  usuarios?: string[];
+  vendedores?: string[];
+}
+
+/**
+ * El vendedor es personal de la tienda cuyo trabajo es vender: da
+ * seguimiento a sus clientes, sin labores administrativas (documentos,
+ * caja). Cada persona tiene un solo perfil en todo Paydesk —acceso
+ * completo o vendedor—, no uno distinto por tienda: así nadie termina
+ * con acceso completo en una tienda y de vendedor en otra.
+ *
+ * Revisa las listas que quedarían en la tienda que se está guardando
+ * contra las de todas las demás, y devuelve un mensaje por correo en
+ * conflicto (vacío si no hay).
+ */
+export function conflictosDeRol(
+  concesionarioId: string,
+  usuarios: string[],
+  vendedores: string[],
+  todas: TiendaConCorreos[],
+): string[] {
+  const mensajes: string[] = [];
+  const enUsuarios = new Set(usuarios);
+  for (const email of vendedores) {
+    if (enUsuarios.has(email)) {
+      mensajes.push(`${email} está en las dos listas de esta tienda. Déjalo en una sola. Cada persona tiene un solo perfil: acceso completo o vendedor.`);
+    }
+  }
+  const otras = todas.filter((t) => t.concesionarioId !== concesionarioId);
+  for (const email of vendedores) {
+    const t = otras.find((o) => (o.usuarios ?? []).includes(email));
+    if (t) {
+      mensajes.push(
+        `${email} ya tiene acceso completo en ${t.nombre}. Cada persona tiene un solo perfil: acceso completo o vendedor.`,
+      );
+    }
+  }
+  for (const email of usuarios) {
+    const t = otras.find((o) => (o.vendedores ?? []).includes(email));
+    if (t) {
+      mensajes.push(
+        `${email} es vendedor en ${t.nombre}. Cada persona tiene un solo perfil: acceso completo o vendedor.`,
+      );
+    }
+  }
+  return mensajes;
 }

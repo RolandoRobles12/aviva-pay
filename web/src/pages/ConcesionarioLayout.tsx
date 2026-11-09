@@ -82,8 +82,6 @@ export function ConcesionarioLayout() {
   // Aparte de `state` porque el listener de deals reescribe `state` en cada
   // cambio y no debe pisar una lección recién pasada.
   const [capacitacion, setCapacitacion] = useState<CapacitacionTienda | null>(null);
-  /** Además es vendedor externo en otras tiendas: se le enseña la pestaña de consulta. */
-  const [tieneConsulta, setTieneConsulta] = useState(false);
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -107,7 +105,6 @@ export function ConcesionarioLayout() {
             navigate("/consulta", { replace: true });
             return;
           }
-          setTieneConsulta(acceso.vendedor);
         }
 
         const result = await getConcesionarioDealsCallable();
@@ -272,7 +269,6 @@ export function ConcesionarioLayout() {
         <NavLink to="/solicitudes/validar">Validar código</NavLink>
         <NavLink to="/solicitudes/canceladas">Canceladas</NavLink>
         <NavLink to="/solicitudes/reporte">Reporte</NavLink>
-        {tieneConsulta && <NavLink to="/consulta">Solo consulta</NavLink>}
         <NavLink to="/solicitudes/aprende" className="tabs__aprende">
           Aprende
           {avanceCapacitacion && !avanceCapacitacion.completa && (

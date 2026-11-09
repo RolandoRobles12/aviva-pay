@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   accesoDeSesion,
   auth,
@@ -36,8 +36,9 @@ function fecha(iso: string | null): string {
 }
 
 /**
- * La vista del vendedor externo: sus clientes aprobados y en qué etapa va
- * cada uno. Solo lectura de punta a punta: no hay botones de subir, ni
+ * La vista del vendedor: personal de la tienda que solo vende. Ve los
+ * clientes aprobados de su tienda y en qué etapa va cada uno, para darles
+ * seguimiento y cerrar la venta. Solo lectura de punta a punta: no hay botones de subir, ni
  * caja, ni archivos, y aunque alguien los invocara a mano, el servidor no
  * le da permiso (su cuenta trae `vendedorIds`, no `concesionarioIds`).
  *
@@ -50,7 +51,6 @@ export function VendedorPage() {
   const navigate = useNavigate();
   const [estado, setEstado] = useState<Estado>({ status: "cargando" });
   const [actualizando, setActualizando] = useState(false);
-  const [tambienTienda, setTambienTienda] = useState(false);
   const [busqueda, setBusqueda] = useState("");
   const [tienda, setTienda] = useState(TODAS);
   const [etapa, setEtapa] = useState(TODAS);
@@ -62,7 +62,15 @@ export function VendedorPage() {
       // Igual que en la tienda: sin forzar, una tienda recién asignada no
       // aparece hasta que el token vence (hasta una hora).
       await auth.currentUser?.getIdToken(true);
-      if (auth.currentUser) setTambienTienda((await accesoDeSesion(auth.currentUser)).tienda);
+      // Un correo es personal de tienda o vendedor, nunca las dos (lo
+      // impide el panel). Si llega aquí alguien de tienda, su vista es otra.
+      if (auth.currentUser) {
+        const acceso = await accesoDeSesion(auth.currentUser);
+        if (acceso.tienda && !acceso.vendedor) {
+          navigate("/solicitudes", { replace: true });
+          return;
+        }
+      }
       const { data } = await getVendedorClientesCallable();
       setEtapas(data.etapas);
       setEstado({
@@ -84,7 +92,7 @@ export function VendedorPage() {
     } finally {
       setActualizando(false);
     }
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     void cargar();
@@ -153,7 +161,7 @@ export function VendedorPage() {
             <span className="store-badge__nombre">
               {varias ? `${concesionarios.length} tiendas` : concesionarios[0]?.nombre ?? "Consulta"}
             </span>
-            <span className="store-badge__numero">Vendedor externo · solo consulta</span>
+            <span className="store-badge__numero">Vendedor</span>
           </div>
           <button type="button" className="link-button" onClick={salir}>
             Salir
@@ -161,22 +169,14 @@ export function VendedorPage() {
         </div>
       </header>
 
-      {tambienTienda && (
-        <nav className="tabs">
-          <Link to="/solicitudes">Mis clientes</Link>
-          <Link to="/consulta" className="active">
-            Solo consulta
-          </Link>
-        </nav>
-      )}
-
       <div className="app-body">
         <div className="vendedor-cabeza">
           <div>
             <h1 className="concesionario-page__title vendedor-cabeza__titulo">Clientes aprobados</h1>
             <p className="concesionario-page__subtitle">
-              En qué etapa va cada cliente. Es una vista de consulta: los documentos y
-              la caja los maneja la tienda.
+              Los clientes aprobados de tu tienda, por cuánto y en qué etapa va cada
+              uno, para darles seguimiento. Los documentos y la caja los maneja el
+              personal administrativo.
             </p>
           </div>
           <div className="vendedor-cabeza__refresco">
