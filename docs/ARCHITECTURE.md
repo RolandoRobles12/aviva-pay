@@ -42,12 +42,12 @@ Los endpoints de subida (`uploadCotizacion`, `uploadComprobante`) también verif
 
 ## Vendedores externos: solo consulta
 
-Un vendedor externo ve los clientes aprobados de una tienda y en qué etapa va cada uno, y nada más: no sube cotizaciones ni comprobantes, no usa la caja y no abre archivos. Se da de alta en `/admin/tiendas` → "Editar" → "Vendedores externos (solo consulta)", con la misma invitación por correo que la gente de la tienda.
+Un vendedor externo ve los clientes aprobados de una tienda, su monto aprobado y en qué etapa va cada uno, y nada más: no sube cotizaciones ni comprobantes, no usa la caja y no abre archivos. Se da de alta en `/admin/tiendas` → "Editar" → "Vendedores externos (solo consulta)", con la misma invitación por correo que la gente de la tienda.
 
 - **Claim aparte, no una marca.** El vendedor recibe `vendedorIds`, nunca `concesionarioIds`. Las funciones que escriben o entregan datos sensibles (`uploadCotizacion`, `uploadComprobante`, `validarVale`, `confirmarDisposicion`, `getArchivoUrl`, `getConcesionarioDeals`) ya exigen `concesionarioIds`, así que lo rechazan sin saber que existe; una función nueva de escritura queda cerrada para él por defecto. Las reglas de Firestore tampoco le dejan leer `paydesk_deals`.
-- **Proyección en el servidor.** Lee por `getVendedorClientes`, que pasa cada deal por `vendedor/proyeccion.ts`: una lista cerrada de campos (cliente, fecha de solicitud y lo necesario para calcular las etapas). Quedan fuera montos, archivos y rutas, datos capturados por la tienda, revisiones y comentarios, el vale y la verificación. Los cancelados no se envían. Por eso no hay listener en vivo: la pantalla recarga cada 5 minutos y con "Actualizar".
+- **Proyección en el servidor.** Lee por `getVendedorClientes`, que pasa cada deal por `vendedor/proyeccion.ts`: una lista cerrada de campos (cliente, fecha de solicitud, monto aprobado y lo necesario para calcular las etapas). Quedan fuera archivos y rutas, datos y montos capturados por la tienda (como el total de la cotización), lo dispuesto en caja, revisiones y comentarios, el vale y la verificación. Los cancelados no se envían. Por eso no hay listener en vivo: la pantalla recarga cada 5 minutos y con "Actualizar".
 - **Una lista o la otra.** En la misma tienda, un correo es de la tienda o es vendedor, nunca las dos (`adminUpdateConcesionario` lo rechaza). Sí puede ser de la tienda en una y vendedor en otra: entra a `/solicitudes` y ve la pestaña "Solo consulta".
-- `/consulta` muestra cliente, etapa actual (la última alcanzada; `etapaActual` en `lib/dealScope.ts`), la siguiente, el avance y la fecha, con filtros por tienda y por etapa.
+- `/consulta` muestra cliente, etapa actual (la última alcanzada; `etapaActual` en `lib/dealScope.ts`), la siguiente, monto aprobado, avance y fecha, con filtros por tienda y por etapa.
 
 ## Vale de un solo uso
 

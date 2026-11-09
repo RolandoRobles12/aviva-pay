@@ -189,6 +189,7 @@ export type DealVendedor = Pick<
   | "concesionarioId"
   | "cliente"
   | "fechaSolicitud"
+  | "montoAprobado"
   | "estatusKyc"
   | "cotizacionEstatus"
   | "creditoLiberadoFecha"

@@ -664,8 +664,8 @@ function EditarTiendaForm({
 
       <label>Vendedores externos (solo consulta)</label>
       <p className="form-note">
-        Ven a los clientes aprobados de esta tienda y en qué etapa va cada uno. No
-        ven montos ni documentos, y no pueden subir nada ni validar códigos en caja.
+        Ven a los clientes aprobados de esta tienda, su monto aprobado y en qué etapa
+        va cada uno. No ven documentos, y no pueden subir nada ni validar códigos en caja.
       </p>
       <div className="chip-input">
         {vendedores.map((email) => (

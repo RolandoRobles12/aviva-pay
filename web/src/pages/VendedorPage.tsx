@@ -28,6 +28,8 @@ type Estado =
       consultadoEn: string;
     };
 
+const moneda = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" });
+
 function fecha(iso: string | null): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" });
@@ -39,7 +41,8 @@ function fecha(iso: string | null): string {
  * caja, ni archivos, y aunque alguien los invocara a mano, el servidor no
  * le da permiso (su cuenta trae `vendedorIds`, no `concesionarioIds`).
  *
- * Los datos llegan ya recortados por el servidor (nombre, fecha y etapas;
+ * Los datos llegan ya recortados por el servidor (nombre, fecha, monto
+ * aprobado y etapas;
  * ver functions/src/vendedor/proyeccion.ts), así que lo que no se ve aquí
  * tampoco está en el navegador.
  */
@@ -282,6 +285,7 @@ export function VendedorPage() {
                     <th className="col-sticky">Cliente</th>
                     <th>Va en</th>
                     <th>Sigue</th>
+                    <th className="col-num">Monto aprobado</th>
                     <th>Avance</th>
                     <th>Aprobado el</th>
                     {varias && <th>Tienda</th>}
@@ -309,6 +313,9 @@ export function VendedorPage() {
                         ) : (
                           <span className="cell-pending">{e.siguiente?.label ?? "—"}</span>
                         )}
+                      </td>
+                      <td className="col-num">
+                        {c.montoAprobado === null ? "—" : moneda.format(c.montoAprobado)}
                       </td>
                       <td>
                         <Avance hechas={completados(c)} total={etapas.length} />

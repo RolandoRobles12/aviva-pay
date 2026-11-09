@@ -39,9 +39,13 @@ describe("lo que ve un vendedor externo", () => {
     expect(Object.keys(proyectarParaVendedor(deal())).sort()).toEqual([...CAMPOS_VENDEDOR].sort());
   });
 
-  it("nunca trae montos, archivos, revisiones ni el vale", () => {
+  it("trae el monto aprobado", () => {
+    expect(proyectarParaVendedor(deal()).montoAprobado).toBe(20000);
+  });
+
+  it("nunca trae el total de la cotización, archivos, revisiones ni el vale", () => {
     const visto = JSON.stringify(proyectarParaVendedor(deal()));
-    for (const secreto of ["20000", "18450", "archivo", "cotizacion.pdf", "nota interna", "1234567890", "TEQ"]) {
+    for (const secreto of ["18450", "archivo", "cotizacion.pdf", "nota interna", "1234567890", "TEQ"]) {
       expect(visto).not.toContain(secreto);
     }
   });

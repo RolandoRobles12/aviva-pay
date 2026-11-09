@@ -2,14 +2,16 @@ import type { PayDeskDeal } from "../types/deal";
 
 /**
  * Lo que un vendedor externo puede ver de una solicitud: quién es el
- * cliente, cuándo se aprobó y qué etapas ya alcanzó. Nada más.
+ * cliente, cuándo se aprobó, por cuánto y qué etapas ya alcanzó. Nada más.
  *
  * Es una lista cerrada a propósito: el vendedor no lee `paydesk_deals`
  * (las reglas de Firestore solo dejan leer a `concesionarioIds`), así que
  * todo lo que ve pasa por aquí. Un campo nuevo en el deal no le llega
- * hasta que alguien lo agregue a esta lista. Quedan fuera montos, archivos
- * y sus rutas, fechas y montos capturados por la tienda, revisiones con
- * comentarios de Aviva, el vale y el resultado de la verificación.
+ * hasta que alguien lo agregue a esta lista. El único monto que va es el
+ * aprobado (decisión del negocio: el vendedor lo necesita para vender).
+ * Quedan fuera archivos y sus rutas, fechas y montos capturados por la
+ * tienda (como el total de la cotización), lo dispuesto en caja,
+ * revisiones con comentarios de Aviva, el vale y la verificación.
  *
  * Los estatus de cotización y comprobante sí van, pero solo como
  * "pendiente"/"completado": son etapas del avance, no los documentos.
@@ -19,6 +21,7 @@ export const CAMPOS_VENDEDOR = [
   "concesionarioId",
   "cliente",
   "fechaSolicitud",
+  "montoAprobado",
   "estatusKyc",
   "cotizacionEstatus",
   "creditoLiberadoFecha",
@@ -36,6 +39,7 @@ export function proyectarParaVendedor(deal: PayDeskDeal): DealVendedor {
     concesionarioId: deal.concesionarioId,
     cliente: deal.cliente,
     fechaSolicitud: deal.fechaSolicitud,
+    montoAprobado: deal.montoAprobado,
     estatusKyc: deal.estatusKyc,
     cotizacionEstatus: deal.cotizacionEstatus,
     creditoLiberadoFecha: deal.creditoLiberadoFecha,

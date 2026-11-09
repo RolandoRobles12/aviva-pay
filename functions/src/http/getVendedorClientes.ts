@@ -12,7 +12,7 @@ import { clientesParaVendedor } from "../vendedor/proyeccion";
  *
  * Las tiendas salen del claim `vendedorIds` del token, nunca del cuerpo de
  * la llamada. Los deals pasan por `clientesParaVendedor`, que deja solo
- * nombre, fecha y etapas; por eso esto es una función y no un listener de
+ * nombre, fecha, monto aprobado y etapas; por eso esto es una función y no un listener de
  * Firestore como el de la tienda, que entregaría el documento completo.
  *
  * Es solo lectura. El vendedor no tiene `concesionarioIds` para esas
