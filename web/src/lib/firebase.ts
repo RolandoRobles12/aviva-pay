@@ -7,7 +7,6 @@ import {
 } from "firebase/app-check";
 import {
   browserLocalPersistence,
-  browserSessionPersistence,
   getAuth,
   GoogleAuthProvider,
   sendPasswordResetEmail,
@@ -157,22 +156,18 @@ export async function destinoDeSesionAbierta(
 }
 
 /**
- * Signs a concesionario in with email + password. `recordar` picks
- * whether the session is saved on this device (local: every tab and
- * window, and it survives closing the browser) or only in this tab
- * (session: Firebase keeps it per tab, so a new tab or window asks to
- * sign in again) — set before signing in, since Firebase applies
- * persistence to the sign-in call itself.
+ * Signs a concesionario (or vendedor) in with email + password.
+ *
+ * The session is always saved on this device, the same as the admin's:
+ * every tab and window shares it and it survives closing the browser,
+ * until the person taps "Salir". There used to be a "Mantener sesión
+ * iniciada" checkbox, but unchecked it made Firebase keep the session per
+ * tab, so every new tab or window asked to sign in again — which stores
+ * read as Paydesk kicking them out. Set before signing in, since Firebase
+ * applies persistence to the sign-in call itself.
  */
-export async function loginConcesionario(
-  email: string,
-  password: string,
-  recordar: boolean,
-) {
-  await setPersistence(
-    auth,
-    recordar ? browserLocalPersistence : browserSessionPersistence,
-  );
+export async function loginConcesionario(email: string, password: string) {
+  await setPersistence(auth, browserLocalPersistence);
   const credential = await signInWithEmailAndPassword(auth, email, password);
   return requireConcesionarioClaim(credential.user);
 }
@@ -317,11 +312,9 @@ const googleProvider = new GoogleAuthProvider();
 
 /**
  * Admins only ever sign in with Google (see docs/ARCHITECTURE.md — "Alta de
- * administradores"), so there's no "recordar" checkbox to key off of —
- * always persist across browser restarts, same as `recordar: true` would
- * for a concesionario. Set before signing in, since Firebase applies
- * persistence to the sign-in call itself, and `auth` is shared with the
- * concesionario login, which may have last set it to session-only.
+ * administradores"). Like the store login, the session always persists
+ * across tabs and browser restarts. Set before signing in, since Firebase
+ * applies persistence to the sign-in call itself.
  */
 export async function loginAdminWithGoogle() {
   await setPersistence(auth, browserLocalPersistence);

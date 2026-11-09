@@ -215,11 +215,15 @@ function Acceso() {
         </p>
       </Seccion>
 
-      <Seccion titulo="“Mantener sesión iniciada”">
+      <Seccion titulo="Tu sesión se queda abierta">
         <p>
-          Esta casilla deja tu sesión abierta en ese equipo aunque cierres el
-          navegador. Úsala solo en la computadora, tablet o celular de la tienda,
-          nunca en un equipo público o prestado.
+          Una vez que entras, Paydesk recuerda tu sesión en ese equipo: puedes abrir
+          otras pestañas o ventanas, o cerrar el navegador, y sigues dentro. Solo se
+          cierra cuando tocas <strong>“Salir”</strong>.
+        </p>
+        <p>
+          Por eso, si alguna vez entras desde un equipo público o prestado, toca
+          “Salir” al terminar.
         </p>
       </Seccion>
 

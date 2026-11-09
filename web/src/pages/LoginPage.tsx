@@ -19,7 +19,6 @@ export function LoginPage() {
   const [modo, setModo] = useState<"entrar" | "recuperar">("entrar");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [recordar, setRecordar] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recuperado, setRecuperado] = useState(false);
@@ -50,7 +49,7 @@ export function LoginPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const destino = await loginConcesionario(email, password, recordar);
+      const destino = await loginConcesionario(email, password);
       navigate(destino, { replace: true });
     } catch (err) {
       setError(
@@ -170,22 +169,6 @@ export function LoginPage() {
             required
           />
         </label>
-
-        <label className="upload-form__checkbox">
-          <input
-            type="checkbox"
-            checked={recordar}
-            onChange={(e) => setRecordar(e.target.checked)}
-          />
-          Mantener sesión iniciada en este dispositivo
-        </label>
-        {!recordar && (
-          <p className="form-note">
-            Sin esta opción, la sesión vale solo en esta pestaña: cada pestaña o
-            ventana nueva te pedirá entrar otra vez. Úsala así solo en equipos
-            compartidos.
-          </p>
-        )}
 
         {error && <p className="form-error">{error}</p>}
 
