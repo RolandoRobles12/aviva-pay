@@ -173,7 +173,7 @@ export function VendedorLayout() {
                 ? `${concesionarios.length} tiendas`
                 : concesionarios[0]?.nombre ?? "Consulta"}
             </span>
-            <span className="store-badge__numero">Vendedor</span>
+            <span className="store-badge__numero">Asesor de ventas</span>
           </div>
           <button type="button" className="link-button" onClick={salir}>
             Salir
@@ -202,7 +202,7 @@ export function VendedorLayout() {
       {mostrarBienvenida && (
         <BienvenidaCapacitacion
           onCerrar={cerrarBienvenida}
-          primeraLeccion="/consulta/aprende/vendedor-inicio"
+          primeraLeccion="/consulta/aprende/asesor-inicio"
           lecciones={LECCIONES_VENDEDOR.length}
           minutos={MINUTOS_VENDEDOR}
           aprenderas="qué significa cada etapa del crédito y qué seguimiento darle a cada cliente para cerrar la venta."

@@ -4,22 +4,13 @@
  * es la lista contra la que el backend acepta avances (hay una prueba que
  * lo revisa). El contenido de cada una vive en lecciones.tsx.
  */
-export const ORDEN_LECCIONES = [
-  "bienvenida",
-  "acceso",
-  "mis-clientes",
-  "cotizacion",
-  "validar-codigo",
-  "comprobante",
-  "revision",
-  "canceladas-reporte",
-] as const;
+export const ORDEN_LECCIONES = ["tienda-inicio", "mis-clientes", "documentos", "validar-codigo"] as const;
 
 /**
  * El curso del vendedor (personal que solo vende). Tiene que coincidir con
  * LECCIONES_VENDEDOR en el backend; también lo revisa una prueba.
  */
-export const ORDEN_VENDEDOR = ["vendedor-inicio", "vendedor-etapas", "vendedor-seguimiento"] as const;
+export const ORDEN_VENDEDOR = ["asesor-inicio", "asesor-etapas", "asesor-seguimiento"] as const;
 
 export type LeccionId = (typeof ORDEN_LECCIONES)[number] | (typeof ORDEN_VENDEDOR)[number];
 

@@ -95,7 +95,7 @@ describe("cada persona tiene un solo perfil: acceso completo o vendedor", () => 
 
   it("no deja dar acceso completo a quien es vendedor en otra tienda", () => {
     const [m] = conflictosDeRol("t1", ["cajero@x.mx", "vende@x.mx"], [], todas);
-    expect(m).toContain("vende@x.mx es vendedor en El Marqués");
+    expect(m).toContain("vende@x.mx es asesor de ventas en El Marqués");
   });
 
   it("la tienda que se guarda se revisa con sus listas nuevas, no con las guardadas", () => {

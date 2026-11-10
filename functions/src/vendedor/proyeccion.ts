@@ -97,7 +97,7 @@ export function conflictosDeRol(
   const enUsuarios = new Set(usuarios);
   for (const email of vendedores) {
     if (enUsuarios.has(email)) {
-      mensajes.push(`${email} está en las dos listas de esta tienda. Déjalo en una sola. Cada persona tiene un solo perfil: acceso completo o vendedor.`);
+      mensajes.push(`${email} está en las dos listas de esta tienda. Déjalo en una sola. Cada persona tiene un solo perfil: acceso completo o asesor de ventas.`);
     }
   }
   const otras = todas.filter((t) => t.concesionarioId !== concesionarioId);
@@ -105,7 +105,7 @@ export function conflictosDeRol(
     const t = otras.find((o) => (o.usuarios ?? []).includes(email));
     if (t) {
       mensajes.push(
-        `${email} ya tiene acceso completo en ${t.nombre}. Cada persona tiene un solo perfil: acceso completo o vendedor.`,
+        `${email} ya tiene acceso completo en ${t.nombre}. Cada persona tiene un solo perfil: acceso completo o asesor de ventas.`,
       );
     }
   }
@@ -113,7 +113,7 @@ export function conflictosDeRol(
     const t = otras.find((o) => (o.vendedores ?? []).includes(email));
     if (t) {
       mensajes.push(
-        `${email} es vendedor en ${t.nombre}. Cada persona tiene un solo perfil: acceso completo o vendedor.`,
+        `${email} es asesor de ventas en ${t.nombre}. Cada persona tiene un solo perfil: acceso completo o asesor de ventas.`,
       );
     }
   }

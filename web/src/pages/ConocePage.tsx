@@ -35,14 +35,14 @@ const PERFILES: Perfil[] = [
   },
   {
     curso: CURSO_VENDEDOR,
-    titulo: "Vendedor",
+    titulo: "Asesor de ventas",
     quien: "Vendes y das seguimiento a tus clientes, sin trabajo administrativo.",
     puedes: [
       "Ves a los clientes aprobados de tu tienda y su monto aprobado.",
       "Sabes en qué etapa va cada uno y qué seguimiento darle.",
     ],
     noTeToca: "Los documentos y la caja los maneja el personal de la tienda.",
-    guia: "/ayuda/vendedores",
+    guia: "/ayuda/asesores",
   },
 ];
 
