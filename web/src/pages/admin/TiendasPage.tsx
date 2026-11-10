@@ -111,7 +111,7 @@ export function TiendasPage() {
   }, [tiendas, capacitacion]);
 
   const ligaAyuda = `${window.location.origin}/ayuda`;
-  const ligaAyudaVendedores = `${window.location.origin}/ayuda/vendedores`;
+  const ligaAyudaVendedores = `${window.location.origin}/ayuda/asesores`;
 
   async function copiarLiga(liga: string) {
     try {
@@ -199,7 +199,7 @@ export function TiendasPage() {
       <Notice tono="info" titulo="Capacitación para tiendas">
         <p>
           Cada persona invitada ve la pestaña “Aprende” con su curso: el personal con
-          acceso completo aprende documentos y caja; el vendedor, etapas y seguimiento.
+          acceso completo aprende documentos y caja; el asesor de ventas, etapas y seguimiento.
           Su avance aparece abajo, en “Quién tiene acceso”. Para mandarla antes de
           invitar a alguien, usa la versión abierta:
         </p>
@@ -217,8 +217,8 @@ export function TiendasPage() {
           </button>
         </p>
         <p>
-          Vendedores:{" "}
-          <a href="/ayuda/vendedores" target="_blank" rel="noopener noreferrer">
+          Asesores de ventas:{" "}
+          <a href="/ayuda/asesores" target="_blank" rel="noopener noreferrer">
             {ligaAyudaVendedores}
           </a>{" "}
           <button
@@ -302,7 +302,7 @@ export function TiendasPage() {
                   {(t.vendedores ?? []).length > 0 && (
                     <div className="adm-field__ayuda" title={(t.vendedores ?? []).join(", ")}>
                       +{" "}
-                      {t.vendedores.length === 1 ? "1 vendedor" : `${t.vendedores.length} vendedores`}
+                      {t.vendedores.length === 1 ? "1 asesor de ventas" : `${t.vendedores.length} asesores de ventas`}
                       {" · "}
                       {(() => {
                         const c = capacitacionDeTienda(t.vendedores, capacitacion);
@@ -527,7 +527,7 @@ function EditarTiendaForm({
       return;
     }
     if (vendedores.includes(email)) {
-      setError(`${email} ya está como vendedor en esta tienda. Quítalo de esa lista primero.`);
+      setError(`${email} ya está como asesor de ventas en esta tienda. Quítalo de esa lista primero.`);
       return;
     }
     const comoVendedor = todasLasTiendas.find(
@@ -535,7 +535,7 @@ function EditarTiendaForm({
     );
     if (comoVendedor) {
       setError(
-        `${email} es vendedor en ${comoVendedor.nombre}. Cada persona tiene un solo perfil: acceso completo o vendedor.`,
+        `${email} es asesor de ventas en ${comoVendedor.nombre}. Cada persona tiene un solo perfil: acceso completo o asesor de ventas.`,
       );
       return;
     }
@@ -564,7 +564,7 @@ function EditarTiendaForm({
     );
     if (comoPersonal) {
       setError(
-        `${email} ya tiene acceso completo en ${comoPersonal.nombre}. Cada persona tiene un solo perfil: acceso completo o vendedor.`,
+        `${email} ya tiene acceso completo en ${comoPersonal.nombre}. Cada persona tiene un solo perfil: acceso completo o asesor de ventas.`,
       );
       return;
     }
@@ -709,13 +709,13 @@ function EditarTiendaForm({
         cuanto guardes.
       </p>
 
-      <label>Vendedores externos (solo consulta)</label>
+      <label>Asesores de ventas (solo consulta)</label>
       <p className="form-note">
         Personal de la tienda que solo vende. Ven a los clientes aprobados de esta
         tienda, su monto aprobado y en qué etapa va cada uno, para darles
         seguimiento. No ven documentos, y no pueden subir nada ni validar códigos en
         caja. Cada persona tiene un solo perfil: quien ya tiene acceso completo en
-        alguna tienda no puede ser vendedor.
+        alguna tienda no puede ser asesor de ventas.
       </p>
       <div className="chip-input">
         {vendedores.map((email) => (
@@ -735,7 +735,7 @@ function EditarTiendaForm({
       <div className="chip-input__add">
         <input
           type="email"
-          placeholder="vendedor@ejemplo.com"
+          placeholder="asesor@ejemplo.com"
           value={nuevoVendedor}
           onChange={(e) => setNuevoVendedor(e.target.value)}
           onKeyDown={(e) => {

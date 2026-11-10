@@ -49,7 +49,7 @@ describe("contenido de la capacitación", () => {
 
   it("las lecciones que enseñan una tarea tienen práctica", () => {
     const conPractica = LECCIONES.filter((l) => l.Practica).map((l) => l.id);
-    expect(conPractica).toEqual(["mis-clientes", "cotizacion", "validar-codigo", "comprobante", "revision"]);
+    expect(conPractica).toEqual(["mis-clientes", "documentos", "validar-codigo"]);
   });
 
   it("las preguntas frecuentes no se repiten", () => {
@@ -64,16 +64,16 @@ describe("avance", () => {
       hechas: 0,
       porcentaje: 0,
       completa: false,
-      siguiente: "bienvenida",
+      siguiente: "tienda-inicio",
     });
   });
 
   it("la siguiente es la primera sin pasar, aunque se hayan saltado lecciones", () => {
-    expect(calcularAvance(["bienvenida", "cotizacion"]).siguiente).toBe("acceso");
+    expect(calcularAvance(["tienda-inicio", "documentos"]).siguiente).toBe("mis-clientes");
   });
 
   it("ignora ids que ya no existen", () => {
-    expect(calcularAvance(["bienvenida", "leccion-retirada"]).hechas).toBe(1);
+    expect(calcularAvance(["tienda-inicio", "leccion-retirada"]).hechas).toBe(1);
   });
 
   it("completa con todas", () => {
@@ -85,7 +85,7 @@ describe("avance", () => {
   });
 
   it("la lección que sigue y el final del curso", () => {
-    expect(leccionSiguiente("bienvenida")).toBe("acceso");
+    expect(leccionSiguiente("tienda-inicio")).toBe("mis-clientes");
     expect(leccionSiguiente(ORDEN_LECCIONES[ORDEN_LECCIONES.length - 1])).toBeNull();
   });
 });

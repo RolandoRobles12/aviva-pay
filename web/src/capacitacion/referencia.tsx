@@ -26,24 +26,24 @@ export const PREGUNTAS_FRECUENTES: PreguntaFrecuente[] = [
     pregunta: "No me llegó el correo para crear mi contraseña",
     respuesta:
       "Revisa la carpeta de correo no deseado o spam. Si no está, en la pantalla de entrada toca “¿Olvidaste tu contraseña?” y escribe el mismo correo con el que te invitaron. Si aun así no llega, confirma con tu ejecutivo que tu correo esté bien escrito.",
-    leccion: "acceso",
+    leccion: "tienda-inicio",
   },
   {
     pregunta: "Me sale “Tu cuenta no tiene acceso a ninguna tienda todavía”",
     respuesta:
       "Tu cuenta existe, pero Aviva todavía no la ha agregado a tu tienda. Pídele a tu ejecutivo que lo haga y después recarga la página.",
-    leccion: "acceso",
+    leccion: "tienda-inicio",
   },
   {
     pregunta: "Me dieron acceso a otra tienda y no la veo",
     respuesta: "Recarga la página. Si sigue sin aparecer, sal de tu cuenta y vuelve a entrar.",
-    leccion: "acceso",
+    leccion: "tienda-inicio",
   },
   {
     pregunta: "Un compañero necesita entrar a Paydesk",
     respuesta:
       "Pídele a tu ejecutivo de Aviva que invite su correo. No le prestes tu cuenta: todo lo que se hace queda registrado a nombre de quien entró.",
-    leccion: "acceso",
+    leccion: "tienda-inicio",
   },
   {
     pregunta: "La pistola de la caja no lee el código del celular del cliente",
@@ -85,30 +85,45 @@ export const PREGUNTAS_FRECUENTES: PreguntaFrecuente[] = [
     pregunta: "Subí el archivo equivocado",
     respuesta:
       "En la fila del cliente toca “Corregir documento” (o “Reemplazar” si está en revisión) y sube el correcto. El nuevo reemplaza al anterior.",
-    leccion: "cotizacion",
+    leccion: "documentos",
   },
   {
     pregunta: "¿Qué tipo de archivos puedo subir?",
     respuesta:
       "Cotización: PDF, foto o XML. Comprobante de entrega: PDF o foto. Las fotos del celular sirven, incluidas las de iPhone.",
-    leccion: "cotizacion",
+    leccion: "documentos",
   },
   {
     pregunta: "Mi documento no se acepta y no me dicen por qué",
     respuesta:
       "Por seguridad, Paydesk no explica qué encontró. Revisa que sea el documento correcto de ese cliente, completo y legible, y vuelve a subirlo. Si se rechaza dos veces y estás seguro de que está bien, toca “Solicitar verificación manual”.",
-    leccion: "revision",
+    leccion: "documentos",
   },
   {
     pregunta: "Mi documento lleva mucho tiempo “En revisión”",
     respuesta:
       "Una persona de Aviva lo está revisando y no tienes que hacer nada. Si pasa más de un día y el cliente está esperando, pregúntale a tu ejecutivo.",
-    leccion: "revision",
+    leccion: "documentos",
   },
   {
     pregunta: "Me sale “Demasiados intentos seguidos”",
     respuesta: "Espera unos minutos y vuelve a intentarlo.",
-    leccion: "revision",
+    leccion: "documentos",
+  },
+  {
+    pregunta: "Un cliente aparece en “Canceladas”",
+    respuesta:
+      "Aviva canceló su crédito, o expiró porque no lo usó a tiempo. Su código ya no sirve y no hay nada que subir: no le entregues material. Si todavía quiere su material a crédito, tiene que solicitar de nuevo con Aviva.",
+  },
+  {
+    pregunta: "En “Canceladas” dice “Alcanzó a usarlo”",
+    respuesta:
+      "Se entregó material antes de que su crédito se cancelara. Repórtalo a tu ejecutivo de Aviva.",
+  },
+  {
+    pregunta: "¿Para qué sirve la pestaña “Reporte”?",
+    respuesta:
+      "Te dice cómo van los créditos de tus clientes: cuántos tienes, cuántos documentos te faltan, en qué etapa se juntan y cuánto se ha desembolsado. Usa los mismos filtros que tu lista.",
   },
   {
     pregunta: "Un cliente tiene la etiqueta “Anterior”",

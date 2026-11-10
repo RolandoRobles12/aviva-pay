@@ -15,8 +15,8 @@ describe("capacitación de tiendas", () => {
   });
 
   it("resume en el orden del curso y sin ids retirados", () => {
-    expect(resumirCapacitacion(["cotizacion", "retirada", "bienvenida"])).toEqual({
-      completadas: ["bienvenida", "cotizacion"],
+    expect(resumirCapacitacion(["documentos", "retirada", "tienda-inicio"])).toEqual({
+      completadas: ["tienda-inicio", "documentos"],
       total: LECCIONES_CAPACITACION.length,
       completa: false,
     });
@@ -24,7 +24,7 @@ describe("capacitación de tiendas", () => {
 
   it("un documento sin lecciones (o corrupto) cuenta como nada hecho", () => {
     expect(resumirCapacitacion(undefined).completadas).toEqual([]);
-    expect(resumirCapacitacion("bienvenida").completadas).toEqual([]);
+    expect(resumirCapacitacion("tienda-inicio").completadas).toEqual([]);
   });
 
   it("completa con todas", () => {
@@ -34,18 +34,18 @@ describe("capacitación de tiendas", () => {
 
 describe("curso del vendedor", () => {
   it("sus lecciones no valen para el curso de la tienda, ni al revés", () => {
-    expect(esLeccion("vendedor-etapas", "vendedor")).toBe(true);
-    expect(esLeccion("vendedor-etapas", "tienda")).toBe(false);
-    expect(esLeccion("cotizacion", "vendedor")).toBe(false);
+    expect(esLeccion("asesor-etapas", "vendedor")).toBe(true);
+    expect(esLeccion("asesor-etapas", "tienda")).toBe(false);
+    expect(esLeccion("documentos", "vendedor")).toBe(false);
   });
 
   it("resume contra su propio curso", () => {
-    const guardadas = ["bienvenida", "vendedor-inicio", "vendedor-etapas"];
+    const guardadas = ["tienda-inicio", "asesor-inicio", "asesor-etapas"];
     expect(resumirCapacitacion(guardadas, "vendedor")).toEqual({
-      completadas: ["vendedor-inicio", "vendedor-etapas"],
+      completadas: ["asesor-inicio", "asesor-etapas"],
       total: LECCIONES_VENDEDOR.length,
       completa: false,
     });
-    expect(resumirCapacitacion(guardadas, "tienda").completadas).toEqual(["bienvenida"]);
+    expect(resumirCapacitacion(guardadas, "tienda").completadas).toEqual(["tienda-inicio"]);
   });
 });

@@ -10,14 +10,10 @@
  * no ha visto.
  */
 export const LECCIONES_CAPACITACION = [
-  "bienvenida",
-  "acceso",
+  "tienda-inicio",
   "mis-clientes",
-  "cotizacion",
+  "documentos",
   "validar-codigo",
-  "comprobante",
-  "revision",
-  "canceladas-reporte",
 ] as const;
 
 /**
@@ -25,9 +21,9 @@ export const LECCIONES_CAPACITACION = [
  * Copia de ORDEN_VENDEDOR en web/src/capacitacion/progreso.ts.
  */
 export const LECCIONES_VENDEDOR = [
-  "vendedor-inicio",
-  "vendedor-etapas",
-  "vendedor-seguimiento",
+  "asesor-inicio",
+  "asesor-etapas",
+  "asesor-seguimiento",
 ] as const;
 
 /**

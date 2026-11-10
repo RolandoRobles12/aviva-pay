@@ -1,4 +1,4 @@
-import { Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import { LoginPage } from "./pages/LoginPage";
 import { RestablecerContrasenaPage } from "./pages/RestablecerContrasenaPage";
 import { ConcesionarioLayout } from "./pages/ConcesionarioLayout";
@@ -64,10 +64,12 @@ export function App() {
           tienda y la del vendedor. */}
       <Route path="/conoce" element={<ConocePage />} />
 
-      {/* El curso del vendedor, abierto: va antes que /ayuda/:leccionId. */}
+      {/* El curso del asesor de ventas, abierto: va antes que /ayuda/:leccionId.
+          /ayuda/vendedores era su dirección anterior y redirige aquí. */}
+      <Route path="/ayuda/vendedores/*" element={<Navigate to="/ayuda/asesores" replace />} />
       <Route
-        path="/ayuda/vendedores"
-        element={<AyudaPublicaLayout curso={CURSO_VENDEDOR} base="/ayuda/vendedores" />}
+        path="/ayuda/asesores"
+        element={<AyudaPublicaLayout curso={CURSO_VENDEDOR} base="/ayuda/asesores" />}
       >
         <Route index element={<AprendeInicio />} />
         <Route path=":leccionId" element={<AprendeLeccion />} />

@@ -107,7 +107,7 @@ function Inicio() {
 
       <Seccion titulo="Lo que no está en tu vista">
         <p>
-          Tu perfil es de vendedor: no subes cotizaciones ni comprobantes, no validas
+          Tu perfil es de asesor de ventas: no subes cotizaciones ni comprobantes, no validas
           códigos en caja y no ves documentos. Eso lo hace el personal administrativo de
           tu tienda. Si un cliente necesita algo de eso, pásalo con ellos.
         </p>
@@ -207,7 +207,7 @@ function Seguimiento() {
 
       <Seccion titulo="Ves a todos los clientes de tu tienda">
         <p>
-          Paydesk no sabe qué vendedor atendió a cada cliente, así que ves a todos los
+          Paydesk no sabe qué asesor atendió a cada cliente, así que ves a todos los
           clientes aprobados de tu tienda, no solo a los tuyos. Pónganse de acuerdo en la
           tienda sobre quién le da seguimiento a quién.
         </p>
@@ -218,14 +218,14 @@ function Seguimiento() {
 
 export const LECCIONES_VENDEDOR: Leccion[] = [
   {
-    id: "vendedor-inicio",
+    id: "asesor-inicio",
     titulo: "Qué ves en Paydesk",
     resumen: "Para qué te sirve, qué significa cada columna y qué no está en tu vista.",
     minutos: 2,
     Contenido: Inicio,
   },
   {
-    id: "vendedor-etapas",
+    id: "asesor-etapas",
     titulo: "Qué hacer en cada etapa",
     resumen: "Qué significa cada etapa del crédito y qué seguimiento darle al cliente.",
     minutos: 4,
@@ -257,7 +257,7 @@ export const LECCIONES_VENDEDOR: Leccion[] = [
     ),
   },
   {
-    id: "vendedor-seguimiento",
+    id: "asesor-seguimiento",
     titulo: "Encontrar a tus clientes",
     resumen: "Filtros, búsqueda y cómo tener la lista al día.",
     minutos: 3,
@@ -296,40 +296,40 @@ export const PREGUNTAS_VENDEDOR: PreguntaFrecuente[] = [
     pregunta: "No veo a un cliente",
     respuesta:
       "Solo aparecen clientes que Aviva ya aprobó; los cancelados o expirados no aparecen. Quita la búsqueda y el filtro de etapa, y toca “Actualizar”. Si sigue sin aparecer, pregúntale al personal de tu tienda o a tu ejecutivo de Aviva.",
-    leccion: "vendedor-seguimiento",
+    leccion: "asesor-seguimiento",
   },
   {
     pregunta: "Veo clientes que yo no atendí",
     respuesta:
-      "Es normal: ves a todos los clientes aprobados de tu tienda, porque Paydesk no sabe qué vendedor atendió a cada uno.",
-    leccion: "vendedor-seguimiento",
+      "Es normal: ves a todos los clientes aprobados de tu tienda, porque Paydesk no sabe qué asesor atendió a cada uno.",
+    leccion: "asesor-seguimiento",
   },
   {
     pregunta: "¿Por qué no puedo subir documentos ni validar códigos?",
     respuesta:
-      "Tu perfil es de vendedor. Las cotizaciones, los comprobantes y la caja los maneja el personal administrativo de tu tienda.",
-    leccion: "vendedor-inicio",
+      "Tu perfil es de asesor de ventas. Las cotizaciones, los comprobantes y la caja los maneja el personal administrativo de tu tienda.",
+    leccion: "asesor-inicio",
   },
   {
     pregunta: "El cliente dice que no le llegó su vale",
     respuesta:
       "Primero revisa que vaya en “Crédito liberado”: antes de esa etapa todavía no tiene vale. Si ya va ahí, el cliente le pide a Aviva que se lo reenvíe. Ni tú ni la tienda pueden generarlo.",
-    leccion: "vendedor-etapas",
+    leccion: "asesor-etapas",
   },
   {
     pregunta: "El cliente quiere llevar más material de lo que le aprobaron",
     respuesta:
       "En caja no se puede confirmar una venta mayor al monto aprobado. Antes de cerrar, consulten con su ejecutivo de Aviva cómo manejar la diferencia.",
-    leccion: "vendedor-inicio",
+    leccion: "asesor-inicio",
   },
   {
     pregunta: "¿Cada cuánto se actualiza la lista?",
     respuesta: "Sola cada 5 minutos. Si quieres verla al momento, toca “Actualizar”.",
-    leccion: "vendedor-seguimiento",
+    leccion: "asesor-seguimiento",
   },
   {
-    pregunta: "Un compañero vendedor necesita entrar",
-    respuesta: "Pídele a tu ejecutivo de Aviva que invite su correo como vendedor. No le prestes tu cuenta.",
+    pregunta: "Un compañero asesor necesita entrar",
+    respuesta: "Pídele a tu ejecutivo de Aviva que invite su correo como asesor de ventas. No le prestes tu cuenta.",
   },
   {
     pregunta: "Olvidé mi contraseña",

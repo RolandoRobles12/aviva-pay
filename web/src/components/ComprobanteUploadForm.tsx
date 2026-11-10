@@ -113,7 +113,7 @@ export function ComprobanteUploadForm({
     <form className="upload-form" onSubmit={handleSubmit} ref={formRef}>
       <div className="upload-form__titulo">
         <h3>{reemplazo ? "Reemplazar comprobante de entrega" : "Comprobante de entrega"}</h3>
-        <AyudaLink leccion="comprobante" />
+        <AyudaLink leccion="documentos" />
       </div>
 
       {reemplazo && (

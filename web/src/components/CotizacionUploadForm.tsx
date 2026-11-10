@@ -110,7 +110,7 @@ export function CotizacionUploadForm({
     <form className="upload-form" onSubmit={handleSubmit} ref={formRef}>
       <div className="upload-form__titulo">
         <h3>{reemplazo ? "Reemplazar cotización" : "Nueva cotización"}</h3>
-        <AyudaLink leccion="cotizacion" />
+        <AyudaLink leccion="documentos" />
       </div>
 
       {reemplazo && (

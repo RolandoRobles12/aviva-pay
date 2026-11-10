@@ -290,7 +290,7 @@ export function ConcesionarioLayout() {
       {mostrarBienvenida && (
         <BienvenidaCapacitacion
           onCerrar={cerrarBienvenida}
-          primeraLeccion="/solicitudes/aprende/bienvenida"
+          primeraLeccion="/solicitudes/aprende/tienda-inicio"
           lecciones={LECCIONES.length}
           minutos={MINUTOS_TOTALES}
           aprenderas="a subir documentos, a validar el código de tus clientes en caja y a resolver por tu cuenta las dudas más comunes."
