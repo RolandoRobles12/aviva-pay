@@ -138,6 +138,7 @@ export function AprendeInicio() {
             <p className="cap-hero__nota">
               Estás viendo la versión abierta. <Link to="/">Entra con tu cuenta</Link>{" "}
               y búscala en la pestaña “Aprende” para que tu avance quede guardado.
+              ¿Es otro tu perfil? <Link to="/conoce">Elige tu guía</Link>.
             </p>
           )}
         </div>

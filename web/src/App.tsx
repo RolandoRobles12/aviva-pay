@@ -17,6 +17,7 @@ import {
 } from "./pages/AprendePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { VendedorClientes, VendedorLayout } from "./pages/VendedorPage";
+import { ConocePage } from "./pages/ConocePage";
 import { CURSO_VENDEDOR } from "./capacitacion/cursos";
 import { RequireAuth } from "./components/RequireAuth";
 import { AdminLoginPage } from "./pages/admin/AdminLoginPage";
@@ -59,6 +60,10 @@ export function App() {
           tienda antes de invitarla, y la que abren las ayudas de los
           formularios. La misma capacitación vive con sesión en
           /solicitudes/aprende, donde además guarda el avance. */}
+      {/* "¿Primera vez?" del login: elige entre la guía del personal de
+          tienda y la del vendedor. */}
+      <Route path="/conoce" element={<ConocePage />} />
+
       {/* El curso del vendedor, abierto: va antes que /ayuda/:leccionId. */}
       <Route
         path="/ayuda/vendedores"

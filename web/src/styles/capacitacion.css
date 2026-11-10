@@ -1021,3 +1021,72 @@
     grid-column: 2;
   }
 }
+
+/* --- Elegir guía (/conoce) -------------------------------------------- */
+
+.conoce h1 {
+  margin-bottom: 0.4rem;
+}
+
+.conoce__intro,
+.conoce__pie {
+  color: var(--cap-tenue);
+  margin: 0 0 1.25rem;
+}
+
+.conoce__pie {
+  margin-top: 1.25rem;
+  font-size: 0.92rem;
+}
+
+.conoce__perfiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  gap: 1rem;
+}
+
+.conoce__perfil {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  background: var(--blanco);
+  border: 1.5px solid var(--cap-borde);
+  border-radius: 16px;
+  padding: 1.4rem;
+  text-decoration: none;
+  color: var(--negro-off) !important;
+  font-weight: 500 !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.conoce__perfil:hover {
+  border-color: var(--verde-accion);
+  box-shadow: 0 6px 20px rgb(2 97 73 / 10%);
+}
+
+.conoce__titulo {
+  font-size: 1.25rem;
+  color: var(--verde-musgo);
+}
+
+.conoce__quien {
+  color: var(--cap-tenue);
+}
+
+.conoce__perfil .cap-checklist {
+  margin: 0.25rem 0 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.conoce__nota {
+  font-size: 0.88rem;
+  color: var(--cap-tenue);
+}
+
+/* Al fondo de la tarjeta, para que las dos queden alineadas aunque una
+   tenga más texto. */
+.conoce__cta {
+  margin-top: auto;
+  align-self: flex-start;
+}
