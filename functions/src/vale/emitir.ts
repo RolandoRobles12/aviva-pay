@@ -82,6 +82,9 @@ export async function emitirValeParaDeal(
   await updateDealProperties(deal.dealId, {
     valeCodigo: formatearCodigo(vale.codigo),
     valeUrl: urlDelVale(vale.token),
+    // Solo el id de la liga: el botón del template de WhatsApp arma la URL
+    // con una base fija y este valor al final.
+    valeId: vale.token,
     valeEstado: VALE_ESTADO_HUBSPOT.emitido,
   });
 

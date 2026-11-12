@@ -89,7 +89,8 @@ const ETIQUETAS: Record<string, string> = {
   comprobanteFirmaClienteConfirmada: "Comprobante de entrega · firma del cliente",
   desembolsoFecha: "Desembolso · fecha",
   valeCodigo: "Vale · código de 10 dígitos",
-  valeUrl: "Vale · liga que se manda por WhatsApp",
+  valeUrl: "Vale · liga completa",
+  valeId: "Vale · id de la liga (botón de WhatsApp)",
   valeEstado: "Vale · estatus",
 };
 

@@ -37,10 +37,12 @@ function estadoParaReporte(vale: {
  * liberó, aprovisionó, y que nadie ejerció: es la lista para adelantar
  * cancelaciones en vez de esperar a que el plazo corra solo.
  *
- * La segunda es **autorizado contra dispuesto**: cuánto del crédito
- * aprobado se gastó de verdad. Ese número solo existe en Paydesk, porque
- * el monto dispuesto no se escribe a HubSpot (escribirlo pisaría el monto
- * de la cotización, que significa otra cosa).
+ * La segunda es **crédito contra venta**: en los vales usados, cuánto
+ * vendió la tienda por encima de lo que cubría el crédito (la venta puede
+ * ser mayor al autorizado, nunca menor). Ese número solo existe en
+ * Paydesk, porque el monto de la venta confirmado en caja no se escribe a
+ * HubSpot (escribirlo pisaría el monto de la cotización, que significa
+ * otra cosa).
  */
 export const adminValeReporte = onCall({ region: "us-central1" }, async (request) => {
   assertAdmin(request);
@@ -125,8 +127,8 @@ export const adminValeReporte = onCall({ region: "us-central1" }, async (request
     montos: {
       autorizadoDeUtilizados: montoAutorizadoUtilizado,
       dispuesto: montoDispuesto,
-      /** Lo que se autorizó de más frente a lo que de verdad se gastó. */
-      subejercido: montoAutorizadoUtilizado - montoDispuesto,
+      /** Lo que se vendió por encima del crédito autorizado. */
+      excedente: montoDispuesto - montoAutorizadoUtilizado,
       nuncaGastado: montoNuncaGastado,
     },
     porTienda: [...porTienda.values()].sort((a, b) =>

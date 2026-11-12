@@ -106,12 +106,12 @@ export function ReporteValesPage() {
                 value: moneda.format(reporte.montos.autorizadoDeUtilizados),
               },
               {
-                label: "Dispuesto de verdad",
+                label: "Venta confirmada en caja",
                 value: moneda.format(reporte.montos.dispuesto),
               },
               {
-                label: "Sub-ejercido",
-                value: moneda.format(reporte.montos.subejercido),
+                label: "Venta arriba del crédito",
+                value: moneda.format(reporte.montos.excedente),
               },
             ]}
           />
@@ -143,7 +143,7 @@ export function ReporteValesPage() {
                   <th className="num">Utilizados</th>
                   <th className="num">Vencidos</th>
                   <th className="num">Cancelados</th>
-                  <th className="num">Dispuesto</th>
+                  <th className="num">Venta</th>
                   <th className="num">Nunca gastado</th>
                 </tr>
               </thead>
