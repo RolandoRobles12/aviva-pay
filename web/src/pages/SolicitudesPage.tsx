@@ -163,20 +163,32 @@ export function SolicitudesPage() {
       )}
 
       {activeModal?.type === "vale" && (
-        <Modal onClose={() => setActiveModal(null)}>
-          <div className="modal-titulo">
-            <h2>Validar código del cliente</h2>
-            <p>
-              {deals.find((d) => d.dealId === activeModal.dealId)?.cliente ??
-                "Cliente"}
-            </p>
+        <Modal className="modal-panel--vale" onClose={() => setActiveModal(null)}>
+          <div className="modal-vale">
+            <div className="modal-titulo">
+              <div>
+                <h2>Validar código del cliente</h2>
+                <p>
+                  {deals.find((d) => d.dealId === activeModal.dealId)?.cliente ??
+                    "Cliente"}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="modal-cerrar"
+                onClick={() => setActiveModal(null)}
+                aria-label="Cerrar"
+              >
+                ×
+              </button>
+            </div>
+            <ValidarCodigoPanel
+              dealIdEsperado={activeModal.dealId}
+              clienteEsperado={
+                deals.find((d) => d.dealId === activeModal.dealId)?.cliente
+              }
+            />
           </div>
-          <ValidarCodigoPanel
-            dealIdEsperado={activeModal.dealId}
-            clienteEsperado={
-              deals.find((d) => d.dealId === activeModal.dealId)?.cliente
-            }
-          />
         </Modal>
       )}
 
