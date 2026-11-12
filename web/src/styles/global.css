@@ -2244,6 +2244,9 @@ h3 {
   padding-top: 1.25rem;
   border-top: 1px solid var(--gris-frio);
   display: grid;
+  /* Igual que en .validar: sin minmax(0, …) el campo del monto no se
+     encoge y en celular empuja todo fuera de la tarjeta. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.5rem;
 }
 
@@ -2351,6 +2354,21 @@ h3 {
    archivo: el código va en letra grande y espaciada junto a su botón. */
 .modal-panel--vale {
   max-width: 32rem;
+  /* Una sola tarjeta, sin barra de desplazamiento adentro: si en una
+     pantalla baja no cabe, se recorre la página completa (el fondo
+     oscuro), no un recuadro dentro de la ventana. */
+  max-height: none;
+  overflow: visible;
+  margin-block: auto;
+}
+
+/* Para eso el fondo oscuro tiene que poder recorrerse, y la ventana
+   arrancar arriba en vez de centrarse (centrada, lo que no cabe se
+   cortaría por arriba sin forma de llegar a ello). margin-block: auto la
+   sigue centrando cuando sí cabe. */
+.modal-overlay:has(.modal-panel--vale) {
+  align-items: flex-start;
+  overflow-y: auto;
 }
 
 /* Su propia tarjeta blanca. Sin ella el título quedaba flotando sobre la
@@ -2409,6 +2427,38 @@ h3 {
   padding: 0;
   border: none;
   border-radius: 0;
+}
+
+/* Más compacto que en la pestaña: tiene que caber en la ventana sin
+   recorrer nada en una laptop o tablet. */
+.modal-vale .validar {
+  gap: 1rem;
+}
+
+.modal-vale .vale-resultado__monto {
+  font-size: 2.25rem;
+}
+
+.modal-vale .vale-resultado__etiqueta {
+  margin-top: 0.5rem;
+}
+
+.modal-vale .vale-resultado__datos {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  gap: 0.25rem;
+}
+
+.modal-vale .vale-resultado__confirmar {
+  margin-top: 1rem;
+  padding-top: 1rem;
+}
+
+/* Con el vale ya leído, la ayuda para escanear (cámara, pistola,
+   simulador) ya no hace falta y solo empuja hacia abajo el botón de
+   confirmar. Vuelve a salir en cuanto se teclea otro código. */
+.modal-vale .validar:has(.vale-resultado) .validar-captura__medios {
+  display: none;
 }
 
 .modal-vale .vale-resultado {

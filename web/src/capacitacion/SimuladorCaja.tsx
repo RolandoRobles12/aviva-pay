@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ResultadoValidacion } from "../components/ValidarCodigoPanel";
+import { limpiarCodigoTecleado } from "../lib/codigoVale";
 import type { ValidacionVale } from "../types/vale";
 import {
   CODIGOS_PRACTICA,
@@ -138,14 +139,16 @@ export function SimuladorCaja({ onCompletado }: { onCompletado?: () => void } = 
                 className="validar-captura__input"
                 value={codigo}
                 onChange={(e) => {
-                  setCodigo(e.target.value);
+                  setCodigo(limpiarCodigoTecleado(e.target.value));
                   if (estado.tipo !== "nada") setEstado({ tipo: "nada" });
                 }}
                 inputMode="numeric"
+                pattern="[0-9 ]*"
+                maxLength={11}
                 autoComplete="off"
                 placeholder="00000 00000"
               />
-              <button type="submit" disabled={!codigo}>
+              <button type="submit" className="boton-caja" disabled={!codigo}>
                 Validar
               </button>
             </div>
