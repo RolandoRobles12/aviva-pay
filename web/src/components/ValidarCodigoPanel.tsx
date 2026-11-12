@@ -4,6 +4,7 @@ import {
   validarValeCallable,
 } from "../lib/firebase";
 import { errorMontoVenta } from "../lib/montoVenta";
+import { limpiarCodigoTecleado } from "../lib/codigoVale";
 import { CurrencyInput } from "./CurrencyInput";
 import { EscanerCamara } from "./EscanerCamara";
 import { AyudaLink } from "./AyudaLink";
@@ -93,7 +94,8 @@ export function ValidarCodigoPanel({
     autoEnviado.current = false;
     if (inicioCaptura.current === null) inicioCaptura.current = Date.now();
 
-    const valor = e.target.value;
+    // Solo números: una letra o un símbolo no llegan a escribirse.
+    const valor = limpiarCodigoTecleado(e.target.value);
     setCodigo(valor);
     if (resultado.tipo !== "nada") setResultado({ tipo: "nada" });
 
@@ -220,6 +222,8 @@ export function ValidarCodigoPanel({
             value={codigo}
             onChange={handleChange}
             inputMode="numeric"
+            pattern="[0-9 ]*"
+            maxLength={11}
             autoComplete="off"
             autoFocus
             placeholder="00000 00000"

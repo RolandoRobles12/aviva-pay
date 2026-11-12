@@ -2059,11 +2059,15 @@ h3 {
 
 .validar {
   display: grid;
+  /* minmax(0, …): sin esto la columna no baja del ancho natural del campo
+     del código y todo se desborda a lo ancho en pantallas angostas. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.25rem;
   max-width: 44rem;
 }
 
 .validar-captura {
+  min-width: 0;
   background: var(--blanco);
   border: 1.5px solid var(--gris-frio);
   border-radius: 1rem;
@@ -2090,6 +2094,21 @@ h3 {
 .validar-captura__fila button,
 .vales-fila button {
   flex: 0 0 auto;
+}
+
+/* Si no caben lado a lado (celular), el botón baja y ocupa todo el ancho.
+   El 999 hace que, cuando sí caben, el espacio sobrante sea del campo. */
+.validar-captura__fila {
+  flex-wrap: wrap;
+}
+
+.validar-captura__fila .validar-captura__input {
+  flex: 999 1 13rem;
+  width: 0;
+}
+
+.validar-captura__fila .boton-caja {
+  flex: 1 0 auto;
 }
 
 /* Los botones de la caja ("Validar", "Confirmar disposición"). Grandes y
@@ -2225,6 +2244,9 @@ h3 {
   padding-top: 1.25rem;
   border-top: 1px solid var(--gris-frio);
   display: grid;
+  /* Igual que en .validar: sin minmax(0, …) el campo del monto no se
+     encoge y en celular empuja todo fuera de la tarjeta. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.5rem;
 }
 
@@ -2328,13 +2350,124 @@ h3 {
    El mismo panel de la pestaña "Validar código", montado en la ventana que
    se abre desde la columna de crédito liberado. */
 
+/* La ventana de la caja necesita un poco más de ancho que las de subir
+   archivo: el código va en letra grande y espaciada junto a su botón. */
+.modal-panel--vale {
+  max-width: 32rem;
+  /* Una sola tarjeta, sin barra de desplazamiento adentro: si en una
+     pantalla baja no cabe, se recorre la página completa (el fondo
+     oscuro), no un recuadro dentro de la ventana. */
+  max-height: none;
+  overflow: visible;
+  margin-block: auto;
+}
+
+/* Para eso el fondo oscuro tiene que poder recorrerse, y la ventana
+   arrancar arriba en vez de centrarse (centrada, lo que no cabe se
+   cortaría por arriba sin forma de llegar a ello). margin-block: auto la
+   sigue centrando cuando sí cabe. */
+.modal-overlay:has(.modal-panel--vale) {
+  align-items: flex-start;
+  overflow-y: auto;
+}
+
+/* Su propia tarjeta blanca. Sin ella el título quedaba flotando sobre la
+   tabla oscurecida, encima de las filas de atrás. */
+.modal-vale {
+  background: var(--blanco);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 10px 30px rgba(2, 97, 73, 0.2);
+}
+
 .modal-titulo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
   margin-bottom: 1rem;
 }
 
 .modal-titulo h2 {
   margin: 0;
   font-size: 1.25rem;
+}
+
+.modal-cerrar {
+  flex: 0 0 auto;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin: -0.35rem -0.5rem 0 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-body);
+  font-size: 1.5rem;
+  line-height: 1;
+  color: color-mix(in srgb, var(--negro-off) 60%, transparent);
+  background: none;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.modal-cerrar:hover {
+  background: var(--blanco-off);
+  color: var(--negro-off);
+}
+
+.modal-cerrar:focus-visible {
+  outline: 2px solid var(--verde-accion);
+  outline-offset: 2px;
+}
+
+/* Dentro de la tarjeta, la captura no lleva su propio recuadro: sería una
+   tarjeta dentro de otra. */
+.modal-vale .validar-captura {
+  padding: 0;
+  border: none;
+  border-radius: 0;
+}
+
+/* Más compacto que en la pestaña: tiene que caber en la ventana sin
+   recorrer nada en una laptop o tablet. */
+.modal-vale .validar {
+  gap: 1rem;
+}
+
+.modal-vale .vale-resultado__monto {
+  font-size: 2.25rem;
+}
+
+.modal-vale .vale-resultado__etiqueta {
+  margin-top: 0.5rem;
+}
+
+.modal-vale .vale-resultado__datos {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  gap: 0.25rem;
+}
+
+.modal-vale .vale-resultado__confirmar {
+  margin-top: 1rem;
+  padding-top: 1rem;
+}
+
+/* Con el vale ya leído, la ayuda para escanear (cámara, pistola,
+   simulador) ya no hace falta y solo empuja hacia abajo el botón de
+   confirmar. Vuelve a salir en cuanto se teclea otro código. */
+.modal-vale .validar:has(.vale-resultado) .validar-captura__medios {
+  display: none;
+}
+
+.modal-vale .vale-resultado {
+  box-shadow: none;
+  /* Sin tocar el borde de arriba: su color es el que dice verde/ámbar/rojo. */
+  border-right: 1.5px solid var(--gris-frio);
+  border-bottom: 1.5px solid var(--gris-frio);
+  border-left: 1.5px solid var(--gris-frio);
+  padding: 1.25rem;
 }
 
 .modal-titulo p {
