@@ -211,7 +211,11 @@ export function ValidarCodigoPanel({
             autoFocus
             placeholder="00000 00000"
           />
-          <button type="submit" disabled={resultado.tipo === "validando" || !codigo}>
+          <button
+            type="submit"
+            className="boton-caja"
+            disabled={resultado.tipo === "validando" || !codigo}
+          >
             {resultado.tipo === "validando" ? "Validando..." : "Validar"}
           </button>
         </div>
@@ -351,7 +355,11 @@ export function ResultadoValidacion({
             Monto de la venta (puede ser menor al autorizado)
           </label>
           <CurrencyInput id="monto-dispuesto" value={monto} onChange={setMonto} required />
-          <button type="submit" disabled={confirmando || !monto}>
+          <button
+            type="submit"
+            className="boton-caja boton-caja--ancho"
+            disabled={confirmando || !monto}
+          >
             {confirmando ? "Confirmando..." : "Confirmar disposición"}
           </button>
           <p className="form-note">

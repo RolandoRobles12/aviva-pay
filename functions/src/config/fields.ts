@@ -64,9 +64,15 @@ export const HUBSPOT_DEAL_PROPERTIES = {
   // El código que el cliente presenta en la caja y su liga, escritos de
   // vuelta al deal para que (a) el equipo de Aviva los vea sin salir del
   // CRM y (b) el workflow de HubSpot mande la liga por WhatsApp. La
-  // disposición confirmada por la tienda regresa por los otros tres.
+  // disposición confirmada por la tienda regresa por el estatus.
   //
-  // Son solo tres, y es a propósito. El monto dispuesto y la fecha de
+  // La liga va dos veces: completa (`valeUrl`) y solo su id (`valeId`, el
+  // token que va después de `/vale/`). El WhatsApp sale de un template con
+  // botón, y el botón de URL de WhatsApp solo admite una parte variable al
+  // final de una URL base fija: el template lleva `…/vale/{{1}}` y el
+  // workflow llena `{{1}}` con `id_codigo_paydesk`.
+  //
+  // Son solo esas cuatro, y es a propósito. El monto dispuesto y la fecha de
   // disposición NO se escriben desde Paydesk:
   //
   // - La **fecha** ya la estampa HubSpot solo, al entrar el deal a la
@@ -85,6 +91,7 @@ export const HUBSPOT_DEAL_PROPERTIES = {
   // cosa.
   valeCodigo: "codigo_paydesk",
   valeUrl: "link_codigo_paydesk",
+  valeId: "id_codigo_paydesk",
   valeEstado: "codigo_paydesk_estatus",
 
   // Ya no hay propiedad para avisarle a una tienda nueva su liga de

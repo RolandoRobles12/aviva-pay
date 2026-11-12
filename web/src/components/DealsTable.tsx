@@ -61,6 +61,39 @@ function ProgressMeter({ deal }: { deal: PayDeskDeal }) {
   );
 }
 
+/**
+ * Íconos de las acciones de fila. Van en línea (no como caracteres) para
+ * que midan y se alineen igual en cualquier fuente y escalen con el texto.
+ */
+function IconoEscanear() {
+  return (
+    <svg className="accion-fila__icono" viewBox="0 0 16 16" aria-hidden focusable="false">
+      <path
+        d="M1.5 5V2.5a1 1 0 0 1 1-1H5M11 1.5h2.5a1 1 0 0 1 1 1V5M14.5 11v2.5a1 1 0 0 1-1 1H11M5 14.5H2.5a1 1 0 0 1-1-1V11M4.5 5v6M7 5v6M9.5 5v6M11.5 5v6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function IconoSubir() {
+  return (
+    <svg className="accion-fila__icono" viewBox="0 0 16 16" aria-hidden focusable="false">
+      <path
+        d="M8 10.5V2M4.5 5.5 8 2l3.5 3.5M2 10.5v2a1.5 1.5 0 0 0 1.5 1.5h9a1.5 1.5 0 0 0 1.5-1.5v-2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 /** Milestone date columns: a dated "listo" pill once HubSpot reports it, muted "Pendiente" until then. */
 /**
  * Crédito liberado es el momento en que nace el vale del cliente, así que
@@ -84,7 +117,8 @@ function CreditoLiberadoCell({
         {formatDate(iso)}
       </span>
       {onValidar && (
-        <button type="button" className="link-button link-button--muted" onClick={onValidar}>
+        <button type="button" className="accion-fila accion-fila--principal" onClick={onValidar}>
+          <IconoEscanear />
           Validar código
         </button>
       )}
@@ -151,7 +185,8 @@ function UploadCell({
           En revisión
         </span>
         {onUpload && (
-          <button type="button" className="link-button link-button--muted" onClick={onUpload}>
+          <button type="button" className="accion-fila" onClick={onUpload}>
+            <IconoSubir />
             Reemplazar
           </button>
         )}
@@ -190,11 +225,8 @@ function UploadCell({
         )}
         {rechazo}
         {onUpload && (
-          <button
-            type="button"
-            className="link-button link-button--muted"
-            onClick={onUpload}
-          >
+          <button type="button" className="accion-fila" onClick={onUpload}>
+            <IconoSubir />
             Corregir documento
           </button>
         )}

@@ -148,16 +148,17 @@ La **vigencia** (72 horas por defecto) se edita desde `/admin/vales`, mismo patr
 
 ### Cómo le llega al cliente
 
-`syncDealWebhook` escribe el código y la URL del vale de vuelta en el deal (`codigo_paydesk`, `link_codigo_paydesk`), y un workflow de HubSpot manda esa liga **por WhatsApp**. Paydesk no manda el mensaje: HubSpot ya tiene ese canal.
+`syncDealWebhook` escribe el código y la URL del vale de vuelta en el deal (`codigo_paydesk`, `link_codigo_paydesk`, `id_codigo_paydesk`), y un workflow de HubSpot manda esa liga **por WhatsApp**. El mensaje es un template con botón, y el botón de URL de WhatsApp solo acepta una URL base fija con una parte variable al final: el template lleva `https://<paydesk>/vale/{{1}}` y el workflow llena `{{1}}` con `id_codigo_paydesk`. Paydesk no manda el mensaje: HubSpot ya tiene ese canal.
 
 ### Qué escribe Paydesk en HubSpot, y qué NO
 
-Son tres propiedades, y la lista corta es deliberada.
+Son cuatro propiedades, y la lista corta es deliberada.
 
 | Propiedad | Cuándo |
 |---|---|
 | `codigo_paydesk` | Al emitir. Los 10 dígitos con su espacio, para que soporte los vea sin abrir Paydesk. |
-| `link_codigo_paydesk` | Al emitir. Es la que el workflow lee para mandar el WhatsApp. |
+| `link_codigo_paydesk` | Al emitir. La liga completa, para abrirla desde el CRM. |
+| `id_codigo_paydesk` | Al emitir. Solo el id de la liga (lo que va después de `/vale/`), texto. Es lo que el botón del template de WhatsApp pone al final de su URL base. |
 | `codigo_paydesk_estatus` | `Emitido` al emitir, `Utilizado` al confirmar. |
 
 Los valores del desplegable viven en `VALE_ESTADO_HUBSPOT` y tienen que coincidir **exactamente** con los valores internos de las opciones en HubSpot. La opción `Error` existe en el desplegable pero Paydesk nunca la escribe: está reservada para marcar a mano un caso atorado.
@@ -361,8 +362,8 @@ Un admin puede reemplazar el archivo de una tienda desde `/admin/tiendas/:conces
 
 ## Pendientes conocidos
 
-- Diccionario de campos real — se puede capturar desde `/admin/diccionario` o en `config/fields.ts`. Incluye el nombre interno de la propiedad "Kiosco". Las tres del vale ya están mapeadas.
-- Crear el workflow de HubSpot que manda la liga del vale por WhatsApp cuando `link_codigo_paydesk` se llena, y confirmar a qué teléfono del cliente le llega.
+- Diccionario de campos real — se puede capturar desde `/admin/diccionario` o en `config/fields.ts`. Incluye el nombre interno de la propiedad "Kiosco". Las cuatro del vale ya están mapeadas (`id_codigo_paydesk` hay que crearla en HubSpot como texto de una línea).
+- Crear el workflow de HubSpot que manda la liga del vale por WhatsApp cuando `id_codigo_paydesk` se llena (botón con URL `…/vale/{{1}}`), y confirmar a qué teléfono del cliente le llega.
 - Crear el workflow que mueve el deal a la etapa de disposición cuando `codigo_paydesk_estatus` pasa a `Utilizado`. Paydesk ya no lo necesita para su columna (ver "Fecha de disposición"), pero sin él la etapa en HubSpot queda atrás de la realidad.
 - Después de desplegar la fecha de disposición de Paydesk: en `/admin/etapas` → "Fecha de disposición del crédito", elegir el origen y "Guardar y recalcular" una vez, para que los deals existentes dejen de mostrar la fecha de la etapa de HubSpot.
 - Catálogo de nombres reales de tienda: se puede capturar tienda por tienda en `/admin/tiendas`. Si Aviva tiene el catálogo de códigos (`TEQ`, `TEO`, `FER`…) → nombres, vale la pena un import masivo en vez de 481 ediciones a mano.

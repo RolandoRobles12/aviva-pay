@@ -416,6 +416,65 @@ h3 {
   font-size: 0.78rem;
 }
 
+/* Acciones secundarias de una fila ya completada ("Validar código",
+   "Corregir documento", "Reemplazar"). Antes eran ligas grises subrayadas
+   que se perdían junto a la píldora verde; ahora son botones chicos con
+   borde e ícono, que se leen como algo que se puede tocar sin competir con
+   el botón verde lleno de "Subir", que es la acción pendiente de verdad.
+   La altura mínima de 2rem deja un blanco cómodo para el dedo en tablet. */
+.accion-fila {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2rem;
+  padding: 0.25rem 0.7rem;
+  margin-top: 0.15rem;
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--negro-off) 75%, transparent);
+  background: var(--blanco);
+  border: 1.5px solid color-mix(in srgb, var(--negro-off) 18%, transparent);
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.accion-fila:hover {
+  color: var(--negro-off);
+  border-color: color-mix(in srgb, var(--negro-off) 35%, transparent);
+  background: var(--blanco-off);
+}
+
+.accion-fila:focus-visible {
+  outline: 2px solid var(--verde-accion);
+  outline-offset: 2px;
+}
+
+/* "Validar código" es lo que el cajero viene a hacer en esa fila: va en
+   verde para que se encuentre sin buscarlo. */
+.accion-fila--principal {
+  color: var(--verde-musgo);
+  border-color: var(--verde-accion);
+}
+
+.accion-fila--principal:hover {
+  color: var(--blanco);
+  background: var(--verde-accion);
+  border-color: var(--verde-accion);
+}
+
+.accion-fila__icono {
+  width: 0.95rem;
+  height: 0.95rem;
+  flex: 0 0 auto;
+}
+
 .upload-button {
   font-family: var(--font-body);
   background: var(--verde-accion);
@@ -2031,6 +2090,67 @@ h3 {
 .validar-captura__fila button,
 .vales-fila button {
   flex: 0 0 auto;
+}
+
+/* Los botones de la caja ("Validar", "Confirmar disposición"). Grandes y
+   llenos a propósito: se usan de pie, con prisa y a veces en tablet, y son
+   el único paso que sigue en cada pantalla. "Validar" toma la misma altura
+   y el mismo radio que el campo del código para leerse como una sola
+   pieza con él. */
+.boton-caja {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 3.25rem;
+  padding: 0.75rem 1.75rem;
+  font-family: var(--font-body);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--blanco);
+  background: var(--verde-accion);
+  border: none;
+  border-radius: 0.75rem;
+  box-shadow: 0 2px 0 var(--verde-pino);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    transform 0.05s ease,
+    box-shadow 0.05s ease;
+}
+
+.boton-caja:hover:not(:disabled) {
+  background: var(--verde-musgo);
+}
+
+.boton-caja:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 0 0 var(--verde-pino);
+}
+
+.boton-caja:focus-visible {
+  outline: 3px solid var(--verde-esmeralda);
+  outline-offset: 2px;
+}
+
+/* Deshabilitado se ve apagado pero sigue leyéndose: el cajero tiene que
+   entender que falta algo (el código, el monto), no que el botón no existe. */
+.boton-caja:disabled {
+  background: color-mix(in srgb, var(--verde-accion) 35%, var(--blanco));
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.boton-caja--ancho {
+  width: 100%;
+  margin-top: 0.5rem;
+  font-size: 1.15rem;
+}
+
+@media (max-width: 30rem) {
+  .boton-caja {
+    padding-inline: 1.1rem;
+  }
 }
 
 /* El campo del código: monoespaciado y espaciado, para que un dígito mal
