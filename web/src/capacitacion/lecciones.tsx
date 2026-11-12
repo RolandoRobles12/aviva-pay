@@ -390,8 +390,7 @@ function ValidarCodigo() {
             No gasta el vale. Puedes validarlo las veces que quieras.
           </Paso>
           <Paso titulo="Confirmar disposición: la venta se cierra">
-            Capturas el <strong>monto de la venta</strong> (puede ser menor al
-            autorizado, nunca mayor) y confirmas. El vale ya no vuelve a servir
+            Capturas el <strong>monto total de la venta</strong> y confirmas. El vale ya no vuelve a servir
             {origenDisposicion === "paydesk"
               ? ` y “${et("disposicionCreditoFecha")}” se marca con la fecha`
               : ""}

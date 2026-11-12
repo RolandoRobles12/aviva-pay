@@ -22,11 +22,11 @@ interface ConfirmarRequest {
  * El paso que sí quema el vale: la tienda confirma que entregó material y
  * por cuánto.
  *
- * El monto se captura aquí, no se asume igual al autorizado, y es lo que
+ * El monto que se captura es el **total de la venta**, y es lo que
  * convierte esto en el dato que hoy no existe: cuándo se gastó el crédito
- * y cuánto de él. Puede ser menor al autorizado (el cliente compró menos);
- * mayor nunca, porque sería entregar material por encima de lo que Aviva
- * respaldó.
+ * y en qué compra. Menor al autorizado no se acepta: el crédito se usa
+ * completo. Mayor sí: el cliente puede llevarse más material del que
+ * cubre su crédito.
  *
  * El consumo va en transacción (ver consumirVale): dos cajas de la misma
  * tienda pueden confirmar el mismo vale a la vez, y solo una debe ganar.
@@ -80,11 +80,11 @@ export const confirmarDisposicion = onCall<ConfirmarRequest>(
     if (
       vale?.montoAutorizado !== null &&
       vale?.montoAutorizado !== undefined &&
-      monto > vale.montoAutorizado
+      monto < vale.montoAutorizado
     ) {
       throw new HttpsError(
         "invalid-argument",
-        "El monto de la venta no puede ser mayor al crédito autorizado.",
+        "El monto de la venta no puede ser menor al crédito autorizado.",
       );
     }
 

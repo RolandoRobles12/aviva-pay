@@ -1,4 +1,5 @@
 import type { ValidacionVale } from "../types/vale";
+import { errorMontoVenta } from "../lib/montoVenta";
 
 /**
  * Los códigos de práctica del simulador de caja. Ninguno toca el backend:
@@ -83,16 +84,8 @@ export function validarPractica(entrada: string): ValidacionVale | null {
 }
 
 /**
- * La misma regla que confirmarDisposicion en el backend: el monto tiene
- * que ser mayor que cero y no pasar del autorizado. Devuelve el mensaje de
- * error tal cual lo diría la caja real, o null si se puede confirmar.
+ * La misma regla que la caja real y que confirmarDisposicion en el
+ * backend (ver lib/montoVenta.ts): el monto de la venta no puede ser menor
+ * al crédito autorizado, y sí puede ser mayor.
  */
-export function errorMontoPractica(monto: number, autorizado: number | null): string | null {
-  if (!Number.isFinite(monto) || monto <= 0) {
-    return "Captura el monto de la venta para poder confirmar.";
-  }
-  if (autorizado !== null && monto > autorizado) {
-    return "El monto de la venta no puede ser mayor al crédito autorizado.";
-  }
-  return null;
-}
+export const errorMontoPractica = errorMontoVenta;

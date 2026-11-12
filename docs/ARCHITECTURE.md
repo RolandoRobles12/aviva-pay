@@ -66,7 +66,7 @@ El **token de la URL** (`/vale/:token`) es harina de otro costal: ese sí es lo 
 Son dos operaciones separadas, y de ahí sale la señal antifraude:
 
 - **`validarVale`** dice si el código sirve y por cuánto, sin consumirlo. La tienda puede consultarlo las veces que necesite.
-- **`confirmarDisposicion`** es el paso que lo quema, y pide el **monto realmente vendido** — que puede ser menor al autorizado, nunca mayor. Ese dato es el que hoy no existe: cuándo se gastó el crédito y cuánto.
+- **`confirmarDisposicion`** es el paso que lo quema, y pide el **monto total de la venta** — que puede ser mayor al autorizado (el cliente se lleva más material del que cubre su crédito), nunca menor. Ese dato es el que hoy no existe: cuándo se gastó el crédito y cuánto.
 
 Toda lectura queda en la bitácora (`paydesk_vales/{codigo}/lecturas`), incluidas las fallidas. Por eso la caja ve "ya se leyó 2 veces": si alguien fabricó una captura del vale y la pasea por varias tiendas, la segunda caja lo nota antes de entregar material. Un intento contra un código que no existe no tiene vale al que colgarse, así que va a `paydesk_vale_intentos`.
 
@@ -131,7 +131,7 @@ La fecha de muerte viene de HubSpot como una sexta fecha de etapa (`canceladoFec
 `/admin/reporte-vales` responde dos preguntas y muestra una bitácora:
 
 - **Cuánto crédito liberado nunca se gastó** — vales vencidos o cancelados sin usarse. Es la lista para adelantar cancelaciones en vez de esperar a que el plazo corra solo. Un vale cancelado *por reemisión* no cuenta como perdido: lo reemplazó otro, que aparece con su propio estado.
-- **Autorizado contra dispuesto**, para ver dónde se sub-ejerce el crédito. Ese número solo existe en Paydesk: el monto dispuesto no se escribe a HubSpot porque pisaría el de la cotización.
+- **Crédito contra venta**: en los vales usados, cuánto se vendió por encima del crédito autorizado. Ese número solo existe en Paydesk: el monto de la venta confirmado en caja no se escribe a HubSpot porque pisaría el de la cotización.
 - **Intentos sospechosos**: códigos que no existen y códigos de otra tienda. Los dos van a `paydesk_vale_intentos` —una colección plana— en vez de dejar el segundo escondido en la subcolección del vale ajeno, que es justo el documento que esa tienda no puede ver. Recolectar esto sin que nadie lo mire no servía de nada; esta es la pantalla que lo hace mirable.
 
 Son conteos actuales y una tabla, no series en el tiempo, así que la forma correcta son mosaicos de cifra y tabla — no hay nada que graficar. Reutiliza el `StatTiles` del portal para que las cifras se lean igual en los dos lados.

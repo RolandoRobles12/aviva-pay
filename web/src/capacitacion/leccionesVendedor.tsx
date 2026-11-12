@@ -319,7 +319,7 @@ export const PREGUNTAS_VENDEDOR: PreguntaFrecuente[] = [
   {
     pregunta: "El cliente quiere llevar más material de lo que le aprobaron",
     respuesta:
-      "En caja no se puede confirmar una venta mayor al monto aprobado. Antes de cerrar, consulten con su ejecutivo de Aviva cómo manejar la diferencia.",
+      "Sí se puede. En caja se captura el total de la venta, aunque pase del monto aprobado.",
     leccion: "asesor-inicio",
   },
   {

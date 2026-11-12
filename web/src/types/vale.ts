@@ -57,8 +57,8 @@ export interface ValeReporte {
   montos: {
     autorizadoDeUtilizados: number;
     dispuesto: number;
-    /** Autorizado menos dispuesto en los vales usados: crédito aprobado que no se ejerció. */
-    subejercido: number;
+    /** Venta menos autorizado en los vales usados: lo que se vendió por encima del crédito. */
+    excedente: number;
     /** Vales que vencieron o se cancelaron sin usarse — crédito liberado que nadie gastó. */
     nuncaGastado: number;
   };

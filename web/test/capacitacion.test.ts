@@ -135,9 +135,10 @@ describe("simulador de caja", () => {
   });
   it("aplica la misma regla de monto que el backend", () => {
     expect(errorMontoPractica(0, 25_000)).toMatch(/Captura el monto/);
-    expect(errorMontoPractica(25_000.01, 25_000)).toMatch(/no puede ser mayor/);
-    expect(errorMontoPractica(19_300, 25_000)).toBeNull();
+    expect(errorMontoPractica(19_300, 25_000)).toMatch(/no puede ser menor/);
+    expect(errorMontoPractica(24_999.99, 25_000)).toMatch(/no puede ser menor/);
     expect(errorMontoPractica(25_000, 25_000)).toBeNull();
+    expect(errorMontoPractica(31_500, 25_000)).toBeNull();
   });
 });
 

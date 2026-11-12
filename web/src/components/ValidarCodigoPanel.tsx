@@ -3,6 +3,7 @@ import {
   confirmarDisposicionCallable,
   validarValeCallable,
 } from "../lib/firebase";
+import { errorMontoVenta } from "../lib/montoVenta";
 import { CurrencyInput } from "./CurrencyInput";
 import { EscanerCamara } from "./EscanerCamara";
 import { AyudaLink } from "./AyudaLink";
@@ -80,6 +81,8 @@ export function ValidarCodigoPanel({
   const [resultado, setResultado] = useState<Resultado>({ tipo: "nada" });
   const [monto, setMonto] = useState("");
   const [confirmando, setConfirmando] = useState(false);
+  /** Error del monto, junto al campo: no tumba la pantalla del vale ya validado. */
+  const [errorMonto, setErrorMonto] = useState<string | null>(null);
   const [camaraAbierta, setCamaraAbierta] = useState(false);
   const inicioCaptura = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -109,6 +112,7 @@ export function ValidarCodigoPanel({
   const validar = useCallback(
     async (aValidar: string, medio: "escaneo" | "manual") => {
       inicioCaptura.current = null;
+      setErrorMonto(null);
       setResultado({ tipo: "validando" });
       try {
         const { data } = await validarValeCallable({ codigo: aValidar, medio });
@@ -154,6 +158,14 @@ export function ValidarCodigoPanel({
 
   async function handleConfirmar(e: React.FormEvent) {
     e.preventDefault();
+    if (resultado.tipo === "validado" && resultado.validacion.estado === "ok") {
+      const err = errorMontoVenta(Number(monto), resultado.validacion.montoAutorizado);
+      if (err) {
+        setErrorMonto(err);
+        return;
+      }
+    }
+    setErrorMonto(null);
     setConfirmando(true);
     try {
       const { data } = await confirmarDisposicionCallable({
@@ -189,6 +201,7 @@ export function ValidarCodigoPanel({
   function nuevaBusqueda() {
     setCodigo("");
     setMonto("");
+    setErrorMonto(null);
     setResultado({ tipo: "nada" });
     inicioCaptura.current = null;
     autoEnviado.current = false;
@@ -268,7 +281,11 @@ export function ValidarCodigoPanel({
           dealIdEsperado={dealIdEsperado}
           clienteEsperado={clienteEsperado}
           monto={monto}
-          setMonto={setMonto}
+          setMonto={(v) => {
+            setMonto(v);
+            setErrorMonto(null);
+          }}
+          errorMonto={errorMonto}
           confirmando={confirmando}
           onConfirmar={handleConfirmar}
         />
@@ -288,6 +305,7 @@ export function ResultadoValidacion({
   clienteEsperado,
   monto,
   setMonto,
+  errorMonto,
   confirmando,
   onConfirmar,
 }: {
@@ -296,6 +314,8 @@ export function ResultadoValidacion({
   clienteEsperado?: string | null;
   monto: string;
   setMonto: (v: string) => void;
+  /** Por qué no se puede confirmar ese monto, mostrado junto al campo. */
+  errorMonto?: string | null;
   confirmando: boolean;
   onConfirmar: (e: React.FormEvent) => void;
 }) {
@@ -352,9 +372,14 @@ export function ResultadoValidacion({
 
         <form className="vale-resultado__confirmar" onSubmit={onConfirmar}>
           <label htmlFor="monto-dispuesto">
-            Monto de la venta (puede ser menor al autorizado)
+            Monto de la venta
           </label>
           <CurrencyInput id="monto-dispuesto" value={monto} onChange={setMonto} required />
+          {errorMonto && (
+            <p className="form-error" role="alert">
+              {errorMonto}
+            </p>
+          )}
           <button
             type="submit"
             className="boton-caja boton-caja--ancho"

@@ -60,7 +60,7 @@ export const PREGUNTAS_FRECUENTES: PreguntaFrecuente[] = [
   {
     pregunta: "El cliente quiere llevar más material de lo que cubre su crédito",
     respuesta:
-      "Paydesk no deja confirmar un monto mayor al crédito autorizado. Antes de confirmar, consulta con tu ejecutivo de Aviva cómo manejar la diferencia.",
+      "Sí se puede. Al confirmar, captura el total de la venta, aunque pase del crédito autorizado.",
     leccion: "validar-codigo",
   },
   {
