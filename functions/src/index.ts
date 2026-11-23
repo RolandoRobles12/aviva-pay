@@ -13,6 +13,9 @@ export { validarVale } from "./http/validarVale";
 export { confirmarDisposicion } from "./http/confirmarDisposicion";
 export { guardarCapacitacion } from "./http/capacitacion";
 
+// --- Uso del portal (tienda y asesor): eventos y grabaciones de sesión ---
+export { registrarInteracciones, subirGrabacion } from "./http/uso";
+
 // --- Vendedor externo (solo consulta; acceso con el claim vendedorIds) ---
 export { getVendedorClientes } from "./http/getVendedorClientes";
 
@@ -36,6 +39,16 @@ export { adminEstadoSistema } from "./http/admin/estado";
 export { adminListBitacora } from "./http/admin/bitacora";
 export { adminMetricas } from "./http/admin/metricas";
 export { getArchivoUrl } from "./http/getArchivoUrl";
+export {
+  adminUsoResumen,
+  adminUsoMapa,
+  adminListGrabaciones,
+  adminGetGrabacion,
+  adminGetFragmentos,
+  adminBorrarGrabacion,
+  adminGetUsoConfig,
+  adminSetUsoConfig,
+} from "./http/admin/uso";
 export {
   adminGetNotificaciones,
   adminSetNotificaciones,
@@ -73,3 +86,4 @@ export {
 export { sincronizacionPeriodica } from "./programadas/sincronizacionPeriodica";
 export { recordatorioRevisiones } from "./programadas/recordatorioRevisiones";
 export { revisionDiaria } from "./programadas/revisionDiaria";
+export { limpiarAnalitica } from "./programadas/limpiarAnalitica";

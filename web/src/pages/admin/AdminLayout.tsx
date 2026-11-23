@@ -24,6 +24,7 @@ const DIA_A_DIA: ItemMenu[] = [
   { to: "/admin/tiendas", label: "Tiendas" },
   { to: "/admin/vales", label: "Vales", incluye: ["/admin/reporte-vales"] },
   { to: "/admin/metricas", label: "Métricas" },
+  { to: "/admin/uso", label: "Uso del portal" },
 ];
 
 const CONFIGURACION: ItemMenu[] = [

@@ -349,7 +349,43 @@ Un admin puede reemplazar el archivo de una tienda desde `/admin/tiendas/:conces
 - **`revisionDiaria`** (9:00): avisa si el diccionario tiene campos sin propiedad de HubSpot.
 - **`/admin/estado`**: todo lo anterior de un vistazo — campos sin mapear, última sincronización, bandeja de revisión, notificaciones y verificación.
 - **`/admin/bitacora`**: cada cambio a `paydesk_config` con quién, cuándo, el valor anterior y el nuevo (`firestore/bitacoraConfig.ts`).
+- **`limpiarAnalitica`** (3:30): borra eventos de uso y grabaciones vencidos (ver "Uso del portal").
 - **`/admin/metricas`**: por tienda, solicitudes, desembolsos, días a desembolso, tasa de documentos en revisión y rechazados, y tiempo de atención de Aviva, con las tiendas fuera de lo normal primero. Sale de `paydesk_eventos_documento`, que registra qué pasó con cada subida.
+
+## Uso del portal: medición y grabación de sesiones
+
+Para saber cómo usan Paydesk las tiendas y los asesores y arreglar lo que se les complica sin tener que preguntarles: dónde se atoran al subir un documento o al validar un código en caja, qué pantallas usan y cuánto, qué tocan esperando que pase algo, qué errores ven en sus equipos y cuánto tiempo pasan sin señal. Es como Microsoft Clarity, pero dentro de Paydesk: los datos se quedan en su Firestore y la medición conoce sus flujos. Se ve en `/admin/uso` ("Uso del portal", cualquier admin).
+
+Solo se mide el portal con sesión de tienda o de asesor (`/solicitudes/*` y `/consulta/*`, vía `useMedicionUso` en sus layouts). El panel, el login, `/ayuda` y la página del vale del cliente no se miden. Lo que pasa en los simuladores de "Aprende" tampoco cuenta como intento real.
+
+**1. Medición ligera, siempre activa** (`web/src/lib/analitica.ts`):
+
+- Pantallas y tiempo en cada una. Cuenta solo con la pestaña a la vista y hasta 2 min después del último toque o tecla — la tablet de caja que se queda todo el día en "Validar código" no suma horas —, y un rato continuo se parte cada 10 min. Las ventanas cuentan como pantalla propia ("Mis clientes › Subir cotización").
+- Cada toque (posición en la página y qué se tocó), los de frustración (3 o más en 1 s a menos de 40 px) y los que caen en algo que no es botón.
+- Errores de la página y los que la persona ve al subir o validar; cortes de señal y su duración.
+- Los pasos de tres trabajos, para los embudos: **subir cotización** y **subir comprobante** (abrir → elegir archivo → enviar → guardado / en revisión / rechazado por la verificación / error, con el motivo: sin señal, sesión vencida, foto que no se pudo preparar, límite, servidor) y **validar el código en caja** (captura con pistola, cámara o tecleado → resultado de la validación → venta confirmada, o monto no aceptado). También la cámara: si la abrieron, si leyó, si no hubo permiso.
+- Sin datos personales en las etiquetas: de un campo solo se guarda cuál es ("Campo · Monto total de la compra"), nunca lo escrito; lo marcado `data-privado` (nombre del cliente en la ventana del vale, el archivo elegido) nunca es etiqueta; los toques fuera de un botón se nombran por zona ("Sin botón · Tabla de clientes"), y a todo texto se le quitan números y correos (en el navegador y otra vez en el servidor).
+- Sin señal: los eventos esperan en `localStorage` y salen en lotes cada minuto (y al ocultar la pestaña) por `registrarInteracciones`. Cada evento guardado lleva el uid de quien lo generó: en una caja compartida no se mandan a nombre de quien entre después. Al tocar "Salir" se manda lo pendiente antes de cerrar la sesión.
+
+**2. Grabación de sesiones, solo algunas** (`web/src/lib/grabacion.ts`, con rrweb):
+
+- No es video: rrweb guarda la estructura de la pantalla y cada cambio, y el panel la reconstruye.
+- Qué se graba: un porcentaje al azar (10 % por defecto) y todas las sesiones de una persona elegida por 1, 3 o 7 días. Lo decide el servidor (`uso/grabacion.ts`) con un hash del id de sesión, así que la misma sesión siempre recibe la misma respuesta y `subirGrabacion` rechaza pedazos de sesiones a las que no les tocaba.
+- Privacidad: lo escrito sale como `****`; nombres de clientes, motivos de rechazo, montos y datos del vale (`.cell-cliente`, `dd`, `[data-privado]`…) salen tapados por completo, y en el resto de los textos se tapan los números; la cámara del escáner y los `<canvas>` no se graban.
+- Cómo se guarda: pedazos de ~1 minuto, comprimidos con gzip en el navegador. Cada pedazo empieza con la pantalla completa, así que si se pierde uno el resto se sigue viendo. Se suben solo con internet y nunca en modo de ahorro de datos; mientras tanto esperan en el equipo (hasta ~3 MB).
+- Peso: la librería (~90 KB comprimida) se descarga solo en las sesiones que se graban.
+
+**3. Servidor** (`functions/src/http/uso.ts`, `http/admin/uso.ts`, `firestore/usoRepository.ts`, `uso/calcular.ts`):
+
+- `registrarInteracciones` recibe los lotes (la identidad sale del token) y responde si la sesión se graba; `subirGrabacion` recibe los pedazos. Ambas con límite por persona y App Check.
+- `adminUsoResumen` arma los indicadores; `adminUsoMapa` los puntos del mapa de toques y la grabación que sirve de fondo; `adminListGrabaciones`, `adminGetGrabacion` (con los momentos clave), `adminGetFragmentos` y `adminBorrarGrabacion` (super admin) para las grabaciones; `adminGetUsoConfig` / `adminSetUsoConfig` (super admin, con bitácora) para el % y a quién grabar.
+- Todo en Firestore: `paydesk_interacciones` (un documento por lote, no por evento), `paydesk_grabaciones/{sesión}` con sus pedazos en la subcolección `fragmentos`, y la configuración en `paydesk_config/uso`. Las grabaciones van en Firestore y no en Storage porque un pedazo comprimido cabe de sobra en un documento y así se leen y borran con los mismos permisos que lo demás. `firestore.indexes.json` excluye de índices los arreglos de eventos y los bytes de los pedazos.
+- Limpieza diaria (`limpiarAnalitica`, 3:30): borra lo que pasa del plazo, 365 días para ambos por defecto (configurable en "Grabaciones").
+
+**4. Panel `/admin/uso`:**
+
+- Resumen: tiempo, sesiones, personas, frustración, toques sin botón, errores y cortes de señal; embudos de cotización, comprobante y código en caja, con por qué no se guardó un documento o no terminó en venta un código, y con qué capturan el código; uso por día y por hora; tiempo por pantalla; mapa de toques sobre la pantalla real, tomada de una grabación; frustración y toques sin botón por elemento; tabla por persona y lista de errores. Filtros por periodo, tienda y perfil.
+- Grabaciones (`/admin/uso/grabaciones`): lista de sesiones, qué se graba, y el reproductor con los momentos clave (frustración, errores, documentos guardados o rechazados, ventas con código) para saltar a ellos.
 
 ## Seguridad: límites de solicitudes y App Check
 
@@ -358,7 +394,7 @@ Un admin puede reemplazar el archivo de una tienda desde `/admin/tiendas/:conces
 
 ## Pruebas y CI
 
-`npm test` corre las pruebas de `functions/test` y `web/test` (Vitest): reglas de verificación, roles, límites, migración de ligas, avisos, recordatorios, métricas, etapas configurables y preparación de fotos. `npm run typecheck` revisa tipos de ambos. `.github/workflows/ci.yml` corre tipos, pruebas y build en cada PR y en cada push a `main`.
+`npm test` corre las pruebas de `functions/test` y `web/test` (Vitest): reglas de verificación, roles, límites, migración de ligas, avisos, recordatorios, métricas, etapas configurables, preparación de fotos y la medición de uso (eventos, qué se graba, embudos y toques de frustración). `npm run typecheck` revisa tipos de ambos. `.github/workflows/ci.yml` corre tipos, pruebas y build en cada PR y en cada push a `main`.
 
 ## Pendientes conocidos
 

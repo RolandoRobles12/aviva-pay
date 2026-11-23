@@ -1,4 +1,15 @@
 {
   "indexes": [],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "collectionGroup": "paydesk_interacciones",
+      "fieldPath": "eventos",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "fragmentos",
+      "fieldPath": "datos",
+      "indexes": []
+    }
+  ]
 }

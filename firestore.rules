@@ -110,5 +110,21 @@ service cloud.firestore {
     match /paydesk_capacitacion/{uid} {
       allow read, write: if false;
     }
+
+    // Uso del portal: lotes de eventos (pantallas, toques, errores, pasos)
+    // y grabaciones de sesión con sus pedazos. Entran por
+    // registrarInteracciones / subirGrabacion, que toman la identidad del
+    // token, y solo Aviva los lee, por las funciones del panel. Ver
+    // functions/src/firestore/usoRepository.ts.
+    match /paydesk_interacciones/{id} {
+      allow read, write: if false;
+    }
+    match /paydesk_grabaciones/{sesionId} {
+      allow read, write: if false;
+
+      match /fragmentos/{n} {
+        allow read, write: if false;
+      }
+    }
   }
 }

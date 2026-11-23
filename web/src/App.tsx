@@ -40,6 +40,9 @@ import { ConcesionarioPreviewPage } from "./pages/admin/ConcesionarioPreviewPage
 import { EtiquetasPage } from "./pages/admin/EtiquetasPage";
 import { ValesPage } from "./pages/admin/ValesPage";
 import { ReporteValesPage } from "./pages/admin/ReporteValesPage";
+import { UsoPage } from "./pages/admin/UsoPage";
+import { UsoGrabacionesPage } from "./pages/admin/UsoGrabacionesPage";
+import { UsoGrabacionPage } from "./pages/admin/UsoGrabacionPage";
 
 function soloSuper(pagina: React.ReactNode) {
   return <SoloSuperAdmin>{pagina}</SoloSuperAdmin>;
@@ -135,6 +138,9 @@ export function App() {
         <Route path="vales" element={<ValesPage />} />
         <Route path="reporte-vales" element={<ReporteValesPage />} />
         <Route path="metricas" element={<MetricasPage />} />
+        <Route path="uso" element={<UsoPage />} />
+        <Route path="uso/grabaciones" element={<UsoGrabacionesPage />} />
+        <Route path="uso/grabaciones/:sesionId" element={<UsoGrabacionPage />} />
 
         {/* Configuración: solo super admins */}
         <Route path="ocr" element={soloSuper(<OcrPage />)} />

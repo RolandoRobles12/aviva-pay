@@ -14,6 +14,8 @@ import {
 import type { PayDeskConcesionario, PayDeskDeal } from "../types/deal";
 import type { FieldLabels } from "../types/admin";
 import { setEtapas, type RolloutMap } from "../lib/dealScope";
+import { detenerMedicion } from "../lib/analitica";
+import { useMedicionUso } from "../lib/useMedicionUso";
 import { BrandMark } from "../components/BrandMark";
 import { SelectorTiendas } from "../components/SelectorTiendas";
 import { BienvenidaCapacitacion } from "../capacitacion/BienvenidaCapacitacion";
@@ -83,6 +85,7 @@ export function ConcesionarioLayout() {
   // Aparte de `state` porque el listener de deals reescribe `state` en cada
   // cambio y no debe pisar una lección recién pasada.
   const [capacitacion, setCapacitacion] = useState<CapacitacionTienda | null>(null);
+  useMedicionUso();
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -188,6 +191,8 @@ export function ConcesionarioLayout() {
   }, []);
 
   async function handleLogout() {
+    // Antes de salir, mientras el token todavía sirve, se manda lo medido.
+    await detenerMedicion();
     await logout();
     navigate("/", { replace: true });
   }

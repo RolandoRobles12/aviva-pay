@@ -689,3 +689,187 @@ export const adminMetricasCallable = httpsCallable<
     global: Omit<MetricasTienda, "concesionarioId" | "nombre" | "alertas">;
   }
 >(functions, "adminMetricas");
+
+// --- Uso del portal (ver lib/analitica.ts, lib/grabacion.ts y functions/src/http/uso.ts) ---
+
+export const registrarInteraccionesCallable = httpsCallable<
+  { sesionId: string; dispositivo: string; ahora: number; eventos: unknown[] },
+  { grabar: boolean }
+>(functions, "registrarInteracciones");
+
+export const subirGrabacionCallable = httpsCallable<
+  {
+    sesionId: string;
+    n: number;
+    inicio: number;
+    fin: number;
+    ahora: number;
+    dispositivo: string;
+    ancho: number;
+    alto: number;
+    pantallas: string[];
+    datos: string;
+  },
+  { ok: boolean; grabar: boolean }
+>(functions, "subirGrabacion");
+
+export type PerfilUso = "tienda" | "asesor";
+export type DispositivoUso = "celular" | "tablet" | "escritorio";
+
+export interface FiltroUso {
+  dias: number;
+  tienda?: string;
+  perfil?: PerfilUso;
+}
+
+export interface MotivoUso {
+  motivo: string;
+  veces: number;
+}
+
+export interface PasoEmbudoUso {
+  paso: string;
+  intentos: number;
+}
+
+export interface ResumenUso {
+  dias: number;
+  desde: string;
+  /** concesionarioId → nombre */
+  tiendas: Record<string, string>;
+  totales: {
+    personas: number;
+    sesiones: number;
+    minutos: number;
+    toques: number;
+    frustracion: number;
+    sinBoton: number;
+    errores: number;
+    cortesSenal: number;
+    minutosSinSenal: number;
+  };
+  embudos: { cotizacion: PasoEmbudoUso[]; comprobante: PasoEmbudoUso[]; vale: PasoEmbudoUso[] };
+  motivos: { documentos: MotivoUso[]; vale: MotivoUso[] };
+  medios: MotivoUso[];
+  camara: MotivoUso[];
+  porDia: { dia: string; minutos: number; sesiones: number }[];
+  porHora: number[];
+  pantallas: {
+    pantalla: string;
+    minutos: number;
+    visitas: number;
+    toques: number;
+    frustracion: number;
+    sinBoton: number;
+  }[];
+  frustracion: { pantalla: string; elemento: string; veces: number }[];
+  sinBoton: { pantalla: string; elemento: string; veces: number }[];
+  personas: {
+    uid: string;
+    email: string | null;
+    perfil: PerfilUso;
+    tiendas: string[];
+    sesiones: number;
+    minutos: number;
+    frustracion: number;
+    errores: number;
+    documentosGuardados: number;
+    codigosConfirmados: number;
+    ultimo: number;
+  }[];
+  errores: { mensaje: string; veces: number; personas: number; pantallas: string[]; ultimo: number }[];
+}
+
+export const adminUsoResumenCallable = httpsCallable<FiltroUso, ResumenUso>(
+  functions,
+  "adminUsoResumen",
+  { timeout: 120_000 },
+);
+
+export interface MapaUso {
+  pantalla: string;
+  dispositivo: DispositivoUso;
+  puntos: { x: number; y: number; w: number; f: boolean }[];
+  /** La grabación cuya foto completa sirve de fondo; null si no hay ninguna de esa pantalla. */
+  fondo: { sesionId: string; n: number } | null;
+}
+
+export const adminUsoMapaCallable = httpsCallable<
+  FiltroUso & { pantalla: string; dispositivo: DispositivoUso },
+  MapaUso
+>(functions, "adminUsoMapa", { timeout: 120_000 });
+
+export interface GrabacionResumen {
+  sesionId: string;
+  email: string | null;
+  perfil: PerfilUso;
+  tiendas: string[];
+  dispositivo: DispositivoUso;
+  inicio: number;
+  fin: number;
+  fragmentos: number;
+  bytes: number;
+  pantallas: string[];
+  elegida: boolean;
+}
+
+export const adminListGrabacionesCallable = httpsCallable<
+  FiltroUso & { email?: string },
+  { tiendas: Record<string, string>; grabaciones: GrabacionResumen[] }
+>(functions, "adminListGrabaciones");
+
+export interface MomentoGrabacion {
+  en: number;
+  tipo: "frustracion" | "error" | "guardado" | "rechazo" | "venta" | "codigo" | "senal";
+  texto: string;
+}
+
+export interface GrabacionDetalle extends Omit<GrabacionResumen, "fragmentos" | "bytes" | "pantallas"> {
+  fragmentos: { n: number; inicio: number; fin: number; bytes: number; pantallas: string[]; ancho: number; alto: number }[];
+  momentos: MomentoGrabacion[];
+}
+
+export const adminGetGrabacionCallable = httpsCallable<{ sesionId: string }, GrabacionDetalle>(
+  functions,
+  "adminGetGrabacion",
+);
+
+export interface FragmentoGrabacion {
+  n: number;
+  inicio: number;
+  fin: number;
+  ancho: number;
+  alto: number;
+  pantallas: string[];
+  /** gzip en base64 de los eventos de rrweb. */
+  datos: string;
+}
+
+export const adminGetFragmentosCallable = httpsCallable<
+  { sesionId: string; ns: number[] },
+  { fragmentos: FragmentoGrabacion[] }
+>(functions, "adminGetFragmentos");
+
+export const adminBorrarGrabacionCallable = httpsCallable<{ sesionId: string }, { ok: true }>(
+  functions,
+  "adminBorrarGrabacion",
+);
+
+export interface UsoConfig {
+  porcentajeGrabacion: number;
+  diasInteracciones: number;
+  diasGrabaciones: number;
+  grabarHasta: { email: string; hasta: number }[];
+}
+
+export const adminGetUsoConfigCallable = httpsCallable<void, UsoConfig>(functions, "adminGetUsoConfig");
+
+export const adminSetUsoConfigCallable = httpsCallable<
+  {
+    porcentajeGrabacion?: number;
+    diasInteracciones?: number;
+    diasGrabaciones?: number;
+    grabar?: { email: string; dias: 0 | 1 | 3 | 7 };
+  },
+  UsoConfig
+>(functions, "adminSetUsoConfig");

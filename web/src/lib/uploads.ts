@@ -44,6 +44,8 @@ export class SubidaError extends Error {
     message: string,
     /** Ya van suficientes rechazos automáticos: se puede pedir la verificación manual. */
     public readonly revisionManualDisponible = false,
+    /** Código HTTP de la respuesta: 422 es un documento que la verificación rechazó. */
+    public readonly status?: number,
   ) {
     super(message);
   }
@@ -102,6 +104,7 @@ async function postMultipart(path: string, formData: FormData) {
     throw new SubidaError(
       datos.error ?? "No se pudo completar la operación",
       Boolean(datos.revisionManualDisponible),
+      res.status,
     );
   }
 

@@ -55,7 +55,7 @@ Rutas:
 - `/ayuda` — la misma capacitación, abierta y sin sesión, para mandarla antes de invitar a una tienda; `/ayuda/asesores`, la del asesor de ventas
 - `/vale/:token` — el vale del cliente final, sin sesión (le llega por WhatsApp)
 - `/admin` — panel de Aviva, con menú lateral (en celular, botón "Menú"). Empieza en **Inicio** (`/admin/inicio`), que resume lo que hay que atender.
-  - Día a día (todos los admins): Revisión de documentos, Tiendas, Vales (buscar un vale / reporte) y Métricas.
+  - Día a día (todos los admins): Revisión de documentos, Tiendas, Vales (buscar un vale / reporte), Métricas y Uso del portal (cómo usan Paydesk las tiendas y los asesores, con grabaciones de sesión; ver "Uso del portal" en `docs/ARCHITECTURE.md`).
   - Configuración (solo super admin): Verificación de documentos, Avisos en Slack, Etapas del crédito (incluye de dónde sale la fecha de disposición), Conexión con HubSpot (campos, fechas de etapa, cancelaciones y nombres de columnas), Administradores y Estado del sistema (estado e historial de cambios).
 
 Los componentes y estilos del panel están en `web/src/components/admin/ui.tsx` y `web/src/styles/admin.css`; las pantallas nuevas deben armarse con ellos.
@@ -71,7 +71,7 @@ Ver `functions/.env.example` y `web/.env.example`. Ninguna se commitea con valor
 ```bash
 firebase use <project-id>          # ver .firebaserc.example para los alias sugeridos
 npm run build:web
-firebase deploy --only hosting,functions,firestore:rules,storage
+firebase deploy --only hosting,functions,firestore:rules,firestore:indexes,storage
 ```
 
 Después del primer despliegue con esta versión: correr "Migrar ligas y verificaciones" en `/admin/estado`, y en `/admin/etapas` → "Fecha de disposición del crédito" dar "Guardar y recalcular" una vez. Pendientes antes y después de producción en "Pendientes conocidos" de `docs/ARCHITECTURE.md`.
