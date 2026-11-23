@@ -32,6 +32,10 @@ const DOC_CONFIG = "uso";
 const DIA_MS = 86_400_000;
 
 export interface LoteDoc {
+  /** Versión del esquema del portal que lo mandó. */
+  version: number;
+  /** Eventos que llegaron y no se reconocieron (de otra versión del portal, o dañados). */
+  descartados: number;
   uid: string;
   email: string | null;
   perfil: Perfil;
@@ -138,17 +142,33 @@ export async function setUsoConfig(
 
 // --- Escritura desde el portal ---
 
-export async function guardarLote(lote: Omit<LoteDoc, "recibido" | "expira">, diasRetencion: number) {
+/**
+ * Guarda un lote. Con `loteId` el documento se llama `{uid}_{loteId}` y se
+ * crea solo si no existe: un reintento del mismo lote (se cortó la señal
+ * antes de la respuesta) no lo guarda dos veces. Devuelve si era repetido.
+ */
+export async function guardarLote(
+  lote: Omit<LoteDoc, "recibido" | "expira">,
+  diasRetencion: number,
+  loteId?: string,
+): Promise<{ repetido: boolean }> {
   const ahora = Date.now();
-  await getFirestore()
-    .collection(COL_INTERACCIONES)
-    .add({
+  const col = getFirestore().collection(COL_INTERACCIONES);
+  const ref = loteId ? col.doc(`${lote.uid}_${loteId}`) : col.doc();
+  try {
+    await ref.create({
       // Sin `undefined` (Firestore no los acepta) en los campos opcionales de los eventos.
       ...(JSON.parse(JSON.stringify(lote)) as typeof lote),
       desde: lote.desde,
       recibido: Timestamp.fromMillis(ahora),
       expira: Timestamp.fromMillis(ahora + diasRetencion * DIA_MS),
     });
+  } catch (err) {
+    // 6 = ALREADY_EXISTS: ya se había guardado.
+    if ((err as { code?: number }).code === 6) return { repetido: true };
+    throw err;
+  }
+  return { repetido: false };
 }
 
 export class GrabacionAjenaError extends Error {}

@@ -1,4 +1,8 @@
 import { auth, registrarInteraccionesCallable } from "./firebase";
+import { VERSION_ESQUEMA, type Dispositivo, type Flujo, type PasoDe } from "./catalogoUso";
+import { armarLotes, podar, quitarLote, type EnCola } from "./colaUso";
+
+export type { Dispositivo, Flujo };
 
 /**
  * Medición ligera de cómo se usa el portal (tienda y asesor), siempre
@@ -24,16 +28,23 @@ import { auth, registrarInteraccionesCallable } from "./firebase";
  * botón se nombran por zona ("Sin botón · Tabla de clientes"), y a todo
  * texto se le quitan los números.
  *
- * Funciona sin señal: los eventos se guardan en el equipo y se mandan en
- * lotes cada minuto. La identidad la pone el servidor con el token; cada
- * evento guardado lleva el uid de quien lo generó, para que en una caja
- * compartida no se manden a nombre de quien entre después.
+ * Cómo viaja un evento:
+ * 1. se junta en memoria (escribir el almacenamiento en cada toque se
+ *    siente en una tablet barata);
+ * 2. cada 5 s, al ocultar la pestaña y al cerrarla, pasa a la cola en
+ *    localStorage, donde sobrevive sin señal y a que se cierre el navegador;
+ * 3. cada minuto (y al volver la señal, al ocultar y al "Salir") se arman
+ *    lotes con id fijo y se mandan (ver colaUso.ts): un reintento manda el
+ *    mismo lote con el mismo id y el servidor no lo guarda dos veces. Con
+ *    varias pestañas abiertas, solo una manda a la vez (Web Locks).
  *
- * Copia del esquema de eventos en functions/src/uso/eventos.ts.
+ * La identidad la pone el servidor con el token; cada evento guardado
+ * lleva el uid de quien lo generó, para que en una caja compartida no se
+ * manden a nombre de quien entre después.
+ *
+ * Flujos y pasos válidos: catalogoUso.ts (copia probada del servidor).
+ * Forma de cada evento: aquí y en functions/src/uso/eventos.ts.
  */
-
-export type Flujo = "cotizacion" | "comprobante" | "vale" | "camara";
-export type Dispositivo = "celular" | "tablet" | "escritorio";
 
 type Evento =
   | { t: "pantalla"; p: string; ms: number; en: number }
@@ -43,16 +54,7 @@ type Evento =
   | { t: "senal"; ms: number; en: number }
   | { t: "paso"; f: Flujo; s: string; d?: string; p: string; en: number };
 
-interface Guardado {
-  /** id local, para quitarlo de la cola una vez mandado. */
-  i: string;
-  /** uid de quien lo generó. */
-  u: string;
-  /** sesión */
-  s: string;
-  d: Dispositivo;
-  e: Evento;
-}
+type Guardado = EnCola<Evento>;
 
 const CLAVE_COLA = "paydesk_uso_cola_v1";
 const CLAVE_SESION = "paydesk_uso_sesion_v1";
@@ -62,6 +64,10 @@ export const CLAVE_PENDIENTES_GRABACION = "paydesk_grabacion_pendientes_v1";
 const MAX_COLA = 1500;
 const MAX_LOTE = 400;
 const CADA_MS = 60_000;
+/** Cada cuánto pasa lo juntado en memoria al almacenamiento del equipo. */
+const PERSISTIR_MS = 5_000;
+/** Con tantos eventos en memoria se guardan sin esperar. */
+const MAX_MEMORIA = 50;
 const SESION_INACTIVA_MS = 30 * 60_000;
 const GRACIA_MS = 2 * 60_000;
 const TRAMO_MAX_MS = 10 * 60_000;
@@ -273,6 +279,8 @@ interface Estado {
   timers: number[];
   quitar: (() => void)[];
   enviando: boolean;
+  /** Lo anotado que todavía no pasa a localStorage. */
+  memoria: Guardado[];
 }
 
 let estado: Estado | null = null;
@@ -289,10 +297,20 @@ function leerCola(): Guardado[] {
 
 function escribirCola(cola: Guardado[]) {
   try {
-    localStorage.setItem(CLAVE_COLA, JSON.stringify(cola.slice(-MAX_COLA)));
+    const uid = estado?.uid ?? null;
+    localStorage.setItem(CLAVE_COLA, JSON.stringify(podar(cola, uid, Date.now(), { max: MAX_COLA, viejoMs: VIEJO_MS })));
   } catch {
     // Sin espacio o almacenamiento bloqueado: se pierden eventos, no el portal.
   }
+}
+
+/** Pasa lo juntado en memoria a la cola del equipo. */
+function persistir() {
+  const e = estado;
+  if (!e || e.memoria.length === 0) return;
+  const nuevos = e.memoria;
+  e.memoria = [];
+  escribirCola([...leerCola(), ...nuevos]);
 }
 
 function idNuevo(): string {
@@ -340,10 +358,9 @@ let consecutivo = 0;
 function anotar(ev: Evento) {
   const e = estado;
   if (!e) return;
-  const cola = leerCola();
   consecutivo = (consecutivo + 1) % 1_000_000;
-  cola.push({ i: `${Date.now().toString(36)}-${consecutivo}`, u: e.uid, s: e.sesionId, d: e.dispositivo, e: ev });
-  escribirCola(cola);
+  e.memoria.push({ i: `${Date.now().toString(36)}-${consecutivo}`, u: e.uid, s: e.sesionId, d: e.dispositivo, e: ev });
+  if (e.memoria.length >= MAX_MEMORIA) persistir();
 }
 
 function cerrarTramo(ahora = Date.now()) {
@@ -408,7 +425,7 @@ export function cerrarVentana() {
 }
 
 /** Un paso de uno de los trabajos medidos. No hace nada fuera del portal (panel, capacitación). */
-export function paso(f: Flujo, s: string, d?: string) {
+export function paso<F extends Flujo>(f: F, s: PasoDe<F>, d?: string) {
   const e = estado;
   if (!e || esPractica(e.base)) return;
   anotar({ t: "paso", f, s, ...(d ? { d } : {}), p: pantallaClave(e), en: Date.now() });
@@ -467,6 +484,7 @@ function alCambiarVisibilidad() {
   if (document.visibilityState === "hidden") {
     cerrarTramo();
     anotarFrustracion(e.detector.vencida(Date.now(), true));
+    persistir();
     void enviar();
   } else {
     abrirTramo();
@@ -528,9 +546,23 @@ async function decidirGrabacion(grabar: boolean) {
 }
 
 /**
- * Manda lo que haya de quien tiene la sesión abierta, por sesión, en
- * lotes. Si no hay nada de la sesión actual y todavía no se sabe si se
- * graba, manda un lote vacío solo para preguntarlo.
+ * Con varias pestañas abiertas, que solo una mande a la vez: si no, dos
+ * pestañas podrían armar lotes distintos con los mismos eventos. Si otra
+ * ya está mandando, esta no espera: lo suyo sale en ese envío o en el
+ * siguiente. Sin Web Locks (navegadores viejos) se manda igual.
+ */
+async function conCandado(fn: () => Promise<void>): Promise<void> {
+  const locks = (navigator as Navigator & { locks?: LockManager }).locks;
+  if (!locks?.request) return fn();
+  await locks.request("paydesk_uso_envio", { ifAvailable: true }, async (candado) => {
+    if (candado) await fn();
+  });
+}
+
+/**
+ * Manda lo pendiente de quien tiene la sesión abierta, en lotes con id
+ * fijo (ver colaUso.ts). Si no hay nada de la sesión actual y todavía no
+ * se sabe si se graba, manda un lote vacío solo para preguntarlo.
  */
 async function enviar() {
   const e = estado;
@@ -538,26 +570,38 @@ async function enviar() {
   if (!e || e.enviando || !user || user.uid !== e.uid || !navigator.onLine) return;
   e.enviando = true;
   try {
-    const ahora = Date.now();
-    // Lo de otra persona se guarda hasta que vuelva a entrar en este equipo, a lo más 7 días.
-    escribirCola(leerCola().filter((g) => g.u === e.uid || ahora - g.e.en < VIEJO_MS));
-    const mias = leerCola().filter((g) => g.u === e.uid);
-    const sesiones = [...new Set(mias.map((g) => g.s))];
-    if (e.grabar === null && !sesiones.includes(e.sesionId)) sesiones.push(e.sesionId);
+    await conCandado(async () => {
+      persistir();
+      // Los ids de lote se guardan antes de mandar: si la respuesta se
+      // pierde, el reintento manda el mismo lote con el mismo id.
+      const { cola, lotes } = armarLotes(leerCola(), e.uid, MAX_LOTE, idNuevo);
+      escribirCola(cola);
+      const preguntar = e.grabar === null && !lotes.some((l) => l.sesionId === e.sesionId);
 
-    for (const s of sesiones) {
-      const lote = mias.filter((g) => g.s === s).slice(0, MAX_LOTE);
-      const { data } = await registrarInteraccionesCallable({
-        sesionId: s,
-        dispositivo: lote[0]?.d ?? e.dispositivo,
-        ahora: Date.now(),
-        eventos: lote.map((g) => g.e),
-      });
-      // Se quitan solo los que se mandaron: mientras tanto pudieron llegar otros.
-      const mandados = new Set(lote.map((g) => g.i));
-      escribirCola(leerCola().filter((g) => !mandados.has(g.i)));
-      if (s === e.sesionId) void decidirGrabacion(data.grabar);
-    }
+      for (const lote of lotes) {
+        const { data } = await registrarInteraccionesCallable({
+          v: VERSION_ESQUEMA,
+          loteId: lote.id,
+          sesionId: lote.sesionId,
+          dispositivo: lote.dispositivo,
+          ahora: Date.now(),
+          eventos: lote.eventos.map((g) => g.e),
+        });
+        // Se quita solo ese lote: mientras tanto pudieron llegar otros eventos.
+        escribirCola(quitarLote(leerCola(), lote));
+        if (lote.sesionId === e.sesionId) void decidirGrabacion(data.grabar);
+      }
+      if (preguntar) {
+        const { data } = await registrarInteraccionesCallable({
+          v: VERSION_ESQUEMA,
+          sesionId: e.sesionId,
+          dispositivo: e.dispositivo,
+          ahora: Date.now(),
+          eventos: [],
+        });
+        void decidirGrabacion(data.grabar);
+      }
+    });
   } catch {
     // Sin señal, sesión vencida o límite: se reintenta en el siguiente minuto.
   } finally {
@@ -595,6 +639,7 @@ export function iniciarMedicion(ruta: string) {
     timers: [],
     quitar: [],
     enviando: false,
+    memoria: [],
   };
   estado = e;
   abrirTramo();
@@ -621,11 +666,14 @@ export function iniciarMedicion(ruta: string) {
   escuchar("unhandledrejection", alRechazo);
   escuchar("offline", alPerderSenal);
   escuchar("online", alVolverSenal);
+  // Al cerrar la pestaña o el navegador: lo que esté en memoria, al equipo.
+  escuchar("pagehide", persistir);
   document.addEventListener("visibilitychange", alCambiarVisibilidad);
   e.quitar.push(() => document.removeEventListener("visibilitychange", alCambiarVisibilidad));
   if (!navigator.onLine) alPerderSenal();
 
   e.timers.push(window.setInterval(vigilar, 15_000));
+  e.timers.push(window.setInterval(persistir, PERSISTIR_MS));
   e.timers.push(window.setInterval(() => void enviar(), CADA_MS));
   // Al abrir: lo que quedó guardado sin señal, y si esta sesión se graba.
   void enviar();
@@ -653,6 +701,7 @@ export async function detenerMedicion() {
   detenerGrabacion = null;
   e.timers.forEach((t) => clearInterval(t));
   e.quitar.forEach((q) => q());
+  persistir();
   await Promise.race([enviar(), new Promise((r) => setTimeout(r, 2000))]);
   if (estado === e) estado = null;
 }

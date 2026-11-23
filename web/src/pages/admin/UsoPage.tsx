@@ -133,6 +133,16 @@ export function UsoPage() {
         </EmptyState>
       )}
 
+      {datos && datos.totales.descartados > 0 && (
+        <Notice tono="warn" titulo={`${datos.totales.descartados.toLocaleString("es-MX")} eventos llegaron y no se reconocieron`}>
+          <p>
+            El portal mandó pasos o eventos que el servidor no conoce (o al revés): casi siempre es que se desplegó
+            el sitio sin las funciones, o al revés. No entran en los números de abajo. Revisa que las dos copias de
+            catalogoUso.ts / catalogo.ts estén desplegadas.
+          </p>
+        </Notice>
+      )}
+
       {datos && datos.totales.sesiones > 0 && (
         <>
           <StatTiles

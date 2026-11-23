@@ -13,6 +13,8 @@ export interface LoteUso {
   sesionId: string;
   dispositivo: Dispositivo;
   eventos: Evento[];
+  /** Eventos que el servidor no reconoció al recibir el lote. */
+  descartados?: number;
 }
 
 export interface PasoEmbudo {
@@ -36,6 +38,8 @@ export interface ResumenUso {
     errores: number;
     cortesSenal: number;
     minutosSinSenal: number;
+    /** Eventos que llegaron y no se reconocieron: si no es 0, portal y servidor no coinciden. */
+    descartados: number;
   };
   embudos: {
     cotizacion: PasoEmbudo[];
@@ -189,6 +193,7 @@ export function calcularUso(lotes: LoteUso[]): ResumenUso {
     errores: 0,
     cortesSenal: 0,
     sinSenalMs: 0,
+    descartados: 0,
   };
 
   // Los pasos se recorren en orden por sesión para armar los intentos.
@@ -204,6 +209,8 @@ export function calcularUso(lotes: LoteUso[]): ResumenUso {
   };
 
   for (const lote of lotes) {
+    t.descartados += lote.descartados ?? 0;
+    if (lote.eventos.length === 0) continue;
     sesiones.add(lote.sesionId);
     let persona = personas.get(lote.uid);
     if (!persona) {
@@ -388,6 +395,7 @@ export function calcularUso(lotes: LoteUso[]): ResumenUso {
       errores: t.errores,
       cortesSenal: t.cortesSenal,
       minutosSinSenal: minutos(t.sinSenalMs),
+      descartados: t.descartados,
     },
     embudos: {
       cotizacion: embudoDoc(intentosDoc.cotizacion),

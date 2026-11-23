@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   corregirReloj,
   eventosValidos,
+  LoteSchema,
   limpiarTexto,
   perfilDeClaims,
   type Evento,
@@ -48,6 +49,13 @@ describe("eventos que llegan del portal", () => {
       { t: "pantalla", p: "Mis clientes", ms: 99 * 60_000, en: T0 },
     ]);
     expect(r.map((e) => e.t)).toEqual(["toque", "paso"]);
+  });
+
+  it("acepta lotes con versión e id, y rechaza ids raros", () => {
+    const base = { sesionId: "sesion-aaaa", dispositivo: "tablet", ahora: T0, eventos: [] };
+    expect(LoteSchema.safeParse({ ...base, v: 1, loteId: "abc123def456" }).success).toBe(true);
+    expect(LoteSchema.safeParse(base).success).toBe(true);
+    expect(LoteSchema.safeParse({ ...base, loteId: "../otro/doc" }).success).toBe(false);
   });
 
   it("limpia el texto también en el servidor", () => {
@@ -133,6 +141,12 @@ describe("resumen de uso", () => {
     expect(r.porDia).toEqual([{ dia: "2026-11-20", minutos: 4, sesiones: 2 }]);
     expect(r.sinBoton[0]).toEqual({ pantalla: "Mis clientes", elemento: "Sin botón · Tabla de clientes", veces: 1 });
     expect(r.errores[0]).toMatchObject({ mensaje: "Algo falló", veces: 1, personas: 1 });
+  });
+
+  it("cuenta los eventos que no se reconocieron, aunque el lote venga vacío", () => {
+    const r = calcularUso([lote([], { descartados: 3 }), lote([{ t: "senal", ms: 1000, en: T0 }], { descartados: 1 })]);
+    expect(r.totales.descartados).toBe(4);
+    expect(r.totales.sesiones).toBe(1);
   });
 
   it("arma el embudo de documentos por intento, con el motivo de los que no se guardaron", () => {

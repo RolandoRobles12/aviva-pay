@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { DISPOSITIVOS, FLUJOS, PASOS, VERSION_ESQUEMA, type Dispositivo, type Flujo } from "./catalogo";
+
+export { DISPOSITIVOS, FLUJOS, PASOS, VERSION_ESQUEMA, type Dispositivo, type Flujo };
 
 /**
  * Lo que manda el portal (tienda y asesor) sobre cómo se usa: pantallas,
@@ -6,7 +9,8 @@ import { z } from "zod";
  * importan en Paydesk — subir la cotización, subir el comprobante y
  * validar el código del cliente en caja.
  *
- * Copia en web/src/lib/analitica.ts: si cambia uno, cambia el otro.
+ * Los flujos y pasos válidos viven en ./catalogo.ts (con copia probada en
+ * el portal); la forma de cada evento, aquí y en web/src/lib/analitica.ts.
  *
  * Nada de esto lleva datos personales: de un campo solo viaja cuál es,
  * nunca lo escrito; los toques fuera de un botón se nombran por zona
@@ -14,28 +18,6 @@ import { z } from "zod";
  * sus números antes de salir del navegador. El servidor vuelve a recortar
  * por si acaso: es quien no puede confiar en lo que le llega.
  */
-
-/** Los trabajos que se miden de principio a fin. */
-export const FLUJOS = ["cotizacion", "comprobante", "vale", "camara"] as const;
-export type Flujo = (typeof FLUJOS)[number];
-
-/**
- * Pasos de cada flujo.
- * - Documentos: abrir → archivo → enviar → aprobado | revision | rechazado | error; o cancelar.
- *   `manual` = pidió que una persona lo revise.
- * - Vale: captura (d = pistola | camara | teclado) → resultado (d = estado) → confirmado,
- *   o monto-invalido / confirmar-fallo.
- * - Cámara: abrir → leido, o sin-permiso / no-soportado / cerrar-sin-leer.
- */
-export const PASOS: Record<Flujo, readonly string[]> = {
-  cotizacion: ["abrir", "archivo", "enviar", "aprobado", "revision", "rechazado", "error", "cancelar", "manual"],
-  comprobante: ["abrir", "archivo", "enviar", "aprobado", "revision", "rechazado", "error", "cancelar", "manual"],
-  vale: ["captura", "resultado", "monto-invalido", "confirmado", "confirmar-fallo"],
-  camara: ["abrir", "leido", "sin-permiso", "no-soportado", "cerrar-sin-leer"],
-};
-
-export const DISPOSITIVOS = ["celular", "tablet", "escritorio"] as const;
-export type Dispositivo = (typeof DISPOSITIVOS)[number];
 
 /** Un texto corto, sin números largos ni correos: lo que se guarda de etiquetas y mensajes. */
 export function limpiarTexto(texto: string, max = 80): string {
@@ -92,9 +74,19 @@ export type Evento = z.infer<typeof EventoSchema>;
 
 export const MAX_EVENTOS_LOTE = 500;
 
+const ID = /^[A-Za-z0-9_-]{8,64}$/;
+
 export const LoteSchema = z.object({
+  /** Versión del esquema con la que se armó el lote (ausente = 1, la primera). */
+  v: z.number().int().min(1).max(1000).optional(),
+  /**
+   * Id del lote, fijo aunque se reintente: si la respuesta se perdió pero
+   * el servidor sí lo guardó, el reintento no lo guarda dos veces. Ausente
+   * en el lote vacío que solo pregunta si se graba.
+   */
+  loteId: z.string().regex(ID).optional(),
   /** Una visita de una pestaña: se renueva tras 30 min sin uso. */
-  sesionId: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/),
+  sesionId: z.string().regex(ID),
   dispositivo: z.enum(DISPOSITIVOS),
   /** El reloj del navegador al mandar, para corregir los `en`. */
   ahora: en,
@@ -110,7 +102,7 @@ export function eventosValidos(crudos: unknown[]): Evento[] {
   for (const c of crudos) {
     const r = EventoSchema.safeParse(c);
     if (!r.success) continue;
-    if (r.data.t === "paso" && !PASOS[r.data.f].includes(r.data.s)) continue;
+    if (r.data.t === "paso" && !(PASOS[r.data.f] as readonly string[]).includes(r.data.s)) continue;
     out.push(r.data);
   }
   return out;

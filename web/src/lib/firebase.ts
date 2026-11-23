@@ -693,7 +693,7 @@ export const adminMetricasCallable = httpsCallable<
 // --- Uso del portal (ver lib/analitica.ts, lib/grabacion.ts y functions/src/http/uso.ts) ---
 
 export const registrarInteraccionesCallable = httpsCallable<
-  { sesionId: string; dispositivo: string; ahora: number; eventos: unknown[] },
+  { v: number; loteId?: string; sesionId: string; dispositivo: string; ahora: number; eventos: unknown[] },
   { grabar: boolean }
 >(functions, "registrarInteracciones");
 
@@ -747,6 +747,8 @@ export interface ResumenUso {
     errores: number;
     cortesSenal: number;
     minutosSinSenal: number;
+    /** Eventos que el servidor no reconoció: si no es 0, portal y servidor no coinciden. */
+    descartados: number;
   };
   embudos: { cotizacion: PasoEmbudoUso[]; comprobante: PasoEmbudoUso[]; vale: PasoEmbudoUso[] };
   motivos: { documentos: MotivoUso[]; vale: MotivoUso[] };

@@ -48,21 +48,31 @@ export const registrarInteracciones = onCall(
 
     const parsed = LoteSchema.safeParse(request.data);
     if (!parsed.success) throw new HttpsError("invalid-argument", "Lote inválido.");
-    const { sesionId, dispositivo, ahora, eventos: crudos } = parsed.data;
+    const { v, loteId, sesionId, dispositivo, ahora, eventos: crudos } = parsed.data;
+    const version = v ?? 1;
 
     const config = await getUsoConfig();
     const ahoraServidor = Date.now();
     const eventos = corregirReloj(eventosValidos(crudos), ahora, ahoraServidor);
-    if (eventos.length > 0) {
+    const descartados = crudos.length - eventos.length;
+    if (descartados > 0) {
+      // No debería pasar: un paso nuevo en el portal que el servidor todavía
+      // no conoce, o al revés. Se cuenta en el lote y sale en el panel.
+      logger.warn("registrarInteracciones: eventos no reconocidos", { descartados, version, uid: persona.uid });
+    }
+    if (eventos.length > 0 || descartados > 0) {
       await guardarLote(
         {
           ...persona,
+          version,
+          descartados,
           sesionId,
           dispositivo,
-          desde: Timestamp.fromMillis(Math.min(...eventos.map((e) => e.en))),
+          desde: Timestamp.fromMillis(eventos.length > 0 ? Math.min(...eventos.map((e) => e.en)) : ahoraServidor),
           eventos,
         },
         config.diasInteracciones,
+        loteId,
       );
     }
     return { grabar: debeGrabar(config, sesionId, persona.email, ahoraServidor) };
