@@ -8,6 +8,7 @@ import { limpiarCodigoTecleado } from "../lib/codigoVale";
 import { CurrencyInput } from "./CurrencyInput";
 import { EscanerCamara } from "./EscanerCamara";
 import { AyudaLink } from "./AyudaLink";
+import { paso, registrarError } from "../lib/analitica";
 import type { ValidacionVale } from "../types/vale";
 
 const moneda = new Intl.NumberFormat("es-MX", {
@@ -107,22 +108,31 @@ export function ValidarCodigoPanel({
     const rafaga = Date.now() - (inicioCaptura.current ?? Date.now()) <= MS_MAX_ESCANEO;
     if (digitos.length === 10 && rafaga) {
       autoEnviado.current = true;
-      void validar(digitos, "escaneo");
+      void validar(digitos, "escaneo", "pistola");
     }
   }
 
   const validar = useCallback(
-    async (aValidar: string, medio: "escaneo" | "manual") => {
+    async (
+      aValidar: string,
+      medio: "escaneo" | "manual",
+      /** Solo para la medición de uso: con qué llegó el código. */
+      origen: "pistola" | "camara" | "teclado",
+    ) => {
       inicioCaptura.current = null;
       setErrorMonto(null);
       setResultado({ tipo: "validando" });
+      paso("vale", "captura", origen);
       try {
         const { data } = await validarValeCallable({ codigo: aValidar, medio });
+        paso("vale", "resultado", data.estado);
         setResultado({ tipo: "validado", validacion: data });
         if (data.estado === "ok") {
           setMonto(data.montoAutorizado !== null ? String(data.montoAutorizado) : "");
         }
       } catch (err) {
+        paso("vale", "resultado", "error");
+        if (err instanceof Error) registrarError(err.message);
         setResultado({
           tipo: "error",
           mensaje:
@@ -145,7 +155,8 @@ export function ValidarCodigoPanel({
     // su Enter llega después y no debe mandar lo mismo otra vez.
     if (autoEnviado.current) return;
     const transcurrido = Date.now() - (inicioCaptura.current ?? Date.now());
-    await validar(codigo, transcurrido <= MS_MAX_ESCANEO ? "escaneo" : "manual");
+    const rapido = transcurrido <= MS_MAX_ESCANEO;
+    await validar(codigo, rapido ? "escaneo" : "manual", rapido ? "pistola" : "teclado");
   }
 
   /** La cámara ya entrega los 10 dígitos limpios: se valida sola, sin pedir otro toque. */
@@ -153,7 +164,7 @@ export function ValidarCodigoPanel({
     (leido: string) => {
       setCamaraAbierta(false);
       setCodigo(leido);
-      void validar(leido, "escaneo");
+      void validar(leido, "escaneo", "camara");
     },
     [validar],
   );
@@ -163,6 +174,7 @@ export function ValidarCodigoPanel({
     if (resultado.tipo === "validado" && resultado.validacion.estado === "ok") {
       const err = errorMontoVenta(Number(monto), resultado.validacion.montoAutorizado);
       if (err) {
+        paso("vale", "monto-invalido");
         setErrorMonto(err);
         return;
       }
@@ -176,6 +188,7 @@ export function ValidarCodigoPanel({
       });
 
       if (data.ok) {
+        paso("vale", "confirmado");
         setResultado({ tipo: "confirmado", monto: data.montoDispuesto, cliente: data.cliente });
         setCodigo("");
         setMonto("");
@@ -185,9 +198,12 @@ export function ValidarCodigoPanel({
         // venció, o lo consumió la otra caja. Se vuelve a pintar el
         // estado real en vez de dejar la pantalla vieja.
         const { ok: _ok, ...validacion } = data;
+        paso("vale", "confirmar-fallo", validacion.estado);
         setResultado({ tipo: "validado", validacion: validacion as ValidacionVale });
       }
     } catch (err) {
+      paso("vale", "confirmar-fallo", "error");
+      if (err instanceof Error) registrarError(err.message);
       setResultado({
         tipo: "error",
         mensaje:

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { VerificacionAviso } from "./VerificacionAviso";
 import { ArchivoLink } from "./ArchivoLink";
 import { SolicitarRevisionManual } from "./SolicitarRevisionManual";
@@ -7,6 +7,7 @@ import type { Verificacion } from "../lib/uploads";
 import { RECHAZOS_PARA_REVISION_MANUAL, SubidaError, uploadComprobante } from "../lib/uploads";
 import type { FieldLabels } from "../types/admin";
 import { AyudaLink } from "./AyudaLink";
+import { motivoDeError, paso, registrarError } from "../lib/analitica";
 
 /** "Comprobante de entrega" module (section 5.3) — also used to replace an already-uploaded comprobante. */
 export function ComprobanteUploadForm({
@@ -44,23 +45,37 @@ export function ComprobanteUploadForm({
   );
   const [enviandoManual, setEnviandoManual] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+  /** Para la medición de uso: si se cierra la ventana sin que el documento quedara guardado. */
+  const guardado = useRef(false);
+
+  useEffect(() => {
+    paso("comprobante", "abrir");
+    return () => {
+      if (!guardado.current) paso("comprobante", "cancelar");
+    };
+  }, []);
 
   async function enviar(solicitudManual: boolean) {
     if (!file) {
+      paso("comprobante", "error", "sin-archivo");
       setError("Selecciona un archivo (PDF o imagen).");
       return;
     }
     if (!firmaClienteConfirmada) {
+      paso("comprobante", "error", "sin-firma");
       setError("Debes confirmar que el cliente firmó el documento de entrega.");
       return;
     }
     setSubmitting(true);
     setEnviandoManual(solicitudManual);
     setError(null);
+    paso("comprobante", solicitudManual ? "manual" : "enviar");
+    let preparando = true;
     try {
       // Fotos de iPhone (HEIC) y fotos muy pesadas se convierten aquí,
       // para que la verificación automática las pueda leer.
       const archivo = await prepararArchivo(file);
+      preparando = false;
       const { verificacion, enRevision } = await onUpload({
         dealId,
         file: archivo,
@@ -68,7 +83,10 @@ export function ComprobanteUploadForm({
         firmaClienteConfirmada,
         ...(solicitudManual ? { solicitudManual } : {}),
       });
-      if (enRevision || (verificacion && verificacion.estado !== "aprobado")) {
+      guardado.current = true;
+      const quedoEnRevision = Boolean(enRevision || (verificacion && verificacion.estado !== "aprobado"));
+      paso("comprobante", quedoEnRevision ? "revision" : "aprobado");
+      if (quedoEnRevision) {
         setAviso({
           verificacion: verificacion ?? null,
           enRevision: Boolean(enRevision),
@@ -78,6 +96,13 @@ export function ComprobanteUploadForm({
       }
       onUploaded();
     } catch (err) {
+      if (err instanceof SubidaError && err.status === 422) {
+        paso("comprobante", "rechazado");
+      } else {
+        const motivo = preparando ? "imagen" : motivoDeError(err);
+        paso("comprobante", "error", motivo);
+        if (motivo === "servidor" && err instanceof Error) registrarError(err.message);
+      }
       if (err instanceof SubidaError && err.revisionManualDisponible) setManualDisponible(true);
       setError(err instanceof Error ? err.message : "Error al subir el comprobante");
     } finally {
@@ -130,11 +155,15 @@ export function ComprobanteUploadForm({
         <input
           type="file"
           accept=".pdf,image/*,.heic,.heif"
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          onChange={(e) => {
+            const elegido = e.target.files?.[0] ?? null;
+            if (elegido) paso("comprobante", "archivo");
+            setFile(elegido);
+          }}
           required
         />
         <span aria-hidden>⬆️</span>
-        <strong>{file ? file.name : "Subir comprobante de entrega firmado"}</strong>
+        <strong data-privado>{file ? file.name : "Subir comprobante de entrega firmado"}</strong>
         <span className="upload-form__hint">
           PDF o imagen · Haz clic o arrastra el archivo aquí
         </span>

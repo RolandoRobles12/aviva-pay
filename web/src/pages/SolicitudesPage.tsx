@@ -4,6 +4,7 @@ import { DealsTable } from "../components/DealsTable";
 import { DealFilters, TODAS_LAS_TIENDAS } from "../components/DealFilters";
 import { Paginacion, POR_PAGINA } from "../components/Paginacion";
 import { Modal } from "../components/Modal";
+import { abrirVentana, cerrarVentana } from "../lib/analitica";
 import { CotizacionUploadForm } from "../components/CotizacionUploadForm";
 import { ComprobanteUploadForm } from "../components/ComprobanteUploadForm";
 import { ValidarCodigoPanel } from "../components/ValidarCodigoPanel";
@@ -48,6 +49,17 @@ export function SolicitudesPage() {
     key: "fechaSolicitud",
     dir: "desc",
   });
+
+  // Para la medición de uso: el tiempo y los toques dentro de una ventana
+  // cuentan como de esa ventana ("Mis clientes › Subir cotización").
+  const ventana = activeModal?.type;
+  useEffect(() => {
+    if (!ventana) return;
+    abrirVentana(
+      ventana === "cotizacion" ? "Subir cotización" : ventana === "comprobante" ? "Subir comprobante" : "Validar código",
+    );
+    return () => cerrarVentana();
+  }, [ventana]);
 
   function handleSort(key: SortKey) {
     setSort((actual) =>
@@ -168,7 +180,7 @@ export function SolicitudesPage() {
             <div className="modal-titulo">
               <div>
                 <h2>Validar código del cliente</h2>
-                <p>
+                <p data-privado>
                   {deals.find((d) => d.dealId === activeModal.dealId)?.cliente ??
                     "Cliente"}
                 </p>

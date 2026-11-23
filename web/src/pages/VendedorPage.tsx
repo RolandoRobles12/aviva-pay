@@ -11,6 +11,8 @@ import {
 } from "../lib/firebase";
 import type { PayDeskConcesionario } from "../types/deal";
 import { setEtapas } from "../lib/dealScope";
+import { detenerMedicion } from "../lib/analitica";
+import { useMedicionUso } from "../lib/useMedicionUso";
 import { BrandMark } from "../components/BrandMark";
 import { VendedorLista } from "../components/VendedorLista";
 import { BienvenidaCapacitacion } from "../capacitacion/BienvenidaCapacitacion";
@@ -64,6 +66,7 @@ export function VendedorLayout() {
   const [actualizando, setActualizando] = useState(false);
   // Aparte de `estado`: recargar la lista no debe pisar una lección recién pasada.
   const [capacitacion, setCapacitacion] = useState<CapacitacionTienda | null>(null);
+  useMedicionUso();
 
   const cargar = useCallback(async () => {
     setActualizando(true);
@@ -127,6 +130,7 @@ export function VendedorLayout() {
   }, []);
 
   async function salir() {
+    await detenerMedicion();
     await logout();
     navigate("/", { replace: true });
   }

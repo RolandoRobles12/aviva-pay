@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { paso } from "../lib/analitica";
 
 /**
  * Escanear con la cámara del celular o la tablet de la tienda.
@@ -36,12 +37,22 @@ export function EscanerCamara({
     let stream: MediaStream | null = null;
     let raf = 0;
     let detener: (() => void) | null = null;
+    /** Para la medición de uso: cómo terminó la cámara. */
+    let desenlace: "leido" | "sin-permiso" | "no-soportado" | null = null;
+    paso("camara", "abrir");
+    const fallo = (motivo: "sin-permiso" | "no-soportado", mensaje: string) => {
+      desenlace = motivo;
+      paso("camara", motivo);
+      setError(mensaje);
+    };
 
     /** Un resultado solo cuenta si trae los 10 dígitos del vale — así una etiqueta cualquiera del mostrador no dispara nada. */
     function entregar(texto: string) {
       const digitos = texto.replace(/\D/g, "");
       if (digitos.length !== 10 || cancelado) return;
       cancelado = true;
+      desenlace = "leido";
+      paso("camara", "leido");
       onCodigo(digitos);
     }
 
@@ -53,7 +64,8 @@ export function EscanerCamara({
       // propiedad ni siquiera está, y el error del navegador no dice por
       // qué — mejor decirlo aquí.
       if (!navigator.mediaDevices?.getUserMedia) {
-        setError(
+        fallo(
+          "no-soportado",
           "Este navegador no da acceso a la cámara. Teclea los 10 dígitos del vale.",
         );
         return;
@@ -64,7 +76,8 @@ export function EscanerCamara({
           video: { facingMode: "environment" },
         });
       } catch {
-        setError(
+        fallo(
+          "sin-permiso",
           "No pudimos abrir la cámara. Dale permiso al navegador, o teclea los 10 dígitos.",
         );
         return;
@@ -126,7 +139,8 @@ export function EscanerCamara({
           void Promise.resolve(controles).then((c) => c.stop());
         };
       } catch {
-        setError(
+        fallo(
+          "no-soportado",
           "Este navegador no puede leer el código con la cámara. Teclea los 10 dígitos.",
         );
       }
@@ -135,6 +149,7 @@ export function EscanerCamara({
     void arrancar();
 
     return () => {
+      if (!desenlace) paso("camara", "cerrar-sin-leer");
       cancelado = true;
       cancelAnimationFrame(raf);
       detener?.();
