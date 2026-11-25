@@ -37,6 +37,18 @@ const TIPOS_ACEPTADOS: Record<DocumentoTipo, AnalisisDocumento["tipoDetectado"][
   comprobante: ["comprobante_de_entrega", "nota_de_remision"],
 };
 
+/**
+ * Documentos que valen como comprobante solo si muestran la entrega: muchas
+ * tiendas no tienen un formato de entrega aparte, y su comprobante es la
+ * misma nota de venta (o factura) con el sello de "Entregado" y la firma
+ * del cliente en el pagaré o de recibido. Sin esa evidencia, es solo la
+ * venta y se rechaza como de otro tipo.
+ */
+const TIPOS_CON_ENTREGA: Record<DocumentoTipo, AnalisisDocumento["tipoDetectado"][]> = {
+  cotizacion: [],
+  comprobante: ["nota_de_venta", "factura"],
+};
+
 export function normalizar(texto: string): string {
   return texto
     .normalize("NFD")
@@ -103,7 +115,8 @@ export function validarAnalisis(ctx: ContextoValidacion): {
   if (a.legible) {
     add(
       "tipo",
-      TIPOS_ACEPTADOS[tipo].includes(a.tipoDetectado),
+      TIPOS_ACEPTADOS[tipo].includes(a.tipoDetectado) ||
+        (TIPOS_CON_ENTREGA[tipo].includes(a.tipoDetectado) && a.evidenciaEntrega === true),
       "rechazo",
       "El tipo de documento corresponde.",
       tipo === "cotizacion"
@@ -145,13 +158,25 @@ export function validarAnalisis(ctx: ContextoValidacion): {
     }
 
     if (ctx.cliente) {
-      add(
-        "cliente",
-        a.nombreCliente != null && nombreCoincide(a.nombreCliente, ctx.cliente),
-        "revision",
-        "El nombre del cliente aparece en el documento.",
-        "El nombre del cliente no aparece en el documento.",
-      );
+      // Una cotización sin nombre es normal: muchos puntos de venta la
+      // imprimen sin cliente, y la hace la propia tienda, así que el nombre
+      // ahí no prueba gran cosa. Lo que sí se revisa es que no traiga el de
+      // otra persona. El comprobante sí debe traerlo: es lo que firma el
+      // cliente al recibir.
+      const sinNombre = a.nombreCliente == null || !a.nombreCliente.trim();
+      if (tipo === "cotizacion" && sinNombre) {
+        add("cliente", true, "revision", "La cotización no trae nombre de cliente.", "");
+      } else {
+        add(
+          "cliente",
+          !sinNombre && nombreCoincide(a.nombreCliente!, ctx.cliente),
+          "revision",
+          "El nombre del cliente aparece en el documento.",
+          sinNombre
+            ? "El nombre del cliente no aparece en el documento."
+            : `El documento es a nombre de otra persona (${a.nombreCliente}).`,
+        );
+      }
     }
 
     add(

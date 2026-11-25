@@ -12,6 +12,8 @@ export interface VerificacionDocumento {
     montoTotal?: number | null;
     fechas?: string[];
     tieneFirma?: boolean | null;
+    /** Sello de "Entregado", firma de recibido: una nota de venta que sirve de comprobante. */
+    evidenciaEntrega?: boolean | null;
     observaciones?: string;
   };
   revisadoEn: string;

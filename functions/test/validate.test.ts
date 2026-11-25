@@ -11,6 +11,7 @@ const base: AnalisisDocumento = {
   montos: [10000, 1600, 11600],
   fechas: ["2025-03-12"],
   tieneFirma: null,
+  evidenciaEntrega: null,
   senalesAlteracion: [],
   observaciones: "",
 };
@@ -18,6 +19,80 @@ const base: AnalisisDocumento = {
 const fallidas = (r: ReturnType<typeof validarAnalisis>) => r.reglas.filter((x) => !x.ok).map((x) => x.id);
 
 describe("validarAnalisis", () => {
+  // Los dos documentos reales de una clienta (Construrama, Piedras Negras):
+  // la cotización del punto de venta sale sin nombre de cliente, y el
+  // comprobante es la misma nota de venta con sello de "Entregado" y el
+  // pagaré firmado por ella.
+  const cotizacionSinNombre: AnalisisDocumento = {
+    ...base,
+    tipoDetectado: "cotizacion",
+    nombreCliente: null,
+    montoTotal: 14988.51,
+    montos: [13878.25, 1110.26, 14988.51],
+    fechas: ["2026-11-24"],
+  };
+  const notaEntregada: AnalisisDocumento = {
+    ...base,
+    tipoDetectado: "nota_de_venta",
+    nombreCliente: "ELDA ORTIZ CAMPA",
+    montoTotal: 14988.51,
+    montos: [13878.25, 1110.26, 14988.51],
+    fechas: ["2026-11-24"],
+    tieneFirma: true,
+    evidenciaEntrega: true,
+  };
+
+  it("acepta una cotización sin nombre de cliente si el monto cuadra", () => {
+    const r = validarAnalisis({
+      tipo: "cotizacion",
+      analisis: cotizacionSinNombre,
+      cliente: "Elda Ortiz Campa",
+      montoDeclarado: 14988.51,
+    });
+    expect(r.estado).toBe("aprobado");
+  });
+
+  it("manda a revisión una cotización a nombre de otra persona", () => {
+    const r = validarAnalisis({
+      tipo: "cotizacion",
+      analisis: { ...cotizacionSinNombre, nombreCliente: "Pedro Gómez Ruiz" },
+      cliente: "Elda Ortiz Campa",
+      montoDeclarado: 14988.51,
+    });
+    expect(r.estado).toBe("revisar");
+    expect(r.reglas.find((x) => x.id === "cliente")?.detalle).toContain("Pedro Gómez Ruiz");
+  });
+
+  it("acepta como comprobante la nota de venta con la entrega marcada y firmada", () => {
+    const r = validarAnalisis({
+      tipo: "comprobante",
+      analisis: notaEntregada,
+      cliente: "Elda Ortiz Campa",
+      fechaDeclarada: "2026-11-24",
+    });
+    expect(r.estado).toBe("aprobado");
+  });
+
+  it("rechaza como comprobante una nota de venta que no muestra la entrega", () => {
+    const r = validarAnalisis({
+      tipo: "comprobante",
+      analisis: { ...notaEntregada, evidenciaEntrega: false },
+      cliente: "Elda Ortiz Campa",
+    });
+    expect(r.estado).toBe("rechazado");
+    expect(fallidas(r)).toContain("tipo");
+  });
+
+  it("el comprobante sí exige el nombre del cliente", () => {
+    const r = validarAnalisis({
+      tipo: "comprobante",
+      analisis: { ...notaEntregada, nombreCliente: null },
+      cliente: "Elda Ortiz Campa",
+    });
+    expect(r.estado).toBe("revisar");
+    expect(fallidas(r)).toEqual(["cliente"]);
+  });
+
   it("acepta una cotización que cuadra", () => {
     const r = validarAnalisis({ tipo: "cotizacion", analisis: base, cliente: "Juan Perez", montoDeclarado: 11600 });
     expect(r.estado).toBe("aprobado");
