@@ -8,8 +8,16 @@ import {
   type EventoNotificacion,
 } from "../firestore/notificacionesRepository";
 import { publicar, resolverCanal } from "./slack";
+import { urlDealHubspot } from "../hubspot/ligas";
 
 type TipoDocumento = "cotizacion" | "comprobante";
+
+/** Quién dio por bueno el comprobante, para que quien desembolsa sepa cuánto confiar. */
+export type VerificadoPor =
+  | { como: "automatica" }
+  | { como: "sin_verificacion" }
+  | { como: "revision"; por: string }
+  | { como: "admin" };
 
 export type Aviso =
   | { evento: "documento_en_revision"; dealId: string; tipo: TipoDocumento; motivos: string[] }
@@ -23,7 +31,23 @@ export type Aviso =
       decision: "aprobar" | "rechazar";
       comentario: string;
       resueltoPor: string;
+    }
+  | {
+      evento: "comprobante_listo_desembolso";
+      dealId: string;
+      /** La que capturó la tienda con el comprobante (AAAA-MM-DD). */
+      fechaEntrega: string | null;
+      verificadoPor: VerificadoPor;
     };
+
+/** Lo que el aviso cuenta del deal. Los montos solo los usa el de desembolso. */
+export interface ContextoDeal {
+  cliente: string;
+  tienda: string;
+  montoAprobado?: number | null;
+  montoCompra?: number | null;
+  desembolsoFecha?: string | null;
+}
 
 const DOCUMENTO: Record<TipoDocumento, string> = {
   cotizacion: "cotización",
@@ -35,13 +59,105 @@ function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-async function contexto(dealId: string) {
+async function contexto(dealId: string): Promise<ContextoDeal> {
   const deal = await getDeal(dealId);
   const tienda = deal?.concesionarioId ? await getConcesionario(deal.concesionarioId) : null;
   return {
     cliente: deal?.cliente ?? "Sin nombre",
     tienda: tienda?.nombre ?? deal?.kiosco ?? "Sin tienda",
+    montoAprobado: deal?.montoAprobado ?? null,
+    montoCompra: deal?.cotizacionMontoTotalCompra ?? null,
+    desembolsoFecha: deal?.desembolsoFecha ?? null,
   };
+}
+
+const PESOS = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" });
+
+function pesos(n: number | null | undefined): string {
+  return typeof n === "number" && Number.isFinite(n) ? PESOS.format(n) : "Sin dato";
+}
+
+/** AAAA-MM-DD (o un ISO completo) → DD/MM/AAAA, sin pasar por zonas horarias. */
+function fecha(s: string | null | undefined): string {
+  if (!s) return "Sin dato";
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : esc(s);
+}
+
+function textoVerificacion(v: VerificadoPor): string {
+  switch (v.como) {
+    case "automatica":
+      return "Verificación automática";
+    case "sin_verificacion":
+      return "Sin verificar: la verificación automática está apagada";
+    case "revision":
+      return `Aprobado en revisión por ${esc(v.por)}`;
+    case "admin":
+      return "Lo subió un administrador desde el panel";
+  }
+}
+
+/**
+ * El aviso para quien sigue con el desembolso: quién es el cliente, cuánto
+ * se le aprobó y cuánto compró, cuándo recibió el material y cómo se
+ * verificó el comprobante, con un botón al deal en HubSpot, donde se
+ * registra el desembolso. Tampoco lleva al archivo (ver construirMensaje).
+ */
+function mensajeDesembolso(
+  aviso: Extract<Aviso, { evento: "comprobante_listo_desembolso" }>,
+  ctx: ContextoDeal | null,
+  urlHubspot: string | null,
+): { texto: string; blocks: unknown[] } {
+  const titulo = ":white_check_mark: Comprobante de entrega verificado: listo para desembolso";
+  const quien = ctx ? `*${esc(ctx.cliente)}* · ${esc(ctx.tienda)} · ` : "";
+  const blocks: unknown[] = [
+    { type: "section", text: { type: "mrkdwn", text: `*${titulo}*\n${quien}deal ${esc(aviso.dealId)}` } },
+    {
+      type: "section",
+      fields: [
+        { type: "mrkdwn", text: `*Monto aprobado*\n${pesos(ctx?.montoAprobado)}` },
+        { type: "mrkdwn", text: `*Compra en tienda*\n${pesos(ctx?.montoCompra)}` },
+        { type: "mrkdwn", text: `*Fecha de entrega*\n${fecha(aviso.fechaEntrega)}` },
+        { type: "mrkdwn", text: `*Verificación*\n${textoVerificacion(aviso.verificadoPor)}` },
+      ],
+    },
+  ];
+  if (ctx?.desembolsoFecha) {
+    blocks.push({
+      type: "context",
+      elements: [
+        {
+          type: "mrkdwn",
+          text: `:warning: Esta solicitud ya tiene fecha de desembolso (${fecha(ctx.desembolsoFecha)}). Es un comprobante nuevo: revisa antes de volver a desembolsar.`,
+        },
+      ],
+    });
+  }
+  if (urlHubspot) {
+    blocks.push({
+      type: "actions",
+      elements: [
+        {
+          type: "button",
+          text: { type: "plain_text", text: "Abrir solicitud en HubSpot" },
+          url: urlHubspot,
+          style: "primary",
+        },
+      ],
+    });
+  } else {
+    blocks.push({
+      type: "context",
+      elements: [
+        {
+          type: "mrkdwn",
+          text: `No se pudo armar la liga a HubSpot: busca el deal ${esc(aviso.dealId)}.`,
+        },
+      ],
+    });
+  }
+  const sufijo = ctx ? ` — ${ctx.cliente} (${ctx.tienda})` : "";
+  return { texto: `Comprobante verificado, listo para desembolso${sufijo}`, blocks };
 }
 
 /**
@@ -51,9 +167,13 @@ async function contexto(dealId: string) {
  */
 export function construirMensaje(
   aviso: Aviso,
-  ctx: { cliente: string; tienda: string } | null,
+  ctx: ContextoDeal | null,
   urlRevision: string,
+  urlHubspot: string | null = null,
 ): { texto: string; blocks: unknown[] } {
+  if (aviso.evento === "comprobante_listo_desembolso") {
+    return mensajeDesembolso(aviso, ctx, urlHubspot);
+  }
   if (aviso.evento === "error_sistema") {
     const titulo = `:rotating_light: ${aviso.titulo}`;
     return {
@@ -143,6 +263,7 @@ export async function notificar(aviso: Aviso): Promise<{ entregados: number }> {
       aviso,
       "dealId" in aviso ? await contexto(aviso.dealId) : null,
       `${env.payDeskBaseUrl}/admin/revision`,
+      aviso.evento === "comprobante_listo_desembolso" ? await urlDealHubspot(aviso.dealId) : null,
     );
     const resultados = await Promise.allSettled(destinos.map((d) => enviarA(d, mensaje)));
     resultados.forEach((r, i) => {

@@ -15,6 +15,9 @@ const DOC_ID = "notificaciones";
  * - `revision_resuelta` — un administrador aprobó o rechazó un documento.
  * - `revision_atrasada` — un documento lleva más de `recordatorioHoras` en
  *   revisión sin que nadie lo atienda. Se avisa una vez por documento.
+ * - `comprobante_listo_desembolso` — el comprobante de entrega quedó
+ *   verificado (por la verificación automática o aprobado en revisión) y
+ *   la solicitud puede seguir al desembolso. Trae botón al deal de HubSpot.
  * - `error_sistema` — algo falló sin que nadie lo viera: Claude no
  *   respondió, HubSpot rechazó una escritura, la sincronización falló, hay
  *   campos sin mapear. Se agrupa para no inundar el canal (ver
@@ -25,6 +28,7 @@ export const EVENTOS_NOTIFICACION = [
   "documento_rechazado",
   "revision_resuelta",
   "revision_atrasada",
+  "comprobante_listo_desembolso",
   "error_sistema",
 ] as const;
 

@@ -298,7 +298,7 @@ El objetivo es que una tienda nueva arranque sin llamadas ni WhatsApps a Aviva: 
 | Firebase Auth | Correo/contraseña con claim `concesionarioIds: string[]` para concesionarios; correo/contraseña o Google con claim `admin` para el equipo de Aviva. |
 | Firebase Storage | Copia canónica de cada archivo subido (cotización/comprobante). "Ver archivo" la abre con una liga de 15 minutos que emite `getArchivoUrl`. Ver `storage/dealFiles.ts` y la nota en `storage.rules`. |
 | Claude (API de Anthropic) | Lee cada cotización y comprobante al subirse y reporta sus datos; las reglas que deciden viven en el código. Ver "Documentos". |
-| Slack | Avisos al equipo de Aviva (documentos en revisión, revisiones atrasadas, errores). Ver "Operación". |
+| Slack | Avisos al equipo de Aviva (documentos en revisión, revisiones atrasadas, solicitudes listas para desembolso, errores). Ver "Operación". |
 | Aviva Paydesk (`web/`) | React + Firebase Hosting. `/` login de tienda, `/solicitudes` tabla de clientes, `/admin/*` panel interno. |
 
 ## Flujo de sincronización (HubSpot → Firestore)
@@ -345,6 +345,7 @@ Un admin puede reemplazar el archivo de una tienda desde `/admin/tiendas/:conces
 
 - **`sincronizacionPeriodica`** (cada 30 min): trae de HubSpot los deals de Construrama modificados desde la última corrida exitosa (con 10 min de traslape), **incluidos los cancelados**, y los procesa igual que el webhook (`sync/procesarDeal.ts`). Es la red de seguridad si un aviso del workflow se pierde. La marca de tiempo siempre avanza; un deal que falla se guarda aparte y se vuelve a pedir en las siguientes corridas, hasta 5 veces (después se avisa a Slack). Si la sincronización estuvo detenida más de 3 días, avisa del hueco para correr la sincronización completa. La sincronización completa (`/admin/tiendas` → "Sincronizar ahora") sigue existiendo para el backfill inicial.
 - **Alertas** (`notificaciones/alertas.ts`): las fallas que antes solo quedaban en los logs (verificación caída, subidas, webhook, sincronización, campos del diccionario sin mapear) llegan a Slack como `error_sistema`, agrupadas: un aviso por tipo cada 30 min, con el conteo de las omitidas.
+- **Listo para desembolso** (`comprobante_listo_desembolso`): cada vez que un comprobante de entrega queda aplicado — pasó la verificación automática, un administrador lo aprobó en revisión o lo subió desde el panel — se avisa a quien siga con el desembolso, con cliente, tienda, monto aprobado, compra en tienda, fecha de entrega, cómo se verificó y un botón "Abrir solicitud en HubSpot" al deal. Si el deal ya tenía fecha de desembolso, el aviso lo advierte. El portal de HubSpot y su dominio se piden a la API (`account-info`) una vez por instancia (`hubspot/ligas.ts`); `HUBSPOT_PORTAL_ID` los fija si hiciera falta. Se suscribe en `/admin/notificaciones` como cualquier otro evento.
 - **`recordatorioRevisiones`** (cada hora): un documento con más de N horas en revisión (4 por defecto, configurable en `/admin/notificaciones`; 0 lo apaga) se avisa como `revision_atrasada`, una sola vez por subida.
 - **`revisionDiaria`** (9:00): avisa si el diccionario tiene campos sin propiedad de HubSpot.
 - **`/admin/estado`**: todo lo anterior de un vistazo — campos sin mapear, última sincronización, bandeja de revisión, notificaciones y verificación.

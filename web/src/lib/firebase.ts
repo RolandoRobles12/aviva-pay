@@ -589,6 +589,7 @@ export type EventoNotificacion =
   | "documento_rechazado"
   | "revision_resuelta"
   | "revision_atrasada"
+  | "comprobante_listo_desembolso"
   | "error_sistema";
 
 export interface DestinoNotificacion {

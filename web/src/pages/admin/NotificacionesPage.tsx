@@ -42,6 +42,12 @@ const EVENTOS: { valor: EventoNotificacion; titulo: string; descripcion: string 
     descripcion: "Era ilegible o no era el tipo de documento correcto.",
   },
   {
+    valor: "comprobante_listo_desembolso",
+    titulo: "Listo para desembolso",
+    descripcion:
+      "La tienda subió el comprobante de entrega y quedó verificado. Trae botón a la solicitud en HubSpot.",
+  },
+  {
     valor: "error_sistema",
     titulo: "Errores del sistema",
     descripcion: "Algo falló: verificación, HubSpot o sincronización. Se agrupan para no llenar el canal.",
@@ -193,7 +199,7 @@ export function NotificacionesPage() {
     <section>
       <PageHeader
         titulo="Avisos en Slack"
-        descripcion="A quién le avisa Paydesk y de qué: documentos por revisar, revisiones atrasadas y errores. Los avisos llevan a la bandeja de revisión, nunca al archivo."
+        descripcion="A quién le avisa Paydesk y de qué: documentos por revisar, revisiones atrasadas, solicitudes listas para desembolso y errores. Los avisos llevan a la bandeja de revisión o al deal en HubSpot, nunca al archivo."
       />
       {error && <Notice tono="error">{error}</Notice>}
       {!config && !error && <Cargando />}
