@@ -36,6 +36,13 @@ export const AnalisisSchema = z.object({
   /** Fechas visibles en formato YYYY-MM-DD. */
   fechas: z.array(z.string()),
   tieneFirma: z.boolean().nullable(),
+  /**
+   * Si el documento muestra que el material ya se entregó o que el cliente
+   * lo recibió (sello o leyenda "Entregado", "Recibí", firma de recibido o
+   * de conformidad). Muchas tiendas usan su nota de venta firmada como
+   * comprobante de entrega: con esto se distingue de una nota sin entregar.
+   */
+  evidenciaEntrega: z.boolean().nullable(),
   /** Indicios concretos de edición o montaje; vacío si no hay. */
   senalesAlteracion: z.array(z.string()),
   observaciones: z.string(),
@@ -55,7 +62,9 @@ Reglas:
 - Fechas en formato YYYY-MM-DD; los documentos mexicanos usan día/mes/año.
 - legible es false si no se puede leer el contenido principal (foto muy borrosa, cortada o vacía).
 - tieneFirma: true si hay una firma manuscrita visible, false si hay espacio para firma pero está vacío o no hay firma, null si no aplica.
-- senalesAlteracion: solo indicios concretos (tipografías o alineaciones que no coinciden en cifras clave, importes que no suman, recortes o parches visibles, captura de pantalla de un documento editable, plantilla en blanco llenada a mano sobre una impresión distinta). No incluyas defectos normales de una foto.
+- tipoDetectado describe qué es el documento por su formato (una nota de venta sigue siendo nota_de_venta aunque esté firmada).
+- evidenciaEntrega: true si el documento muestra que el material se entregó o que el cliente lo recibió (sello o leyenda "Entregado", "Recibí", "Recibí de conformidad", firma de recibido o pagaré firmado por el cliente al recibir), false si no hay nada de eso, null si no se puede saber.
+- senalesAlteracion: solo indicios concretos (tipografías o alineaciones que no coinciden en cifras clave, importes que no suman, recortes o parches visibles, captura de pantalla de un documento editable, plantilla en blanco llenada a mano sobre una impresión distinta). No incluyas defectos normales de una foto ni de un escaneo. Los sellos, leyendas promocionales y firmas impresos encima del texto son normales en las notas de las tiendas y no son alteración.
 - observaciones: una o dos frases en español sobre el documento.`;
 
 let client: Anthropic | null = null;
@@ -125,7 +134,8 @@ function contenidoDelArchivo(
 
 const ESPERADO: Record<DocumentoTipo, string> = {
   cotizacion: "una cotización de material (también se acepta factura o nota de venta)",
-  comprobante: "un comprobante de entrega de material firmado por el cliente (también se acepta nota de remisión)",
+  comprobante:
+    "un comprobante de entrega de material firmado por el cliente (también se acepta nota de remisión, o la nota de venta con la entrega marcada y firmada por el cliente)",
 };
 
 /**
@@ -162,7 +172,10 @@ export async function analizarDocumento(
           archivo,
           {
             type: "text",
-            text: `La tienda dice que este archivo es ${ESPERADO[tipo]}. Analízalo y reporta sus datos.`,
+            text:
+              `La tienda dice que este archivo es ${ESPERADO[tipo]}. ` +
+              "Si tiene varias páginas, son hojas o caras del mismo documento que la tienda subió juntas. " +
+              "Analízalo y reporta sus datos.",
           },
         ],
       },

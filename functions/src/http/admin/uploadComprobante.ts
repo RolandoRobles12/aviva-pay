@@ -1,6 +1,7 @@
 import { onRequest } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions/v2";
 import { parseMultipart } from "../multipart";
+import { unirArchivos } from "../unirArchivos";
 import { getDeal } from "../../firestore/dealsRepository";
 import { writeComprobante } from "../../hubspot/uploads";
 import { responderErrorSubida } from "../erroresSubida";
@@ -34,10 +35,10 @@ export const adminUploadComprobante = onRequest(
         return;
       }
 
-      const { fields, file } = await parseMultipart(req);
+      const { fields, files } = await parseMultipart(req);
       const { dealId, fechaEntrega, firmaClienteConfirmada } = fields;
 
-      if (!dealId || !file) {
+      if (!dealId || files.length === 0) {
         res.status(400).json({ error: "dealId y archivo son requeridos" });
         return;
       }
@@ -47,6 +48,9 @@ export const adminUploadComprobante = onRequest(
         res.status(404).json({ error: "Solicitud no encontrada" });
         return;
       }
+
+      // Varios archivos (p. ej. las dos caras de una hoja) se unen en un PDF.
+      const file = await unirArchivos(files);
 
       if (firmaClienteConfirmada !== "true") {
         res.status(400).json({

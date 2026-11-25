@@ -102,9 +102,15 @@ function IconoSubir() {
  */
 function CreditoLiberadoCell({
   iso,
+  ventaConfirmada,
   onValidar,
 }: {
   iso: string | null;
+  /**
+   * El crédito ya se dispuso (o ya se desembolsó): el código ya se validó,
+   * así que no hay nada que validar. El vale es de un solo uso.
+   */
+  ventaConfirmada: boolean;
   onValidar?: () => void;
 }) {
   if (!iso) return <span className="cell-pending">Pendiente</span>;
@@ -116,7 +122,7 @@ function CreditoLiberadoCell({
         </span>
         {formatDate(iso)}
       </span>
-      {onValidar && (
+      {onValidar && !ventaConfirmada && (
         <button type="button" className="accion-fila accion-fila--principal" onClick={onValidar}>
           <IconoEscanear />
           Validar código
@@ -150,6 +156,11 @@ function DateCell({ iso, ayudaPendiente }: { iso: string | null; ayudaPendiente?
  * Cotización / Comprobante columns: a dated pill once uploaded, otherwise
  * the action that uploads it.
  *
+ * Once a document is verified ("completado") the store can no longer
+ * change it — it's what the disbursement rests on, and the backend
+ * refuses the upload too. Only the admin preview (`permitirCorregir`)
+ * keeps "Corregir documento" for Aviva to fix it on the store's behalf.
+ *
  * On a historical deal the ask is deliberately demoted to a quiet link.
  * That sale closed before this store started using Paydesk, so there is
  * nothing left to upload and a green call-to-action would read as a chore
@@ -164,6 +175,7 @@ function UploadCell({
   ctaLabel,
   historica,
   revision,
+  permitirCorregir = false,
 }: {
   estatus: "pendiente" | "completado";
   dateIso: string | null;
@@ -174,7 +186,12 @@ function UploadCell({
   historica: boolean;
   /** Documento que espera a un administrador o que uno rechazó (también sobre un paso ya completado, si la tienda lo reemplazó). */
   revision?: RevisionDocumento | null;
+  /** Vista del admin: se puede reemplazar un documento ya verificado. */
+  permitirCorregir?: boolean;
 }) {
+  const verificado = estatus === "completado";
+  // Lo verificado ya no se toca desde la tienda (ver arriba).
+  const puedeReemplazar = Boolean(onUpload) && (!verificado || permitirCorregir);
   // La revisión va primero: si la tienda reemplazó un documento ya
   // completado y el nuevo cayó en revisión (o Aviva lo rechazó), eso es lo
   // que necesita ver, no el documento anterior.
@@ -184,7 +201,7 @@ function UploadCell({
         <span className="cell-review" title="El equipo de Aviva está revisando este documento">
           En revisión
         </span>
-        {onUpload && (
+        {puedeReemplazar && (
           <button type="button" className="accion-fila" onClick={onUpload}>
             <IconoSubir />
             Reemplazar
@@ -193,8 +210,10 @@ function UploadCell({
       </div>
     );
   }
+  // Sobre un documento ya verificado, el rechazo de un reemplazo no le pide
+  // nada a la tienda: el verificado sigue vigente.
   const rechazo =
-    revision?.estado === "rechazado" ? (
+    revision?.estado === "rechazado" && (!verificado || permitirCorregir) ? (
       <span className="cell-rejected" title={revision.comentario}>
         Hubo un problema con el documento
         {revision.comentario ? `: ${revision.comentario}` : ""}. Vuelve a subirlo.
@@ -224,7 +243,7 @@ function UploadCell({
           pill
         )}
         {rechazo}
-        {onUpload && (
+        {puedeReemplazar && (
           <button type="button" className="accion-fila" onClick={onUpload}>
             <IconoSubir />
             Corregir documento
@@ -334,6 +353,7 @@ export function DealsTable({
   onUploadComprobante,
   onValidarCodigo,
   mostrarVerificacion = false,
+  permitirCorregir = false,
   origenDisposicion,
 }: {
   deals: PayDeskDeal[];
@@ -367,6 +387,8 @@ export function DealsTable({
   onValidarCodigo?: (dealId: string) => void;
   /** Vista del admin: muestra el resultado de la verificación de cada documento. La tienda no lo ve. */
   mostrarVerificacion?: boolean;
+  /** Vista del admin: permite reemplazar documentos ya verificados. La tienda no puede. */
+  permitirCorregir?: boolean;
 }) {
   const l = { ...DEFAULT_LABELS, ...labels };
   const mostrarTienda = Object.keys(concesionarioNombres ?? {}).length > 1;
@@ -474,6 +496,7 @@ export function DealsTable({
                   }
                   ctaLabel="Subir cotización"
                   historica={historica}
+                  permitirCorregir={permitirCorregir}
                   onUpload={
                     onUploadCotizacion
                       ? () => onUploadCotizacion(deal.dealId)
@@ -485,6 +508,9 @@ export function DealsTable({
               <td>
                 <CreditoLiberadoCell
                   iso={deal.creditoLiberadoFecha}
+                  ventaConfirmada={Boolean(
+                    deal.disposicionPaydeskFecha || deal.disposicionCreditoFecha || deal.desembolsoFecha,
+                  )}
                   onValidar={
                     onValidarCodigo ? () => onValidarCodigo(deal.dealId) : undefined
                   }
@@ -512,6 +538,7 @@ export function DealsTable({
                   }
                   ctaLabel="Subir comprobante"
                   historica={historica}
+                  permitirCorregir={permitirCorregir}
                   onUpload={
                     onUploadComprobante
                       ? () => onUploadComprobante(deal.dealId)

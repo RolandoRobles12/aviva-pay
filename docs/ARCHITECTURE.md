@@ -314,8 +314,8 @@ La respuesta trae, además del resultado (`valeEmitido`, `motivoVale` cuando no 
 ## Flujo de escritura (concesionario → HubSpot)
 
 1. El concesionario llena el módulo de "Nueva cotización" o "Comprobante de entrega" para una fila (deal) específica de su tabla.
-2. El frontend hace `POST multipart/form-data` a `uploadCotizacion` / `uploadComprobante` con ese `dealId`.
-3. La función valida la sesión, App Check y el límite de subidas, y que el deal exista **y pertenezca a la tienda que llama**.
+2. El frontend hace `POST multipart/form-data` a `uploadCotizacion` / `uploadComprobante` con ese `dealId`. El documento puede ir en hasta 5 archivos (las dos caras de una hoja, varias hojas fotografiadas): el servidor los une en un solo PDF, en ese orden (`http/unirArchivos.ts`), y de ahí en adelante todo trabaja con ese PDF. Una factura XML solo se acepta sola.
+3. La función valida la sesión, App Check y el límite de subidas, y que el deal exista **y pertenezca a la tienda que llama**. Un documento ya verificado (paso en "completado") no se puede reemplazar desde la tienda (409): lo sostiene el desembolso, y si hay que corregirlo lo hace un administrador desde la vista de la tienda en el panel.
 4. Claude verifica el documento (ver "Documentos"). Si claramente no sirve, se rechaza ahí y no se guarda nada.
 5. El archivo se guarda en Cloud Storage (solo la ruta queda en el deal). Si la verificación salió limpia, se aplica: copia en HubSpot Files (su liga va a la propiedad del deal, para el equipo que trabaja en HubSpot), casilla en HubSpot y paso en "completado". Si algo no cuadró, queda **en revisión** sin tocar HubSpot hasta que un administrador lo apruebe.
 
@@ -330,6 +330,8 @@ Un admin puede reemplazar el archivo de una tienda desde `/admin/tiendas/:conces
 | Aceptado | Todo cuadra | Se aplica solo |
 | Rechazado | Ilegible, o no es el tipo de documento | La tienda ve un mensaje genérico y lo vuelve a subir; no se guarda nada. Después de 2 rechazos seguidos puede pedir la verificación manual (abajo) |
 | En revisión | Monto, fecha, cliente o firma no cuadran; archivo repetido de otra solicitud; señales de alteración; o la verificación falló (incluidos archivos demasiado grandes para mandarlos: más de 3.5 MB en imagen o 22 MB en PDF) | Se guarda, la tienda lo ve "En revisión", y espera a un administrador en `/admin/revision` |
+
+Qué cuenta como cada documento: la cotización puede ser cotización, factura o nota de venta. El comprobante, un comprobante de entrega o nota de remisión, **o** la nota de venta (o factura) cuando muestra la entrega: sello o leyenda de "Entregado", firma de recibido o el pagaré firmado por el cliente (`evidenciaEntrega`). Muchas tiendas no tienen otro formato de entrega. Una cotización **sin** nombre de cliente no va a revisión (los puntos de venta suelen imprimirla así, y la hace la propia tienda); sí va si trae el nombre de otra persona. El comprobante siempre debe traer el nombre.
 
 **Verificación manual a petición de la tienda.** Si la verificación rechaza el mismo documento de la misma solicitud 2 veces seguidas (`RECHAZOS_PARA_REVISION_MANUAL`), el formulario ofrece "¿Crees que es un error? Solicitar verificación manual". El contador vive en el deal (`cotizacionRechazosAuto` / `comprobanteRechazosAuto`) para que cerrar la ventana no lo reinicie, y vuelve a 0 en cuanto un documento se acepta o queda en revisión. Al pedirla, el archivo se sube con `verificacionManual=true`: se verifica igual (para que el administrador vea qué encontró Claude), pero un rechazo ya no lo rebota — queda en revisión con `solicitudManual: true`, marcado como "Verificación manual" en `/admin/revision` y en el aviso de Slack. Si la verificación esta vez lo da por bueno, se aplica como cualquier otro. El backend no acepta la petición antes de los 2 rechazos: no es un atajo para saltarse la verificación.
 

@@ -65,7 +65,7 @@ async function main() {
   const modelo: ModeloOcr = modeloArg === "haiku" ? "haiku" : "sonnet";
   const casos = leerCsv(join(carpeta, "esperado.csv"));
   const salida: string[] = [
-    "archivo,tipo,esperado,obtenido,acierto,motivos,tipo_detectado,total_leido,cliente_leido,fechas_leidas,firma,alteraciones",
+    "archivo,tipo,esperado,obtenido,acierto,motivos,tipo_detectado,total_leido,cliente_leido,fechas_leidas,firma,entrega,alteraciones",
   ];
   const matriz: Record<string, Record<string, number>> = {};
   let aciertos = 0;
@@ -106,7 +106,7 @@ async function main() {
       [
         c.archivo, tipo, esperado, obtenido, acierto ? "si" : "no", motivos,
         datos?.tipoDetectado, datos?.montoTotal, datos?.nombreCliente,
-        datos?.fechas.join(" "), datos?.tieneFirma, datos?.senalesAlteracion.join("; "),
+        datos?.fechas.join(" "), datos?.tieneFirma, datos?.evidenciaEntrega, datos?.senalesAlteracion.join("; "),
       ].map(csv).join(","),
     );
   }

@@ -124,13 +124,14 @@ interface ConSolicitudManual {
 
 function cotizacionFormData(params: {
   dealId: string;
-  file: File;
+  /** El documento, en uno o varios archivos (el servidor los une en un PDF). */
+  files: File[];
   fechaEntregaAcordada: string;
   montoTotalCompra: string;
 } & ConSolicitudManual) {
   const formData = new FormData();
   formData.append("dealId", params.dealId);
-  formData.append("file", params.file);
+  for (const f of params.files) formData.append("file", f);
   formData.append("fechaEntregaAcordada", params.fechaEntregaAcordada);
   formData.append("montoTotalCompra", params.montoTotalCompra);
   if (params.solicitudManual) formData.append("verificacionManual", "true");
@@ -139,13 +140,14 @@ function cotizacionFormData(params: {
 
 function comprobanteFormData(params: {
   dealId: string;
-  file: File;
+  /** El documento, en uno o varios archivos (el servidor los une en un PDF). */
+  files: File[];
   fechaEntrega: string;
   firmaClienteConfirmada: boolean;
 } & ConSolicitudManual) {
   const formData = new FormData();
   formData.append("dealId", params.dealId);
-  formData.append("file", params.file);
+  for (const f of params.files) formData.append("file", f);
   formData.append("fechaEntrega", params.fechaEntrega);
   formData.append(
     "firmaClienteConfirmada",
@@ -157,7 +159,8 @@ function comprobanteFormData(params: {
 
 export function uploadCotizacion(params: {
   dealId: string;
-  file: File;
+  /** El documento, en uno o varios archivos (el servidor los une en un PDF). */
+  files: File[];
   fechaEntregaAcordada: string;
   montoTotalCompra: string;
 } & ConSolicitudManual) {
@@ -166,7 +169,8 @@ export function uploadCotizacion(params: {
 
 export function uploadComprobante(params: {
   dealId: string;
-  file: File;
+  /** El documento, en uno o varios archivos (el servidor los une en un PDF). */
+  files: File[];
   fechaEntrega: string;
   firmaClienteConfirmada: boolean;
 } & ConSolicitudManual) {
@@ -180,7 +184,8 @@ export function uploadComprobante(params: {
  */
 export function adminUploadCotizacion(params: {
   dealId: string;
-  file: File;
+  /** El documento, en uno o varios archivos (el servidor los une en un PDF). */
+  files: File[];
   fechaEntregaAcordada: string;
   montoTotalCompra: string;
 }) {
@@ -189,7 +194,8 @@ export function adminUploadCotizacion(params: {
 
 export function adminUploadComprobante(params: {
   dealId: string;
-  file: File;
+  /** El documento, en uno o varios archivos (el servidor los une en un PDF). */
+  files: File[];
   fechaEntrega: string;
   firmaClienteConfirmada: boolean;
 }) {

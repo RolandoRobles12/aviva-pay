@@ -12,6 +12,8 @@ export interface VerificacionDocumento {
     montoTotal?: number | null;
     fechas?: string[];
     tieneFirma?: boolean | null;
+    /** Sello de "Entregado", firma de recibido: una nota de venta que sirve de comprobante. */
+    evidenciaEntrega?: boolean | null;
     observaciones?: string;
   };
   revisadoEn: string;
@@ -73,6 +75,8 @@ export interface PayDeskDeal {
   creditoLiberadoFecha: string | null;
   /** Ya resuelta según el origen configurado en /admin/etapas: la confirmación en caja o la etapa de HubSpot. */
   disposicionCreditoFecha: string | null;
+  /** Cuándo la tienda validó el código del cliente en caja (el vale es de un solo uso). */
+  disposicionPaydeskFecha?: string | null;
 
   comprobanteEntregaEstatus: UploadStatus;
   comprobanteUrl: string | null;

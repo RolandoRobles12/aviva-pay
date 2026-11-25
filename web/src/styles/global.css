@@ -568,6 +568,94 @@ h3 {
   display: none;
 }
 
+/* Arrastrando un archivo encima. */
+.upload-form__dropzone--encima {
+  border-color: var(--verde-aviva);
+  background: color-mix(in srgb, var(--verde-esmeralda) 35%, var(--blanco));
+}
+
+/* Ya hay archivos: la zona se vuelve un botón para agregar otra hoja. */
+.upload-form__dropzone--compacta {
+  padding: 0.7rem 1rem;
+  color: var(--verde-musgo);
+}
+
+/* Los archivos de un documento, en el orden en que se van a juntar. */
+.selector-archivos {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.selector-archivos > .upload-form__hint {
+  margin: 0;
+}
+
+.selector-archivos__lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--blanco-off);
+  border-radius: 10px;
+}
+
+.selector-archivos__item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.9rem;
+}
+
+.selector-archivos__item + .selector-archivos__item {
+  border-top: 1px solid var(--blanco-off);
+}
+
+.selector-archivos__num {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  background: var(--verde-esmeralda);
+  color: var(--verde-musgo);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.selector-archivos__nombre {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selector-archivos__peso {
+  flex: none;
+  color: color-mix(in srgb, var(--negro-off) 55%, transparent);
+  font-size: 0.8rem;
+}
+
+/* Gana a ".upload-form button" (el botón verde de enviar). */
+.upload-form .selector-archivos__quitar {
+  flex: none;
+  background: none;
+  border: none;
+  padding: 0.3rem 0.4rem;
+  color: #b3261e;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.upload-form .selector-archivos__quitar:hover:not(:disabled) {
+  background: none;
+  text-decoration: underline;
+}
+
 .upload-form__hint {
   color: color-mix(in srgb, var(--negro-off) 55%, transparent);
   font-size: 0.8rem;

@@ -183,6 +183,14 @@ function Tarjeta({ r, onResuelta }: { r: RevisionPendiente; onResuelta: (texto: 
                 <>
                   <dt>Firma del cliente</dt>
                   <dd>{leido.tieneFirma === true ? "Sí" : leido.tieneFirma === false ? "No se ve" : "—"}</dd>
+                  <dt>Muestra la entrega</dt>
+                  <dd>
+                    {leido.evidenciaEntrega === true
+                      ? "Sí (sello o firma de recibido)"
+                      : leido.evidenciaEntrega === false
+                        ? "No"
+                        : "—"}
+                  </dd>
                 </>
               )}
               <dt>Fechas</dt>
