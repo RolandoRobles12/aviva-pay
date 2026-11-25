@@ -17,7 +17,7 @@ import {
   validarDocumento,
   type ResultadoOcr,
 } from "../ocr/validarDocumento";
-import { notificar } from "../notificaciones/notificar";
+import { notificar, type VerificadoPor } from "../notificaciones/notificar";
 import type { RevisionDocumento } from "../types/deal";
 import { guardarVerificacion } from "../firestore/verificacionesRepository";
 import {
@@ -163,6 +163,25 @@ async function aplicarDocumento(
 }
 
 /**
+ * Un comprobante de entrega ya aplicado es lo que deja la solicitud lista
+ * para desembolsar: se avisa a quien sigue con eso (evento
+ * `comprobante_listo_desembolso`), con botón al deal de HubSpot.
+ */
+async function avisarListoParaDesembolso(
+  dealId: string,
+  capturado: Capturado,
+  verificadoPor: VerificadoPor,
+): Promise<void> {
+  if (capturado.tipo !== "comprobante") return;
+  await notificar({
+    evento: "comprobante_listo_desembolso",
+    dealId,
+    fechaEntrega: capturado.fechaEntrega || null,
+    verificadoPor,
+  });
+}
+
+/**
  * El flujo de subida de cotización y comprobante, para la tienda y para el
  * admin:
  *
@@ -291,6 +310,11 @@ async function subirDocumento(
   if (!esAdmin) await registrarEvento(dealId, concesionarioId, capturado.tipo, "aceptado");
 
   logger.info(`subirDocumento: ${capturado.tipo} del deal ${dealId} aplicado`);
+  await avisarListoParaDesembolso(
+    dealId,
+    capturado,
+    esAdmin ? { como: "admin" } : verificacion ? { como: "automatica" } : { como: "sin_verificacion" },
+  );
   return { verificacion, enRevision: false };
 }
 
@@ -404,4 +428,8 @@ export async function resolverRevision(params: {
   logger.info(`resolverRevision: ${tipo} del deal ${dealId} aprobado por ${resueltoPor}`);
   await registrarEvento(dealId, concesionarioId, tipo, "aprobado_admin", minutos);
   await notificar({ evento: "revision_resuelta", dealId, tipo, decision, comentario, resueltoPor });
+  await avisarListoParaDesembolso(dealId, revision.capturado as Capturado, {
+    como: "revision",
+    por: resueltoPor,
+  });
 }

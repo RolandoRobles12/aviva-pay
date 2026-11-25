@@ -6,6 +6,7 @@ import { siguientesReintentos, ventanaDesde, MAX_REINTENTOS } from "../src/progr
 import { validarDestino } from "../src/http/admin/notificaciones";
 import { camposSinMapear } from "../src/programadas/revisionDiaria";
 import { mensajeRechazoTienda } from "../src/ocr/validarDocumento";
+import { construirUrlDeal } from "../src/hubspot/ligas";
 
 const ctx = { cliente: "Juan & <Ana>", tienda: "Construrama TEQ" };
 
@@ -31,6 +32,72 @@ describe("construirMensaje", () => {
   it("el recordatorio de revisión atrasada trae botón", () => {
     const m = construirMensaje({ evento: "revision_atrasada", dealId: "9", tipo: "comprobante", horas: 6 }, ctx, "u");
     expect(JSON.stringify(m.blocks)).toContain("Abrir revisión");
+  });
+});
+
+describe("aviso de listo para desembolso", () => {
+  const ctxDeal = { ...ctx, montoAprobado: 25000, montoCompra: 24500.5, desembolsoFecha: null };
+  const url = "https://app.hubspot.com/contacts/123/record/0-3/9";
+
+  it("trae los datos del desembolso y el botón al deal de HubSpot, no a la bandeja ni al archivo", () => {
+    const m = construirMensaje(
+      {
+        evento: "comprobante_listo_desembolso",
+        dealId: "9",
+        fechaEntrega: "2026-11-24",
+        verificadoPor: { como: "automatica" },
+      },
+      ctxDeal,
+      "https://x.web.app/admin/revision",
+      url,
+    );
+    const json = JSON.stringify(m.blocks);
+    expect(m.texto).toContain("listo para desembolso");
+    expect(m.texto).toContain("Construrama TEQ");
+    expect(json).toContain("Juan &amp; &lt;Ana&gt;");
+    expect(json).toContain("25,000.00");
+    expect(json).toContain("24,500.50");
+    expect(json).toContain("24/11/2026");
+    expect(json).toContain("Verificación automática");
+    expect(json).toContain("Abrir solicitud en HubSpot");
+    expect(json).toContain(url);
+    expect(json).not.toContain("/admin/revision");
+    expect(json).not.toContain("ya tiene fecha de desembolso");
+  });
+
+  it("dice quién lo aprobó y advierte si ya se desembolsó", () => {
+    const m = construirMensaje(
+      {
+        evento: "comprobante_listo_desembolso",
+        dealId: "9",
+        fechaEntrega: null,
+        verificadoPor: { como: "revision", por: "ana@aviva.com" },
+      },
+      { ...ctxDeal, desembolsoFecha: "2026-11-20T15:00:00.000Z" },
+      "u",
+      url,
+    );
+    const json = JSON.stringify(m.blocks);
+    expect(json).toContain("Aprobado en revisión por ana@aviva.com");
+    expect(json).toContain("ya tiene fecha de desembolso (20/11/2026)");
+  });
+
+  it("sin liga a HubSpot sale igual, sin botón y con el ID del deal", () => {
+    const m = construirMensaje(
+      { evento: "comprobante_listo_desembolso", dealId: "9", fechaEntrega: null, verificadoPor: { como: "admin" } },
+      ctxDeal,
+      "u",
+      null,
+    );
+    const json = JSON.stringify(m.blocks);
+    expect(json).not.toContain('"type":"button"');
+    expect(json).toContain("busca el deal 9");
+  });
+
+  it("arma la URL del deal con el portal y el dominio de su región", () => {
+    expect(construirUrlDeal({ portalId: "123", uiDomain: "app-eu1.hubspot.com" }, "456")).toBe(
+      "https://app-eu1.hubspot.com/contacts/123/record/0-3/456",
+    );
   });
 });
 
