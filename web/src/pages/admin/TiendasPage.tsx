@@ -14,7 +14,16 @@ import { useEsSuperAdmin } from "../../lib/adminRol";
 import type { AdminConcesionario } from "../../types/admin";
 import { Modal } from "../../components/Modal";
 import { StatTiles } from "../../components/StatTiles";
-import { Badge, Card, Cargando, EmptyState, Notice, PageHeader } from "../../components/admin/ui";
+import {
+  Badge,
+  Card,
+  Cargando,
+  EmptyState,
+  Field,
+  MensajeInline,
+  Notice,
+  PageHeader,
+} from "../../components/admin/ui";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -364,7 +373,7 @@ export function TiendasPage() {
       )}
 
       {editando && (
-        <Modal onClose={() => setEditando(null)}>
+        <Modal onClose={() => setEditando(null)} className="modal-panel--tienda">
           <EditarTiendaForm
             tienda={editando}
             todasLasTiendas={tiendas}
@@ -420,32 +429,121 @@ function EstadoCapacitacion({
   );
 }
 
-function AvanceCorreoChip({ avance }: { avance: CapacitacionAdmin | undefined }) {
+function AvanceCorreoBadge({ avance }: { avance: CapacitacionAdmin | undefined }) {
   if (!avance || avance.completadas === 0) {
     return (
-      <span className="chip__badge chip__badge--muted" title="No ha pasado ninguna lección de la capacitación">
-        sin capacitación
-      </span>
+      <Badge tono="warn" title="No ha pasado ninguna lección de la capacitación">
+        Sin capacitación
+      </Badge>
     );
   }
   if (avance.completadas >= avance.total) {
     return (
-      <span
-        className="chip__badge"
+      <Badge
+        tono="ok"
         title={
           avance.completaEn
             ? `Terminó la capacitación el ${new Date(avance.completaEn).toLocaleDateString("es-MX")}`
             : "Terminó la capacitación"
         }
       >
-        ✓ capacitado
-      </span>
+        ✓ Capacitado
+      </Badge>
     );
   }
   return (
-    <span className="chip__badge chip__badge--muted" title="Lecciones de la capacitación que ya pasó">
+    <Badge tono="neutro" title="Lecciones de la capacitación que ya pasó">
       {avance.completadas}/{avance.total} lecciones
-    </span>
+    </Badge>
+  );
+}
+
+/** El correo de "restablecer contraseña" de una persona: enviando (ok null), enviado o con error. */
+type EstadoRestablecer = { ok: boolean | null; texto: string };
+
+/** Lo que Firebase responde al pedir el correo, en algo que el admin pueda usar. */
+function mensajeErrorRestablecer(err: unknown): string {
+  const code = (err as { code?: string })?.code;
+  if (code === "auth/too-many-requests") {
+    return "Se pidieron demasiados correos seguidos. Intenta de nuevo en unos minutos.";
+  }
+  if (code === "auth/network-request-failed") return "Sin conexión. Intenta de nuevo.";
+  return "No se pudo enviar el correo. Intenta de nuevo.";
+}
+
+/**
+ * Una persona con acceso a la tienda: su correo, cómo va en la
+ * capacitación, en qué otras tiendas trabaja y lo que se puede hacer con
+ * ella. "Restablecer contraseña" solo aparece para quien ya está guardado:
+ * a un correo recién agregado le llega la invitación al guardar.
+ */
+function PersonaFila({
+  email,
+  avance,
+  otras,
+  esNuevo,
+  restablecer,
+  onRestablecer,
+  onQuitar,
+  bloqueado,
+}: {
+  email: string;
+  avance: CapacitacionAdmin | undefined;
+  otras?: string[];
+  esNuevo: boolean;
+  restablecer: EstadoRestablecer | undefined;
+  onRestablecer: () => void;
+  onQuitar: () => void;
+  bloqueado: boolean;
+}) {
+  const enviando = restablecer?.ok === null;
+  return (
+    <li className="adm-persona">
+      <span className="adm-persona__info">
+        <span className="adm-persona__correo">{email}</span>
+        <span className="adm-persona__etiquetas">
+          {esNuevo ? (
+            <Badge tono="neutro" title="Se le manda la invitación por correo en cuanto guardes">
+              Nuevo · se invita al guardar
+            </Badge>
+          ) : (
+            <AvanceCorreoBadge avance={avance} />
+          )}
+          {otras && otras.length > 0 && (
+            <Badge tono="neutro" title={`También trabaja en: ${otras.join(", ")}`}>
+              +{otras.length} {otras.length === 1 ? "tienda" : "tiendas"}
+            </Badge>
+          )}
+        </span>
+      </span>
+      <span className="adm-persona__acciones">
+        {!esNuevo && (
+          <button
+            type="button"
+            className="adm-btn adm-btn--secundario adm-btn--chico"
+            onClick={onRestablecer}
+            disabled={enviando || bloqueado}
+            title="Le manda un correo con una liga para crear una contraseña nueva. También sirve para reenviar una invitación que no le llegó."
+          >
+            {enviando ? "Enviando..." : "Restablecer contraseña"}
+          </button>
+        )}
+        <button
+          type="button"
+          className="adm-btn adm-btn--texto adm-btn--chico adm-persona__quitar"
+          onClick={onQuitar}
+          disabled={bloqueado}
+          aria-label={`Quitar a ${email}`}
+        >
+          Quitar
+        </button>
+      </span>
+      {restablecer && restablecer.ok !== null && (
+        <span className="adm-persona__msg">
+          <MensajeInline ok={restablecer.ok}>{restablecer.texto}</MensajeInline>
+        </span>
+      )}
+    </li>
   );
 }
 
@@ -480,6 +578,27 @@ function EditarTiendaForm({
   // backend sees no diff to (re-)invite — so a dedicated retry is the only
   // way to actually resend.
   const [fallidos, setFallidos] = useState<string[]>([]);
+  const [restablecer, setRestablecer] = useState<Record<string, EstadoRestablecer>>({});
+  // Solo a quien ya está guardado en la tienda se le puede mandar: un correo
+  // recién agregado todavía no tiene cuenta, y recibe la invitación al guardar.
+  const guardados = useMemo(
+    () => new Set([...tienda.usuarios, ...(tienda.vendedores ?? [])]),
+    [tienda.usuarios, tienda.vendedores],
+  );
+
+  async function enviarRestablecer(email: string) {
+    setRestablecer((r) => ({ ...r, [email]: { ok: null, texto: "" } }));
+    try {
+      await enviarRestablecerContrasena(email);
+      const hora = new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
+      setRestablecer((r) => ({
+        ...r,
+        [email]: { ok: true, texto: `Correo para restablecer la contraseña enviado (${hora}).` },
+      }));
+    } catch (err) {
+      setRestablecer((r) => ({ ...r, [email]: { ok: false, texto: mensajeErrorRestablecer(err) } }));
+    }
+  }
 
   // Which other stores each listed email already works at. Computed from
   // the catalog the page already loaded — no extra call. Reflects saved
@@ -630,176 +749,186 @@ function EditarTiendaForm({
     onSaved(partes.join(" · ") || null);
   }
 
+  const ocupado = submitting || invitando;
+
   return (
-    <form className="upload-form" onSubmit={handleSubmit}>
-      <h3>Editar tienda</h3>
-      <p className="form-note">
-        Kiosco en HubSpot: <span className="cell-mono">{tienda.kiosco}</span>
-      </p>
+    <form className="adm-modal" onSubmit={handleSubmit}>
+      <header className="adm-modal__cabeza">
+        <h3>Editar tienda</h3>
+        <p className="adm-field__ayuda">
+          Kiosco en HubSpot: <span className="adm-mono">{tienda.kiosco}</span>
+        </p>
+      </header>
 
-      <label>
-        Nombre visible para la tienda
-        <input
-          type="text"
-          value={nombre}
-          onChange={(e) => setNombre(e.target.value)}
-          required
-        />
-      </label>
+      <div className="adm-modal__cuerpo">
+        <section className="adm-modal__seccion">
+          <Field label="Nombre visible para la tienda" htmlFor="tienda-nombre">
+            <input
+              id="tienda-nombre"
+              type="text"
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              required
+            />
+          </Field>
+        </section>
 
-      <label>Usuarios con acceso</label>
-      <p className="form-note">
-        Cualquiera de estos correos puede entrar a esta tienda con su propia
-        contraseña. Un correo puede tener acceso a más de una tienda.
-      </p>
-      <div className="chip-input">
-        {usuarios.map((email) => (
-          <span key={email} className="chip chip--removable">
-            {email}
-            <AvanceCorreoChip avance={capacitacion[email.toLowerCase()]} />
-            {otrasTiendas.has(email) && (
-              <span
-                className="chip__badge"
-                title={`También trabaja en: ${otrasTiendas.get(email)!.join(", ")}`}
-              >
-                +{otrasTiendas.get(email)!.length}
-              </span>
-            )}
-            <button
-              type="button"
-              aria-label={`Quitar a ${email}`}
-              onClick={() => quitarCorreo(email)}
-            >
-              ×
+        <section className="adm-modal__seccion">
+          <h4 className="adm-modal__titulo">Usuarios con acceso</h4>
+          <p className="adm-field__ayuda">
+            Cualquiera de estos correos puede entrar a esta tienda con su propia contraseña. Un
+            correo puede tener acceso a más de una tienda. Si alguien olvidó su contraseña o no le
+            llegó la invitación, usa “Restablecer contraseña”.
+          </p>
+          {usuarios.length === 0 ? (
+            <p className="adm-personas__vacio">Todavía nadie tiene acceso a esta tienda.</p>
+          ) : (
+            <ul className="adm-personas">
+              {usuarios.map((email) => (
+                <PersonaFila
+                  key={email}
+                  email={email}
+                  avance={capacitacion[email.toLowerCase()]}
+                  otras={otrasTiendas.get(email)}
+                  esNuevo={!guardados.has(email)}
+                  restablecer={restablecer[email]}
+                  onRestablecer={() => enviarRestablecer(email)}
+                  onQuitar={() => quitarCorreo(email)}
+                  bloqueado={ocupado}
+                />
+              ))}
+            </ul>
+          )}
+          {otrasTiendas.size > 0 && (
+            <ul className="adm-personas__notas">
+              {[...otrasTiendas].map(([email, nombres]) => (
+                <li key={email}>
+                  <strong>{email}</strong> ya trabaja en {nombres.join(", ")}: al agregarlo aquí
+                  solo se le suma esta tienda, no se le pide crear otra contraseña.
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="adm-agregar">
+            <input
+              type="email"
+              aria-label="Correo de la persona a agregar"
+              placeholder="correo@ejemplo.com"
+              value={nuevoCorreo}
+              onChange={(e) => setNuevoCorreo(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  agregarCorreo();
+                }
+              }}
+            />
+            <button type="button" className="adm-btn adm-btn--secundario" onClick={agregarCorreo}>
+              Agregar
             </button>
-          </span>
-        ))}
-      </div>
+          </div>
+          <p className="adm-field__ayuda">
+            Un correo nuevo recibe una liga por email para crear su contraseña en cuanto guardes.
+          </p>
+        </section>
 
-      {otrasTiendas.size > 0 && (
-        <ul className="otras-tiendas">
-          {[...otrasTiendas].map(([email, nombres]) => (
-            <li key={email}>
-              <strong>{email}</strong> ya trabaja en {nombres.join(", ")} — al
-              agregarlo aquí solo se le suma esta tienda, no se le pide crear
-              otra contraseña.
-            </li>
-          ))}
-        </ul>
-      )}
-      <div className="chip-input__add">
-        <input
-          type="email"
-          placeholder="correo@ejemplo.com"
-          value={nuevoCorreo}
-          onChange={(e) => setNuevoCorreo(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              agregarCorreo();
-            }
-          }}
-        />
-        <button type="button" className="button-secondary" onClick={agregarCorreo}>
-          Agregar
-        </button>
-      </div>
-      <p className="form-note">
-        Un correo nuevo recibe una liga por email para crear su contraseña en
-        cuanto guardes.
-      </p>
-
-      <label>Asesores de ventas (solo consulta)</label>
-      <p className="form-note">
-        Personal de la tienda que solo vende. Ven a los clientes aprobados de esta
-        tienda, su monto aprobado y en qué etapa va cada uno, para darles
-        seguimiento. No ven documentos, y no pueden subir nada ni validar códigos en
-        caja. Cada persona tiene un solo perfil: quien ya tiene acceso completo en
-        alguna tienda no puede ser asesor de ventas.
-      </p>
-      <div className="chip-input">
-        {vendedores.map((email) => (
-          <span key={email} className="chip chip--removable">
-            {email}
-            <AvanceCorreoChip avance={capacitacion[email.toLowerCase()]} />
-            <button
-              type="button"
-              aria-label={`Quitar a ${email}`}
-              onClick={() => setVendedores(vendedores.filter((v) => v !== email))}
-            >
-              ×
+        <section className="adm-modal__seccion">
+          <h4 className="adm-modal__titulo">Asesores de ventas (solo consulta)</h4>
+          <p className="adm-field__ayuda">
+            Personal de la tienda que solo vende. Ven a los clientes aprobados de esta tienda, su
+            monto aprobado y en qué etapa va cada uno, para darles seguimiento. No ven documentos, y
+            no pueden subir nada ni validar códigos en caja. Cada persona tiene un solo perfil: quien
+            ya tiene acceso completo en alguna tienda no puede ser asesor de ventas.
+          </p>
+          {vendedores.length > 0 && (
+            <ul className="adm-personas">
+              {vendedores.map((email) => (
+                <PersonaFila
+                  key={email}
+                  email={email}
+                  avance={capacitacion[email.toLowerCase()]}
+                  esNuevo={!guardados.has(email)}
+                  restablecer={restablecer[email]}
+                  onRestablecer={() => enviarRestablecer(email)}
+                  onQuitar={() => setVendedores(vendedores.filter((v) => v !== email))}
+                  bloqueado={ocupado}
+                />
+              ))}
+            </ul>
+          )}
+          <div className="adm-agregar">
+            <input
+              type="email"
+              aria-label="Correo del asesor a agregar"
+              placeholder="asesor@ejemplo.com"
+              value={nuevoVendedor}
+              onChange={(e) => setNuevoVendedor(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  agregarVendedor();
+                }
+              }}
+            />
+            <button type="button" className="adm-btn adm-btn--secundario" onClick={agregarVendedor}>
+              Agregar
             </button>
-          </span>
-        ))}
+          </div>
+        </section>
+
+        <section className="adm-modal__seccion">
+          <Field
+            label="Arranque solo para esta tienda (opcional)"
+            htmlFor="tienda-rollout"
+            ayuda="Úsalo si esta tienda arrancó en otra fecha que el resto. Vacío = sigue la fecha general."
+          >
+            <input
+              id="tienda-rollout"
+              type="date"
+              value={rolloutDesde}
+              onChange={(e) => setRolloutDesde(e.target.value)}
+              disabled={!esSuper}
+            />
+          </Field>
+        </section>
+
+        {error && <Notice tono="error">{error}</Notice>}
+
+        {fallidos.length > 0 && (
+          <button
+            type="button"
+            className="adm-btn adm-btn--secundario"
+            disabled={invitando}
+            onClick={async () => {
+              setError(null);
+              const noEnviados = await enviarInvitaciones(fallidos);
+              if (noEnviados.length > 0) {
+                setError(
+                  `Sigue sin poder enviarse a: ${noEnviados.join(", ")}. Intenta de nuevo en unos minutos.`,
+                );
+              } else {
+                onSaved(`Invitación enviada a ${fallidos.join(", ")}`);
+              }
+            }}
+          >
+            {invitando ? "Reintentando..." : "Reintentar invitación"}
+          </button>
+        )}
       </div>
-      <div className="chip-input__add">
-        <input
-          type="email"
-          placeholder="asesor@ejemplo.com"
-          value={nuevoVendedor}
-          onChange={(e) => setNuevoVendedor(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              agregarVendedor();
-            }
-          }}
-        />
-        <button type="button" className="button-secondary" onClick={agregarVendedor}>
-          Agregar
-        </button>
-      </div>
 
-      <label>
-        Arranque solo para esta tienda (opcional)
-        <input
-          type="date"
-          value={rolloutDesde}
-          onChange={(e) => setRolloutDesde(e.target.value)}
-          disabled={!esSuper}
-        />
-      </label>
-      <p className="form-note">
-        Úsalo si esta tienda arrancó en otra fecha que el resto. Vacío = sigue
-        la fecha general.
-      </p>
-
-      {error && <p className="form-error">{error}</p>}
-
-      {fallidos.length > 0 && (
+      <footer className="adm-modal__pie">
         <button
           type="button"
-          className="button-secondary"
-          disabled={invitando}
-          onClick={async () => {
-            setError(null);
-            const noEnviados = await enviarInvitaciones(fallidos);
-            if (noEnviados.length > 0) {
-              setError(
-                `Sigue sin poder enviarse a: ${noEnviados.join(", ")}. Intenta de nuevo en unos minutos.`,
-              );
-            } else {
-              onSaved(`Invitación enviada a ${fallidos.join(", ")}`);
-            }
-          }}
-        >
-          {invitando ? "Reintentando..." : "Reintentar invitación"}
-        </button>
-      )}
-
-      <div className="upload-form__actions">
-        <button
-          type="button"
-          className="button-secondary"
+          className="adm-btn adm-btn--secundario"
           onClick={onCancel}
-          disabled={submitting || invitando}
+          disabled={ocupado}
         >
           Cancelar
         </button>
-        <button type="submit" disabled={submitting || invitando}>
+        <button type="submit" className="adm-btn adm-btn--primario" disabled={ocupado}>
           {invitando ? "Enviando invitaciones..." : submitting ? "Guardando..." : "Guardar"}
         </button>
-      </div>
+      </footer>
     </form>
   );
 }
