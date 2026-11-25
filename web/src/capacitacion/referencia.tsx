@@ -84,13 +84,13 @@ export const PREGUNTAS_FRECUENTES: PreguntaFrecuente[] = [
   {
     pregunta: "Subí el archivo equivocado",
     respuesta:
-      "En la fila del cliente toca “Corregir documento” (o “Reemplazar” si está en revisión) y sube el correcto. El nuevo reemplaza al anterior.",
+      "Si está en revisión, toca “Reemplazar” en la fila del cliente y sube el correcto. Si ya se aceptó (✓), ya no se puede cambiar desde la tienda: pídele a Aviva que lo corrija.",
     leccion: "documentos",
   },
   {
     pregunta: "¿Qué tipo de archivos puedo subir?",
     respuesta:
-      "Cotización: PDF, foto o XML. Comprobante de entrega: PDF o foto. Las fotos del celular sirven, incluidas las de iPhone.",
+      "Cotización: PDF, foto o XML. Comprobante de entrega: PDF o foto. Las fotos del celular sirven, incluidas las de iPhone. Si son varias hojas o las dos caras, sube hasta 5 fotos juntas: se unen en un solo documento.",
     leccion: "documentos",
   },
   {
@@ -201,7 +201,7 @@ export const CUANDO_LLAMAR: Array<{
 }> = [
   { situacion: "No encuentras a un cliente", quien: "tu", accion: "Cambia el periodo a “Todo”, búscalo por nombre y revisa “Canceladas”." },
   { situacion: "Olvidaste tu contraseña", quien: "tu", accion: "“¿Olvidaste tu contraseña?” en la pantalla de entrada." },
-  { situacion: "Subiste el archivo equivocado", quien: "tu", accion: "“Corregir documento” o “Reemplazar”." },
+  { situacion: "Subiste el archivo equivocado", quien: "tu", accion: "En revisión: “Reemplazar”. Ya aceptado: pídele a Aviva que lo corrija." },
   { situacion: "Un documento no se aceptó", quien: "tu", accion: "Súbelo correcto, completo y legible. Tras dos rechazos, pide verificación manual." },
   { situacion: "La pistola no lee la pantalla", quien: "tu", accion: "Usa la cámara o teclea los 10 dígitos." },
   { situacion: "“Este código no es de tu tienda”", quien: "cliente", accion: "No entregues. El cliente pide a Aviva que reasignen su crédito." },

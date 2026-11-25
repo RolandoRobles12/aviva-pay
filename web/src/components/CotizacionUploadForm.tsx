@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { VerificacionAviso } from "./VerificacionAviso";
 import { ArchivoLink } from "./ArchivoLink";
 import { SolicitarRevisionManual } from "./SolicitarRevisionManual";
-import { prepararArchivo } from "../lib/imagenes";
+import { prepararArchivos } from "../lib/imagenes";
+import { SelectorArchivos } from "./SelectorArchivos";
 import type { Verificacion } from "../lib/uploads";
 import { RECHAZOS_PARA_REVISION_MANUAL, SubidaError, uploadCotizacion } from "../lib/uploads";
 import { CurrencyInput } from "./CurrencyInput";
@@ -31,7 +32,7 @@ export function CotizacionUploadForm({
   /** Defaults to the concesionario endpoint; the admin preview passes adminUploadCotizacion instead. */
   onUpload?: typeof uploadCotizacion;
 }) {
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [fechaEntregaAcordada, setFechaEntregaAcordada] = useState("");
   const [montoTotalCompra, setMontoTotalCompra] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -57,7 +58,7 @@ export function CotizacionUploadForm({
   }, []);
 
   async function enviar(solicitudManual: boolean) {
-    if (!file) {
+    if (files.length === 0) {
       paso("cotizacion", "error", "sin-archivo");
       setError("Selecciona un archivo (PDF, imagen o XML).");
       return;
@@ -70,11 +71,11 @@ export function CotizacionUploadForm({
     try {
       // Fotos de iPhone (HEIC) y fotos muy pesadas se convierten aquí,
       // para que la verificación automática las pueda leer.
-      const archivo = await prepararArchivo(file);
+      const archivos = await prepararArchivos(files);
       preparando = false;
       const { verificacion, enRevision } = await onUpload({
         dealId,
-        file: archivo,
+        files: archivos,
         fechaEntregaAcordada,
         montoTotalCompra,
         ...(solicitudManual ? { solicitudManual } : {}),
@@ -115,7 +116,7 @@ export function CotizacionUploadForm({
   function solicitarManual() {
     // Mismos campos obligatorios que una subida normal: si se aprueba, se
     // aplica tal cual lo capturó la tienda.
-    if (file && !formRef.current?.reportValidity()) return;
+    if (files.length > 0 && !formRef.current?.reportValidity()) return;
     void enviar(true);
   }
 
@@ -147,23 +148,14 @@ export function CotizacionUploadForm({
         </p>
       )}
 
-      <label className="upload-form__dropzone">
-        <input
-          type="file"
-          accept=".pdf,.xml,image/*,.heic,.heif"
-          onChange={(e) => {
-            const elegido = e.target.files?.[0] ?? null;
-            if (elegido) paso("cotizacion", "archivo");
-            setFile(elegido);
-          }}
-          required
-        />
-        <span aria-hidden>⬆️</span>
-        <strong data-privado>{file ? file.name : "Subir cotización"}</strong>
-        <span className="upload-form__hint">
-          PDF, imagen o XML · Haz clic o arrastra el archivo aquí
-        </span>
-      </label>
+      <SelectorArchivos
+        archivos={files}
+        onChange={setFiles}
+        accept=".pdf,.xml,image/*,.heic,.heif"
+        titulo="Subir cotización"
+        formatos="PDF, fotos o XML"
+        onElegido={() => paso("cotizacion", "archivo")}
+      />
 
       <label>
         {labels?.cotizacionFechaEntregaAcordada ?? "Fecha de entrega acordada"}

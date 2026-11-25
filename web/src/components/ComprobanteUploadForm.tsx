@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { VerificacionAviso } from "./VerificacionAviso";
 import { ArchivoLink } from "./ArchivoLink";
 import { SolicitarRevisionManual } from "./SolicitarRevisionManual";
-import { prepararArchivo } from "../lib/imagenes";
+import { prepararArchivos } from "../lib/imagenes";
+import { SelectorArchivos } from "./SelectorArchivos";
 import type { Verificacion } from "../lib/uploads";
 import { RECHAZOS_PARA_REVISION_MANUAL, SubidaError, uploadComprobante } from "../lib/uploads";
 import type { FieldLabels } from "../types/admin";
@@ -30,7 +31,7 @@ export function ComprobanteUploadForm({
   /** Defaults to the concesionario endpoint; the admin preview passes adminUploadComprobante instead. */
   onUpload?: typeof uploadComprobante;
 }) {
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [fechaEntrega, setFechaEntrega] = useState("");
   const [firmaClienteConfirmada, setFirmaClienteConfirmada] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -56,7 +57,7 @@ export function ComprobanteUploadForm({
   }, []);
 
   async function enviar(solicitudManual: boolean) {
-    if (!file) {
+    if (files.length === 0) {
       paso("comprobante", "error", "sin-archivo");
       setError("Selecciona un archivo (PDF o imagen).");
       return;
@@ -74,11 +75,11 @@ export function ComprobanteUploadForm({
     try {
       // Fotos de iPhone (HEIC) y fotos muy pesadas se convierten aquí,
       // para que la verificación automática las pueda leer.
-      const archivo = await prepararArchivo(file);
+      const archivos = await prepararArchivos(files);
       preparando = false;
       const { verificacion, enRevision } = await onUpload({
         dealId,
-        file: archivo,
+        files: archivos,
         fechaEntrega,
         firmaClienteConfirmada,
         ...(solicitudManual ? { solicitudManual } : {}),
@@ -119,7 +120,7 @@ export function ComprobanteUploadForm({
   function solicitarManual() {
     // Mismos campos obligatorios que una subida normal: si se aprueba, se
     // aplica tal cual lo capturó la tienda.
-    if (file && !formRef.current?.reportValidity()) return;
+    if (files.length > 0 && !formRef.current?.reportValidity()) return;
     void enviar(true);
   }
 
@@ -151,23 +152,14 @@ export function ComprobanteUploadForm({
         </p>
       )}
 
-      <label className="upload-form__dropzone">
-        <input
-          type="file"
-          accept=".pdf,image/*,.heic,.heif"
-          onChange={(e) => {
-            const elegido = e.target.files?.[0] ?? null;
-            if (elegido) paso("comprobante", "archivo");
-            setFile(elegido);
-          }}
-          required
-        />
-        <span aria-hidden>⬆️</span>
-        <strong data-privado>{file ? file.name : "Subir comprobante de entrega firmado"}</strong>
-        <span className="upload-form__hint">
-          PDF o imagen · Haz clic o arrastra el archivo aquí
-        </span>
-      </label>
+      <SelectorArchivos
+        archivos={files}
+        onChange={setFiles}
+        accept=".pdf,image/*,.heic,.heif"
+        titulo="Subir comprobante de entrega firmado"
+        formatos="PDF o fotos"
+        onElegido={() => paso("comprobante", "archivo")}
+      />
 
       <label>
         {labels?.comprobanteFechaEntrega ?? "Fecha de entrega"}

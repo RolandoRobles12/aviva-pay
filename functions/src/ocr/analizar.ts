@@ -162,7 +162,10 @@ export async function analizarDocumento(
           archivo,
           {
             type: "text",
-            text: `La tienda dice que este archivo es ${ESPERADO[tipo]}. Analízalo y reporta sus datos.`,
+            text:
+              `La tienda dice que este archivo es ${ESPERADO[tipo]}. ` +
+              "Si tiene varias páginas, son hojas o caras del mismo documento que la tienda subió juntas. " +
+              "Analízalo y reporta sus datos.",
           },
         ],
       },

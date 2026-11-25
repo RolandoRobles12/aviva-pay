@@ -5,6 +5,7 @@ import { esLimiteExcedido, MENSAJE_LIMITE } from "../auth/rateLimit";
 import { OcrRechazadoError } from "../ocr/validarDocumento";
 import { alertar } from "../notificaciones/alertas";
 import { RevisionManualNoDisponibleError } from "../hubspot/uploads";
+import { ArchivosInvalidosError } from "./unirArchivos";
 
 /**
  * Cómo responden las cuatro funciones de subida (tienda y admin,
@@ -15,6 +16,7 @@ import { RevisionManualNoDisponibleError } from "../hubspot/uploads";
  *   si ya van suficientes rechazos, la señal para ofrecer la verificación
  *   manual;
  * - verificación manual pedida antes de tiempo → 409;
+ * - archivos que no se pueden unir en un documento (formato, cantidad) → 400;
  * - cualquier otra cosa → 500 con un mensaje en español, el detalle a los
  *   logs y un aviso a Slack.
  */
@@ -36,6 +38,10 @@ export async function responderErrorSubida(
       error: err.message,
       revisionManualDisponible: err.revisionManualDisponible,
     });
+    return;
+  }
+  if (err instanceof ArchivosInvalidosError) {
+    res.status(400).json({ error: err.message });
     return;
   }
   if (err instanceof RevisionManualNoDisponibleError) {

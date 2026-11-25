@@ -89,3 +89,48 @@ export async function prepararArchivo(file: File): Promise<File> {
   }
   return file;
 }
+
+/** Archivos por documento; el backend aplica el mismo tope (functions/src/http/unirArchivos.ts). */
+export const MAX_ARCHIVOS = 5;
+/** Lo que cabe en una subida con margen: Cloud Functions corta las solicitudes de más de 32 MB. */
+export const BYTES_MAXIMO_SUBIDA = 25 * 1024 * 1024;
+
+/** Lo que no se puede subir junto; el mensaje es para la tienda. */
+export class ArchivosNoValidosError extends Error {}
+
+function esXml(file: { name: string; type: string }): boolean {
+  return /xml/i.test(file.type) || /\.xml$/i.test(file.name);
+}
+
+/**
+ * Prepara todos los archivos de un documento. Con más de uno, el servidor
+ * los une en un PDF, y ahí solo caben PDF, JPEG y PNG: cualquier otra
+ * imagen (WebP, GIF) se pasa a JPEG aquí. De uno en uno, para no llenar
+ * la memoria de un celular con varias fotos a la vez.
+ */
+export async function prepararArchivos(files: File[]): Promise<File[]> {
+  if (files.length > 1 && files.some(esXml)) {
+    throw new ArchivosNoValidosError(
+      "Una factura XML se sube sola. Quita los otros archivos o sube las hojas como fotos o PDF.",
+    );
+  }
+  const listos: File[] = [];
+  for (const file of files) {
+    let listo = await prepararArchivo(file);
+    if (
+      files.length > 1 &&
+      listo.type.startsWith("image/") &&
+      !["image/jpeg", "image/png"].includes(listo.type)
+    ) {
+      listo = await aJpeg(listo, listo.name);
+    }
+    listos.push(listo);
+  }
+  const total = listos.reduce((s, f) => s + f.size, 0);
+  if (total > BYTES_MAXIMO_SUBIDA) {
+    throw new ArchivosNoValidosError(
+      "Los archivos pesan demasiado juntos. Sube menos hojas o fotos, o un PDF más ligero.",
+    );
+  }
+  return listos;
+}

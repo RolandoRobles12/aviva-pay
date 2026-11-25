@@ -139,6 +139,7 @@ export function ConcesionarioPreviewPage() {
         origenDisposicion={state.origenDisposicion}
         sort={sort}
         onSort={handleSort}
+        permitirCorregir
         onUploadCotizacion={(dealId) => setActiveModal({ type: "cotizacion", dealId })}
         onUploadComprobante={(dealId) => setActiveModal({ type: "comprobante", dealId })}
       />

@@ -334,8 +334,11 @@ function Documentos() {
         />
         <p>
           Si el mismo documento se rechaza dos veces y estás seguro de que está bien,
-          aparece <strong>“Solicitar verificación manual”</strong>. Y si te equivocaste
-          de archivo, toca <strong>“Corregir documento”</strong> y súbelo de nuevo.
+          aparece <strong>“Solicitar verificación manual”</strong>. Si el documento tiene
+          varias hojas o lo fotografiaste por las dos caras, agrega todas las fotos en la
+          misma ventana (hasta 5): se juntan en un solo documento. Si te equivocaste de
+          archivo y está <strong>en revisión</strong>, toca <strong>“Reemplazar”</strong>; una
+          vez aceptado ya no se puede cambiar, así que pídeselo a Aviva.
         </p>
       </Seccion>
     </>

@@ -1,5 +1,6 @@
 import { onRequest } from "firebase-functions/v2/https";
 import { parseMultipart } from "./multipart";
+import { unirArchivos } from "./unirArchivos";
 import { getDeal } from "../firestore/dealsRepository";
 import { writeComprobante } from "../hubspot/uploads";
 import { responderErrorSubida } from "./erroresSubida";
@@ -39,10 +40,10 @@ export const uploadComprobante = onRequest(
       // sobra para una tienda real y corta un abuso a tiempo.
       await limitar("upload", auth.uid, { max: 30, ventanaSeg: 3600 });
 
-      const { fields, file } = await parseMultipart(req);
+      const { fields, files } = await parseMultipart(req);
       const { dealId, fechaEntrega, firmaClienteConfirmada } = fields;
 
-      if (!dealId || !file) {
+      if (!dealId || files.length === 0) {
         res.status(400).json({ error: "dealId y archivo son requeridos" });
         return;
       }
@@ -54,6 +55,20 @@ export const uploadComprobante = onRequest(
         res.status(404).json({ error: "Solicitud no encontrada" });
         return;
       }
+
+      // Un documento ya verificado no se cambia desde la tienda: es lo que
+      // sostiene el desembolso. Si hay que corregirlo, lo hace Aviva desde
+      // el panel (admin/upload*.ts).
+      if (deal.comprobanteEntregaEstatus === "completado") {
+        res.status(409).json({
+          error:
+            "Este documento ya está verificado y no se puede cambiar. Si hay que corregirlo, pídelo al equipo de Aviva.",
+        });
+        return;
+      }
+
+      // Varios archivos (p. ej. las dos caras de una hoja) se unen en un PDF.
+      const file = await unirArchivos(files);
 
       if (firmaClienteConfirmada !== "true") {
         res.status(400).json({

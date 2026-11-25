@@ -314,8 +314,8 @@ La respuesta trae, además del resultado (`valeEmitido`, `motivoVale` cuando no 
 ## Flujo de escritura (concesionario → HubSpot)
 
 1. El concesionario llena el módulo de "Nueva cotización" o "Comprobante de entrega" para una fila (deal) específica de su tabla.
-2. El frontend hace `POST multipart/form-data` a `uploadCotizacion` / `uploadComprobante` con ese `dealId`.
-3. La función valida la sesión, App Check y el límite de subidas, y que el deal exista **y pertenezca a la tienda que llama**.
+2. El frontend hace `POST multipart/form-data` a `uploadCotizacion` / `uploadComprobante` con ese `dealId`. El documento puede ir en hasta 5 archivos (las dos caras de una hoja, varias hojas fotografiadas): el servidor los une en un solo PDF, en ese orden (`http/unirArchivos.ts`), y de ahí en adelante todo trabaja con ese PDF. Una factura XML solo se acepta sola.
+3. La función valida la sesión, App Check y el límite de subidas, y que el deal exista **y pertenezca a la tienda que llama**. Un documento ya verificado (paso en "completado") no se puede reemplazar desde la tienda (409): lo sostiene el desembolso, y si hay que corregirlo lo hace un administrador desde la vista de la tienda en el panel.
 4. Claude verifica el documento (ver "Documentos"). Si claramente no sirve, se rechaza ahí y no se guarda nada.
 5. El archivo se guarda en Cloud Storage (solo la ruta queda en el deal). Si la verificación salió limpia, se aplica: copia en HubSpot Files (su liga va a la propiedad del deal, para el equipo que trabaja en HubSpot), casilla en HubSpot y paso en "completado". Si algo no cuadró, queda **en revisión** sin tocar HubSpot hasta que un administrador lo apruebe.
 
