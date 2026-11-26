@@ -1,17 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
-  calcularImpacto,
-  type DealImpacto,
-  type TiendaImpacto,
-  type ValeImpacto,
-} from "../src/metricas/impacto";
+  calcularMetricasNegocio,
+  type DealNegocio,
+  type TiendaNegocio,
+  type ValeNegocio,
+} from "../src/metricas/negocio";
 
 const AHORA = new Date("2026-06-30T12:00:00Z");
 // 30 días: actual = 31 may → 30 jun; anterior = 1 may → 31 may.
 const EN_ACTUAL = "2026-06-15T12:00:00Z";
 const EN_ANTERIOR = "2026-05-15T12:00:00Z";
 
-function deal(p: Partial<DealImpacto> & { dealId: string }): DealImpacto {
+function deal(p: Partial<DealNegocio> & { dealId: string }): DealNegocio {
   return {
     concesionarioId: "a",
     cancelado: false,
@@ -26,7 +26,7 @@ function deal(p: Partial<DealImpacto> & { dealId: string }): DealImpacto {
   };
 }
 
-function vale(p: Partial<ValeImpacto> & { codigo: string; dealId: string }): ValeImpacto {
+function vale(p: Partial<ValeNegocio> & { codigo: string; dealId: string }): ValeNegocio {
   return {
     concesionarioId: "a",
     estado: "emitido",
@@ -42,14 +42,14 @@ function vale(p: Partial<ValeImpacto> & { codigo: string; dealId: string }): Val
   };
 }
 
-const TIENDAS: TiendaImpacto[] = [
+const TIENDAS: TiendaNegocio[] = [
   { concesionarioId: "a", nombre: "Tienda A", rolloutDesde: "2026-05-01", habilitada: true },
   { concesionarioId: "b", nombre: "Tienda B", rolloutDesde: "2026-05-01", habilitada: true },
   { concesionarioId: "c", nombre: "Tienda C", rolloutDesde: null, habilitada: false },
 ];
 
-function calcular(deals: DealImpacto[], vales: ValeImpacto[] = [], extra: Partial<Parameters<typeof calcularImpacto>[0]> = {}) {
-  return calcularImpacto({
+function calcular(deals: DealNegocio[], vales: ValeNegocio[] = [], extra: Partial<Parameters<typeof calcularMetricasNegocio>[0]> = {}) {
+  return calcularMetricasNegocio({
     deals,
     vales,
     tiendas: TIENDAS,
@@ -63,7 +63,7 @@ function calcular(deals: DealImpacto[], vales: ValeImpacto[] = [], extra: Partia
   });
 }
 
-describe("calcularImpacto · crédito y control", () => {
+describe("calcularMetricasNegocio · crédito y control", () => {
   it("control completo = vale usado + comprobante, medido en pesos y solo sobre créditos de Paydesk", () => {
     const deals = [
       // Completo: vale usado y comprobante.
@@ -101,7 +101,7 @@ describe("calcularImpacto · crédito y control", () => {
   });
 
   it("sin fecha de arranque no hay base de control y lo avisa", () => {
-    const r = calcularImpacto({
+    const r = calcularMetricasNegocio({
       deals: [deal({ dealId: "1", desembolsoFecha: EN_ACTUAL })],
       vales: [],
       tiendas: [{ concesionarioId: "a", nombre: "A", rolloutDesde: null, habilitada: true }],
@@ -147,7 +147,7 @@ describe("calcularImpacto · crédito y control", () => {
   });
 });
 
-describe("calcularImpacto · uso del crédito y velocidad", () => {
+describe("calcularMetricasNegocio · uso del crédito y velocidad", () => {
   it("usado = desembolsado o vale validado; sin usar = cancelado sin nada de eso; solo créditos de Paydesk", () => {
     const deals = [
       // Usado: desembolsado sin que escanearan el vale (el vale venció).
@@ -203,7 +203,7 @@ describe("calcularImpacto · uso del crédito y velocidad", () => {
   });
 });
 
-describe("calcularImpacto · adopción", () => {
+describe("calcularMetricasNegocio · adopción", () => {
   it("tiendas activas, cotización en Paydesk y personas", () => {
     const deals = [
       deal({ dealId: "1", creditoLiberadoFecha: EN_ACTUAL, cotizacionEstatus: "completado" }),
@@ -236,7 +236,7 @@ describe("calcularImpacto · adopción", () => {
   });
 });
 
-describe("calcularImpacto · meses y tiendas", () => {
+describe("calcularMetricasNegocio · meses y tiendas", () => {
   it("serie de 12 meses en hora de México y tabla por tienda ordenada por monto", () => {
     const deals = [
       // 1 jun 03:00 UTC = 31 may en México.

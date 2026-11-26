@@ -664,12 +664,10 @@ export const adminListBitacoraCallable = httpsCallable<void, { entradas: Entrada
   "adminListBitacora",
 );
 
-export interface MetricasTienda {
+/** Documentos por tienda (pestaña "Por tienda" de Revisión de documentos). Ver functions/src/metricas/calcular.ts. */
+export interface DocumentosTienda {
   concesionarioId: string;
   nombre: string;
-  solicitudes: number;
-  desembolsadas: number;
-  diasADesembolso: number | null;
   documentos: number;
   aceptados: number;
   enRevision: number;
@@ -682,12 +680,12 @@ export interface MetricasTienda {
   alertas: string[];
 }
 
-export const adminMetricasCallable = httpsCallable<
+export const adminDocumentosPorTiendaCallable = httpsCallable<
   { dias: number },
   {
     dias: number;
-    tiendas: MetricasTienda[];
-    global: Omit<MetricasTienda, "concesionarioId" | "nombre" | "alertas">;
+    tiendas: DocumentosTienda[];
+    global: Omit<DocumentosTienda, "concesionarioId" | "nombre" | "alertas">;
   }
 >(functions, "adminMetricas");
 
@@ -877,26 +875,26 @@ export const adminSetUsoConfigCallable = httpsCallable<
   UsoConfig
 >(functions, "adminSetUsoConfig");
 
-// --- Impacto (ver functions/src/metricas/impacto.ts) ---
+// --- Métricas del negocio (ver functions/src/metricas/negocio.ts) ---
 
-export interface MontoImpacto {
+export interface MontoNegocio {
   creditos: number;
   monto: number;
 }
 
-export interface BloqueImpacto {
+export interface BloqueNegocio {
   credito: {
-    desembolsado: MontoImpacto;
+    desembolsado: MontoNegocio;
     ticketPromedio: number | null;
     ventaEnCaja: number;
     ventaArribaDelCredito: number;
   };
   control: {
-    base: MontoImpacto;
-    completo: MontoImpacto;
+    base: MontoNegocio;
+    completo: MontoNegocio;
     pct: number | null;
-    sinVale: MontoImpacto;
-    sinComprobante: MontoImpacto;
+    sinVale: MontoNegocio;
+    sinComprobante: MontoNegocio;
     subidasRechazadas: number;
     valesDeOtraTienda: number;
     codigosInexistentes: number;
@@ -904,10 +902,10 @@ export interface BloqueImpacto {
   uso: {
     diasADesembolso: number | null;
     tasaUso: number | null;
-    usados: MontoImpacto;
-    sinUsar: MontoImpacto;
-    noFueron: MontoImpacto;
-    fueronSinComprar: MontoImpacto;
+    usados: MontoNegocio;
+    sinUsar: MontoNegocio;
+    noFueron: MontoNegocio;
+    fueronSinComprar: MontoNegocio;
   };
   adopcion: {
     tiendasActivas: number;
@@ -918,16 +916,16 @@ export interface BloqueImpacto {
   };
 }
 
-export interface ResultadoImpacto {
+export interface ResultadoNegocio {
   dias: number;
-  actual: BloqueImpacto;
-  anterior: BloqueImpacto;
+  actual: BloqueNegocio;
+  anterior: BloqueNegocio;
   antesDePaydesk: { diasADesembolso: number | null; creditos: number };
-  meses: { mes: string; desembolsado: MontoImpacto; pctControl: number | null }[];
+  meses: { mes: string; desembolsado: MontoNegocio; pctControl: number | null }[];
   tiendas: {
     concesionarioId: string;
     nombre: string;
-    desembolsado: MontoImpacto;
+    desembolsado: MontoNegocio;
     pctControl: number | null;
     diasADesembolso: number | null;
     tasaUso: number | null;
@@ -937,4 +935,4 @@ export interface ResultadoImpacto {
   avisos: { sinArranque: boolean; desembolsosSinMonto: number };
 }
 
-export const adminImpactoCallable = httpsCallable<{ dias: number }, ResultadoImpacto>(functions, "adminImpacto");
+export const adminMetricasNegocioCallable = httpsCallable<{ dias: number }, ResultadoNegocio>(functions, "adminMetricasNegocio");

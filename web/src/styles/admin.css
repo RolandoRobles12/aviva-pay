@@ -1569,10 +1569,10 @@
   }
 }
 
-/* --- Impacto -------------------------------------------------------------
+/* --- Métricas del negocio ------------------------------------------------
    Cuatro preguntas, pocos números grandes y su cambio contra el periodo
    anterior. El cambio va con flecha y en palabras: el color es un segundo
-   canal, nunca el único. Ver pages/admin/ImpactoPage.tsx. */
+   canal, nunca el único. Ver pages/admin/MetricasPage.tsx. */
 
 .imp-num {
   display: inline-grid;

@@ -279,7 +279,7 @@ export async function listarVales(): Promise<PayDeskVale[]> {
   return snap.docs.map((doc) => doc.data() as PayDeskVale);
 }
 
-/** Los intentos fallidos desde una fecha, para "Impacto". Solo lo que se cuenta. */
+/** Los intentos fallidos desde una fecha, para Métricas. Solo lo que se cuenta. */
 export async function intentosDesde(
   desde: Date,
 ): Promise<Array<{ concesionarioId: string | null; motivo: ValeIntentoFallido["motivo"]; en: string }>> {

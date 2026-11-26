@@ -344,7 +344,7 @@ export async function limpiarVencidos(config: Pick<UsoConfig, "diasInteracciones
 
 /**
  * Quién usó el portal desde una fecha (uid, perfil y cuándo), sin los
- * eventos: para contar personas activas en "Impacto" sin traer cada lote
+ * eventos: para contar personas activas en Métricas sin traer cada lote
  * completo.
  */
 export async function actividadDesde(

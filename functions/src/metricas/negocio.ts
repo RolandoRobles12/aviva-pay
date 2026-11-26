@@ -1,14 +1,15 @@
 import { mediana } from "./calcular";
 
 /**
- * "Impacto": lo que Paydesk le cambia al negocio, para admins y
- * stakeholders. No es la pantalla de operación (eso es /admin/metricas) ni
- * la de producto (/admin/uso): responde cuatro preguntas —
+ * Métricas del negocio (/admin/metricas): lo que Paydesk le cambia al
+ * negocio, para admins y stakeholders. No es la pantalla de operación
+ * (documentos por tienda, /admin/revision/tiendas) ni la de producto
+ * (/admin/uso): responde cuatro preguntas —
  *
  * 1. ¿Cuánto crédito se desembolsa? (todos los desembolsos y la venta en caja)
- * 2. ¿Cumple su objetivo de control? (vale validado en caja + comprobante)
- * 3. ¿Los clientes usan su crédito y qué tan rápido? (créditos usados, crédito que no se usó, días)
- * 4. ¿Las tiendas lo adoptan? (tiendas y personas activas, cotizaciones)
+ * 2. ¿El crédito está bajo control? (vale validado en caja + comprobante)
+ * 3. ¿Los clientes usan su crédito? (créditos usados, crédito que no se usó, días para desembolsar)
+ * 4. ¿Las tiendas lo usan? (tiendas y personas activas, cotizaciones)
  *
  * Cada bloque se calcula para el periodo elegido y para el periodo
  * anterior de la misma duración, para comparar. Todo sale de fechas que ya
@@ -16,7 +17,7 @@ import { mediana } from "./calcular";
  * sin fotos diarias. Pura (sin Firestore) para poder probarla.
  */
 
-export interface DealImpacto {
+export interface DealNegocio {
   dealId: string;
   concesionarioId: string | null;
   cancelado?: boolean;
@@ -29,7 +30,7 @@ export interface DealImpacto {
   canceladoFecha: string | null;
 }
 
-export interface ValeImpacto {
+export interface ValeNegocio {
   codigo: string;
   dealId: string;
   concesionarioId: string;
@@ -45,7 +46,7 @@ export interface ValeImpacto {
   reemplazaA: string | null;
 }
 
-export interface TiendaImpacto {
+export interface TiendaNegocio {
   concesionarioId: string;
   nombre: string;
   /** Fecha de arranque ya resuelta (la de la tienda o la global); null = aún no arranca. */
@@ -54,14 +55,14 @@ export interface TiendaImpacto {
   habilitada: boolean;
 }
 
-export interface EventoImpacto {
+export interface EventoNegocio {
   concesionarioId: string | null;
   resultado: "aceptado" | "en_revision" | "rechazado_auto" | "aprobado_admin" | "rechazado_admin";
   /** ISO. */
   en: string;
 }
 
-export interface IntentoImpacto {
+export interface IntentoNegocio {
   concesionarioId: string | null;
   motivo: "no-existe" | "otra-tienda";
   en: string;
@@ -78,7 +79,7 @@ export interface Monto {
   monto: number;
 }
 
-export interface BloqueImpacto {
+export interface BloqueNegocio {
   credito: {
     desembolsado: Monto;
     ticketPromedio: number | null;
@@ -129,7 +130,7 @@ export interface BloqueImpacto {
   };
 }
 
-export interface MesImpacto {
+export interface MesNegocio {
   /** YYYY-MM, hora de la Ciudad de México. */
   mes: string;
   desembolsado: Monto;
@@ -147,13 +148,13 @@ export interface TiendaFila {
   activa: boolean;
 }
 
-export interface ResultadoImpacto {
+export interface ResultadoNegocio {
   dias: number;
-  actual: BloqueImpacto;
-  anterior: BloqueImpacto;
+  actual: BloqueNegocio;
+  anterior: BloqueNegocio;
   /** Mediana de días de aprobación a desembolso de los créditos anteriores al arranque, de todo el historial. */
   antesDePaydesk: { diasADesembolso: number | null; creditos: number };
-  meses: MesImpacto[];
+  meses: MesNegocio[];
   tiendas: TiendaFila[];
   /** Habilitadas sin ninguna acción en el periodo, para ir a buscarlas. */
   tiendasSinActividad: string[];
@@ -198,13 +199,13 @@ const pctMonto = (parte: Monto, base: Monto): number | null =>
  * los meses y la tabla por tienda.
  */
 class Indice {
-  readonly tiendas: Map<string, TiendaImpacto>;
-  readonly valesPorDeal = new Map<string, ValeImpacto[]>();
+  readonly tiendas: Map<string, TiendaNegocio>;
+  readonly valesPorDeal = new Map<string, ValeNegocio[]>();
 
   constructor(
-    readonly deals: DealImpacto[],
-    readonly vales: ValeImpacto[],
-    tiendas: TiendaImpacto[],
+    readonly deals: DealNegocio[],
+    readonly vales: ValeNegocio[],
+    tiendas: TiendaNegocio[],
   ) {
     this.tiendas = new Map(tiendas.map((t) => [t.concesionarioId, t]));
     for (const v of vales) {
@@ -215,24 +216,24 @@ class Indice {
   }
 
   /** Misma regla que la tienda (web/src/lib/dealScope.ts): sin arranque, todo es histórico. */
-  esDePaydesk(d: DealImpacto): boolean {
+  esDePaydesk(d: DealNegocio): boolean {
     const arranque = this.tiendas.get(d.concesionarioId ?? "")?.rolloutDesde ?? null;
     if (!arranque) return false;
     if (!d.fechaSolicitud) return true;
     return d.fechaSolicitud.slice(0, 10) >= arranque;
   }
 
-  monto(d: DealImpacto): number {
+  monto(d: DealNegocio): number {
     if (d.montoAprobado != null) return d.montoAprobado;
     const vale = this.valesPorDeal.get(d.dealId)?.find((v) => v.montoAutorizado != null);
     return vale?.montoAutorizado ?? 0;
   }
 
-  conValeUsado(d: DealImpacto): boolean {
+  conValeUsado(d: DealNegocio): boolean {
     return (this.valesPorDeal.get(d.dealId) ?? []).some((v) => v.estado === "utilizado");
   }
 
-  desembolsados(r: Rango, tienda?: string): DealImpacto[] {
+  desembolsados(r: Rango, tienda?: string): DealNegocio[] {
     return this.deals.filter(
       (d) =>
         d.concesionarioId &&
@@ -242,7 +243,7 @@ class Indice {
     );
   }
 
-  diasADesembolso(deals: DealImpacto[]): number | null {
+  diasADesembolso(deals: DealNegocio[]): number | null {
     const dias: number[] = [];
     for (const d of deals) {
       if (!d.fechaSolicitud || !d.desembolsoFecha) continue;
@@ -252,7 +253,7 @@ class Indice {
     return mediana(dias);
   }
 
-  control(deals: DealImpacto[]) {
+  control(deals: DealNegocio[]) {
     const base = cero();
     const completo = cero();
     const sinVale = cero();
@@ -305,7 +306,7 @@ class Indice {
 
 function tiendasActivas(
   idx: Indice,
-  eventos: EventoImpacto[],
+  eventos: EventoNegocio[],
   r: Rango,
 ): Set<string> {
   const activas = new Set<string>();
@@ -318,11 +319,11 @@ function tiendasActivas(
 
 function bloque(
   idx: Indice,
-  eventos: EventoImpacto[],
-  intentos: IntentoImpacto[],
+  eventos: EventoNegocio[],
+  intentos: IntentoNegocio[],
   personas: ActividadPersona[] | null,
   r: Rango,
-): BloqueImpacto {
+): BloqueNegocio {
   const desembolsados = idx.desembolsados(r);
   const desembolsado = cero();
   for (const d of desembolsados) sumar(desembolsado, idx.monto(d));
@@ -395,12 +396,12 @@ function bloque(
   };
 }
 
-export function calcularImpacto(params: {
-  deals: DealImpacto[];
-  vales: ValeImpacto[];
-  tiendas: TiendaImpacto[];
-  eventos: EventoImpacto[];
-  intentos: IntentoImpacto[];
+export function calcularMetricasNegocio(params: {
+  deals: DealNegocio[];
+  vales: ValeNegocio[];
+  tiendas: TiendaNegocio[];
+  eventos: EventoNegocio[];
+  intentos: IntentoNegocio[];
   /** Actividad de personas desde el inicio del periodo anterior. */
   personas: ActividadPersona[];
   dias: number;
@@ -408,7 +409,7 @@ export function calcularImpacto(params: {
   diasRetencionUso: number;
   ahora?: Date;
   meses?: number;
-}): ResultadoImpacto {
+}): ResultadoNegocio {
   const ahora = (params.ahora ?? new Date()).getTime();
   const { dias } = params;
   const idx = new Indice(params.deals, params.vales, params.tiendas);
@@ -429,7 +430,7 @@ export function calcularImpacto(params: {
 
   // Los últimos N meses calendario, incluido el actual.
   const nMeses = params.meses ?? 12;
-  const meses: MesImpacto[] = [];
+  const meses: MesNegocio[] = [];
   const hoy = mesDe(new Date(ahora).toISOString());
   let [anio, mes] = hoy.split("-").map(Number);
   const claves: string[] = [];
@@ -441,7 +442,7 @@ export function calcularImpacto(params: {
       anio -= 1;
     }
   }
-  const porMes = new Map<string, DealImpacto[]>(claves.map((k) => [k, []]));
+  const porMes = new Map<string, DealNegocio[]>(claves.map((k) => [k, []]));
   for (const d of historicos) porMes.get(mesDe(d.desembolsoFecha!))?.push(d);
   for (const k of claves) {
     const ds = porMes.get(k)!;
