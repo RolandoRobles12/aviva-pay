@@ -5,7 +5,7 @@ import { mediana } from "./calcular";
  * stakeholders. No es la pantalla de operación (eso es /admin/metricas) ni
  * la de producto (/admin/uso): responde cuatro preguntas —
  *
- * 1. ¿Cuánto crédito pasa por Paydesk? (desembolsos y venta en caja)
+ * 1. ¿Cuánto crédito se desembolsa? (todos los desembolsos y la venta en caja)
  * 2. ¿Cumple su objetivo de control? (vale validado en caja + comprobante)
  * 3. ¿El crédito se usa y llega más rápido? (disposición, días, crédito perdido)
  * 4. ¿Las tiendas lo adoptan? (tiendas y personas activas, cotizaciones)

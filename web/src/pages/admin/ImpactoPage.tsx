@@ -156,7 +156,7 @@ export function ImpactoPage() {
     <section className="impacto">
       <PageHeader
         titulo="Impacto"
-        descripcion="Lo que Paydesk le cambia al negocio: cuánto crédito pasa por la herramienta, si cumple su objetivo de control, si el crédito se usa y llega más rápido, y si las tiendas la adoptan. Cada número se compara contra el periodo anterior de la misma duración."
+        descripcion="Lo que Paydesk le cambia al negocio: cuánto crédito se desembolsa en las tiendas aliadas, si cumple su objetivo de control, si el crédito se usa y llega más rápido, y si las tiendas la adoptan. Cada número se compara contra el periodo anterior de la misma duración."
         acciones={
           <select aria-label="Periodo" value={periodo} onChange={(e) => setPeriodo(Number(e.target.value))}>
             {PERIODOS.map((p) => (
@@ -199,8 +199,8 @@ function Contenido({ d }: { d: ResultadoImpacto }) {
 
       <Pregunta
         numero={1}
-        titulo="¿Cuánto crédito pasa por Paydesk?"
-        descripcion="Créditos desembolsados en las tiendas aliadas y lo que las tiendas cobraron en caja con el vale."
+        titulo="¿Cuánto crédito se desembolsa?"
+        descripcion="Todos los créditos desembolsados en las tiendas aliadas, incluidos los aprobados antes de que su tienda arrancara en Paydesk, y lo que las tiendas cobraron en caja con el vale."
       >
         <div className="imp-indicadores">
           <Indicador
@@ -253,7 +253,7 @@ function Contenido({ d }: { d: ResultadoImpacto }) {
             cambio={<Cambio actual={a.control.pct} anterior={p.control.pct} puntos />}
             nota={
               a.control.base.creditos > 0
-                ? `${pesos(a.control.completo.monto)} de ${pesos(a.control.base.monto)} · ${a.control.completo.creditos} de ${creditos(a.control.base)} aprobados con Paydesk`
+                ? `${pesos(a.control.completo.monto)} de ${pesos(a.control.base.monto)} · ${a.control.completo.creditos} de ${creditos(a.control.base)}`
                 : "Sin desembolsos de créditos de Paydesk en el periodo"
             }
             destacado
