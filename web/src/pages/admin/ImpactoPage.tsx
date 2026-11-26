@@ -111,6 +111,25 @@ function Pregunta({ numero, titulo, descripcion, children }: { numero: number; t
 }
 
 /**
+ * Por qué el control se mide sobre menos créditos que los desembolsados:
+ * los aprobados antes del arranque de su tienda cerraron su venta fuera de
+ * Paydesk y nunca iban a tener vale ni comprobante. Sin decirlo, "13" contra
+ * "133" arriba parece un error.
+ */
+function BaseControl({ desembolsados, base }: { desembolsados: number; base: number }) {
+  const anteriores = desembolsados - base;
+  if (anteriores <= 0) return null;
+  return (
+    <p className="imp-base">
+      De los {desembolsados.toLocaleString("es-MX")} créditos desembolsados en el periodo,{" "}
+      <strong>{base.toLocaleString("es-MX")}</strong> se aprobaron desde que su tienda arrancó en Paydesk y son los que
+      se miden aquí. Los otros <strong>{anteriores.toLocaleString("es-MX")}</strong> se aprobaron antes del arranque:
+      su venta se cerró fuera de Paydesk, así que nunca iban a tener vale ni comprobante.
+    </p>
+  );
+}
+
+/**
  * "Impacto": lo que Paydesk le cambia al negocio, en cuatro preguntas y
  * pocos números, cada uno contra el periodo anterior. Para admins y
  * stakeholders; la operación del día a día está en Métricas y Uso del
@@ -234,7 +253,7 @@ function Contenido({ d }: { d: ResultadoImpacto }) {
             cambio={<Cambio actual={a.control.pct} anterior={p.control.pct} puntos />}
             nota={
               a.control.base.creditos > 0
-                ? `${pesos(a.control.completo.monto)} de ${pesos(a.control.base.monto)} · ${a.control.completo.creditos} de ${creditos(a.control.base)}`
+                ? `${pesos(a.control.completo.monto)} de ${pesos(a.control.base.monto)} · ${a.control.completo.creditos} de ${creditos(a.control.base)} aprobados con Paydesk`
                 : "Sin desembolsos de créditos de Paydesk en el periodo"
             }
             destacado
@@ -252,6 +271,7 @@ function Contenido({ d }: { d: ResultadoImpacto }) {
             nota={`${a.control.base.creditos - a.control.completo.creditos} créditos`}
           />
         </div>
+        <BaseControl desembolsados={a.credito.desembolsado.creditos} base={a.control.base.creditos} />
         <div className="adm-grid uso-grid-2 imp-detalle">
           <div>
             <h3 className="uso-subtitulo">Qué le faltó a los que no tienen control completo</h3>

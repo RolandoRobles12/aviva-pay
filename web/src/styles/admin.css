@@ -1680,3 +1680,9 @@
   display: block;
   font-size: 0.8rem;
 }
+
+.imp-base {
+  margin: 0.25rem 0 0.5rem;
+  font-size: 0.9rem;
+  color: var(--adm-texto-suave);
+}
