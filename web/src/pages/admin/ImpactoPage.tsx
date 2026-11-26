@@ -50,21 +50,19 @@ function Cambio({
 }) {
   if (actual === null || anterior === null) return null;
   let delta: number;
-  let texto: string;
   if (puntos) {
     delta = Math.round((actual - anterior) * 100);
-    texto = `${Math.abs(delta)} pts`;
   } else {
-    if (anterior === 0) return actual === 0 ? null : <span className="imp-cambio imp-cambio--neutro">nuevo en este periodo</span>;
+    if (anterior === 0) return actual === 0 ? null : <span className="imp-cambio imp-cambio--neutro">El periodo anterior no hubo</span>;
     delta = Math.round(((actual - anterior) / Math.abs(anterior)) * 100);
-    texto = `${Math.abs(delta)}%`;
   }
-  if (delta === 0) return <span className="imp-cambio imp-cambio--neutro">= igual que el periodo anterior</span>;
+  if (delta === 0) return <span className="imp-cambio imp-cambio--neutro">Igual que el periodo anterior</span>;
   const sube = delta > 0;
   const bueno = sube === (mejor === "sube");
+  const cuanto = puntos ? `${Math.abs(delta)} ${Math.abs(delta) === 1 ? "punto" : "puntos"}` : `${Math.abs(delta)}%`;
   return (
     <span className={`imp-cambio imp-cambio--${bueno ? "bueno" : "malo"}`}>
-      {sube ? "▲" : "▼"} {texto} <span className="imp-cambio__vs">vs. periodo anterior</span>
+      {sube ? "▲" : "▼"} {cuanto} <span className="imp-cambio__vs">{sube ? "más" : "menos"} que el periodo anterior</span>
     </span>
   );
 }
@@ -112,19 +110,16 @@ function Pregunta({ numero, titulo, descripcion, children }: { numero: number; t
 
 /**
  * Por qué el control se mide sobre menos créditos que los desembolsados:
- * los aprobados antes del arranque de su tienda cerraron su venta fuera de
- * Paydesk y nunca iban a tener vale ni comprobante. Sin decirlo, "13" contra
- * "133" arriba parece un error.
+ * los aprobados antes del arranque de su tienda se vendieron fuera de
+ * Paydesk. Sin decirlo, "13" contra "133" arriba parece un error.
  */
 function BaseControl({ desembolsados, base }: { desembolsados: number; base: number }) {
   const anteriores = desembolsados - base;
   if (anteriores <= 0) return null;
   return (
     <p className="imp-base">
-      De los {desembolsados.toLocaleString("es-MX")} créditos desembolsados en el periodo,{" "}
-      <strong>{base.toLocaleString("es-MX")}</strong> se aprobaron desde que su tienda arrancó en Paydesk y son los que
-      se miden aquí. Los otros <strong>{anteriores.toLocaleString("es-MX")}</strong> se aprobaron antes del arranque:
-      su venta se cerró fuera de Paydesk, así que nunca iban a tener vale ni comprobante.
+      Solo cuentan los <strong>{base.toLocaleString("es-MX")}</strong> créditos aprobados desde que su tienda empezó a
+      usar Paydesk. Los otros <strong>{anteriores.toLocaleString("es-MX")}</strong> se vendieron antes, fuera de Paydesk.
     </p>
   );
 }
@@ -156,7 +151,7 @@ export function ImpactoPage() {
     <section className="impacto">
       <PageHeader
         titulo="Impacto"
-        descripcion="Lo que Paydesk le cambia al negocio: cuánto crédito se desembolsa en las tiendas aliadas, si cumple su objetivo de control, si el crédito se usa y llega más rápido, y si las tiendas la adoptan. Cada número se compara contra el periodo anterior de la misma duración."
+        descripcion="Cómo le va al negocio con Paydesk. Cada número se compara con el periodo anterior del mismo largo."
         acciones={
           <select aria-label="Periodo" value={periodo} onChange={(e) => setPeriodo(Number(e.target.value))}>
             {PERIODOS.map((p) => (
@@ -178,124 +173,117 @@ export function ImpactoPage() {
 function Contenido({ d }: { d: ResultadoImpacto }) {
   const { actual: a, anterior: p } = d;
   const ultimoMes = d.meses[d.meses.length - 1]?.mes;
+  const sinControl = (b: BloqueImpacto) => b.control.base.monto - b.control.completo.monto;
 
   return (
     <>
       {d.avisos.sinArranque && (
-        <Notice tono="warn" titulo="Todavía no hay fecha de arranque">
+        <Notice tono="warn" titulo="Falta la fecha en que las tiendas empezaron a usar Paydesk">
           <p>
-            Sin fecha de arranque todos los créditos cuentan como anteriores a Paydesk, así que no hay base para medir el
-            control ni la adopción. Ponla en <Link to="/admin/tiendas">Tiendas</Link>.
+            Sin esa fecha no se puede medir el control ni el uso del crédito. Ponla en{" "}
+            <Link to="/admin/tiendas">Tiendas</Link>.
           </p>
         </Notice>
       )}
       {d.avisos.desembolsosSinMonto > 0 && (
-        <Notice tono="warn" titulo={`${d.avisos.desembolsosSinMonto} desembolsos del periodo no traen monto`}>
-          <p>
-            Los montos de abajo se quedan cortos. Revisa que el monto aprobado esté conectado en Conexión con HubSpot.
-          </p>
+        <Notice tono="warn" titulo={`${d.avisos.desembolsosSinMonto} créditos desembolsados no traen monto`}>
+          <p>Los montos de abajo se quedan cortos. Revisa que el monto aprobado esté conectado en Conexión con HubSpot.</p>
         </Notice>
       )}
 
       <Pregunta
         numero={1}
         titulo="¿Cuánto crédito se desembolsa?"
-        descripcion="Todos los créditos desembolsados en las tiendas aliadas, incluidos los aprobados antes de que su tienda arrancara en Paydesk, y lo que las tiendas cobraron en caja con el vale."
+        descripcion="Todo el crédito desembolsado en las tiendas aliadas, también el de créditos aprobados antes de usar Paydesk."
       >
         <div className="imp-indicadores">
           <Indicador
-            etiqueta="Monto desembolsado"
+            etiqueta="Crédito desembolsado"
             valor={pesos(a.credito.desembolsado.monto)}
             cambio={<Cambio actual={a.credito.desembolsado.monto} anterior={p.credito.desembolsado.monto} />}
             nota={creditos(a.credito.desembolsado)}
             destacado
           />
           <Indicador
-            etiqueta="Ticket promedio"
+            etiqueta="Crédito promedio"
             valor={a.credito.ticketPromedio === null ? "—" : pesos(a.credito.ticketPromedio)}
             cambio={<Cambio actual={a.credito.ticketPromedio} anterior={p.credito.ticketPromedio} />}
           />
           <Indicador
-            etiqueta="Venta confirmada en caja"
+            etiqueta="Cobrado en caja con el vale"
             valor={pesos(a.credito.ventaEnCaja)}
             cambio={<Cambio actual={a.credito.ventaEnCaja} anterior={p.credito.ventaEnCaja} />}
             nota={
               a.credito.ventaArribaDelCredito > 0
-                ? `${pesos(a.credito.ventaArribaDelCredito)} de venta adicional sobre el crédito`
-                : "Con el vale del cliente"
+                ? `${pesos(a.credito.ventaArribaDelCredito)} más de lo que cubría el crédito`
+                : "Lo que cobraron las tiendas al validar el vale"
             }
           />
         </div>
-        <h3 className="uso-subtitulo">Monto desembolsado por mes</h3>
+        <h3 className="uso-subtitulo">Crédito desembolsado por mes</h3>
         <Columnas
           columnas={d.meses.map((m) => {
             const [anio, mes] = m.mes.split("-");
             return {
               etiqueta: MESES[Number(mes) - 1],
               valor: m.desembolsado.monto,
-              titulo: `${MESES[Number(mes) - 1]} ${anio}${m.mes === ultimoMes ? " (en curso)" : ""} · ${creditos(m.desembolsado)} · ${pct(m.pctControl)} con control completo`,
+              titulo: `${MESES[Number(mes) - 1]} ${anio}${m.mes === ultimoMes ? " (en curso)" : ""} · ${creditos(m.desembolsado)} · ${pct(m.pctControl)} bajo control`,
             };
           })}
           formato={pesos}
-          vacio="Sin desembolsos en los últimos 12 meses."
+          vacio="No hubo desembolsos en los últimos 12 meses."
         />
       </Pregunta>
 
       <Pregunta
         numero={2}
-        titulo="¿Cumple su objetivo de control?"
-        descripcion="Un desembolso tiene control completo cuando el vale del cliente se validó en caja y la tienda subió el comprobante de entrega. Cuenta solo créditos aprobados desde que su tienda arrancó en Paydesk."
+        titulo="¿El crédito está bajo control?"
+        descripcion="Un crédito está bajo control cuando la tienda validó el vale en caja y subió el comprobante de entrega."
       >
         <div className="imp-indicadores">
           <Indicador
-            etiqueta="Monto con control completo"
+            etiqueta="Crédito bajo control"
             valor={pct(a.control.pct)}
             cambio={<Cambio actual={a.control.pct} anterior={p.control.pct} puntos />}
             nota={
               a.control.base.creditos > 0
                 ? `${pesos(a.control.completo.monto)} de ${pesos(a.control.base.monto)} · ${a.control.completo.creditos} de ${creditos(a.control.base)}`
-                : "Sin desembolsos de créditos de Paydesk en el periodo"
+                : "No hubo desembolsos de créditos de Paydesk en el periodo"
             }
             destacado
           />
           <Indicador
-            etiqueta="Desembolsado sin control completo"
-            valor={pesos(a.control.base.monto - a.control.completo.monto)}
-            cambio={
-              <Cambio
-                actual={a.control.base.monto - a.control.completo.monto}
-                anterior={p.control.base.monto - p.control.completo.monto}
-                mejor="baja"
-              />
-            }
-            nota={`${a.control.base.creditos - a.control.completo.creditos} créditos`}
+            etiqueta="Crédito sin control"
+            valor={pesos(sinControl(a))}
+            cambio={<Cambio actual={sinControl(a)} anterior={sinControl(p)} mejor="baja" />}
+            nota={creditos({ creditos: a.control.base.creditos - a.control.completo.creditos, monto: 0 })}
           />
         </div>
         <BaseControl desembolsados={a.credito.desembolsado.creditos} base={a.control.base.creditos} />
         <div className="adm-grid uso-grid-2 imp-detalle">
           <div>
-            <h3 className="uso-subtitulo">Qué le faltó a los que no tienen control completo</h3>
+            <h3 className="uso-subtitulo">Qué les faltó</h3>
             <BarrasHorizontales
               tono="ambar"
               formato={pesos}
-              vacio="A ningún desembolso le faltó nada."
+              vacio="A ningún crédito le faltó nada."
               filas={[
-                { etiqueta: "Sin vale validado en caja", m: a.control.sinVale },
-                { etiqueta: "Sin comprobante de entrega", m: a.control.sinComprobante },
+                { etiqueta: "No validaron el vale", m: a.control.sinVale },
+                { etiqueta: "No subieron el comprobante", m: a.control.sinComprobante },
               ]
                 .filter((f) => f.m.creditos > 0)
                 .map((f) => ({ etiqueta: f.etiqueta, valor: f.m.monto, detalle: `(${creditos(f.m)})` }))}
             />
           </div>
           <div>
-            <h3 className="uso-subtitulo">Lo que Paydesk detuvo</h3>
+            <h3 className="uso-subtitulo">Lo que Paydesk frenó</h3>
             <ul className="imp-lista">
               <li>
-                <strong>{num(a.control.subidasRechazadas)}</strong> documentos rechazados por la verificación o por un
-                administrador <Cambio actual={a.control.subidasRechazadas} anterior={p.control.subidasRechazadas} mejor="baja" />
+                <strong>{num(a.control.subidasRechazadas)}</strong> documentos rechazados
+                <Cambio actual={a.control.subidasRechazadas} anterior={p.control.subidasRechazadas} mejor="baja" />
               </li>
               <li>
-                <strong>{num(a.control.valesDeOtraTienda)}</strong> vales de otra tienda presentados en caja
+                <strong>{num(a.control.valesDeOtraTienda)}</strong> vales de otra tienda
               </li>
               <li>
                 <strong>{num(a.control.codigosInexistentes)}</strong> códigos que no existen
@@ -307,31 +295,32 @@ function Contenido({ d }: { d: ResultadoImpacto }) {
 
       <Pregunta
         numero={3}
-        titulo="¿El crédito se usa y llega más rápido?"
-        descripcion="Cuántos clientes sí usan su crédito en la tienda, cuánto crédito se queda sin usar y cuánto tarda un crédito en desembolsarse."
+        titulo="¿Los clientes usan su crédito?"
+        descripcion="Solo créditos aprobados desde que su tienda empezó a usar Paydesk. Un cliente usó su crédito si se le desembolsó o si validó su vale en caja."
       >
         <div className="imp-indicadores">
           <Indicador
             etiqueta="Clientes que usaron su crédito"
-            valor={pct(a.uso.tasaDisposicion)}
-            cambio={<Cambio actual={a.uso.tasaDisposicion} anterior={p.uso.tasaDisposicion} puntos />}
-            nota={`${a.uso.valesUsados} vales usados, ${a.uso.noAprovechado.creditos} vencieron o se cancelaron sin usarse`}
+            valor={pct(a.uso.tasaUso)}
+            cambio={<Cambio actual={a.uso.tasaUso} anterior={p.uso.tasaUso} puntos />}
+            nota={`${a.uso.usados.creditos} lo usaron · ${a.uso.sinUsar.creditos} se cancelaron sin usarlo`}
             destacado
           />
           <Indicador
-            etiqueta="Crédito no aprovechado"
-            valor={pesos(a.uso.noAprovechado.monto)}
-            cambio={<Cambio actual={a.uso.noAprovechado.monto} anterior={p.uso.noAprovechado.monto} mejor="baja" />}
-            nota={`El cliente no llegó: ${pesos(a.uso.clienteNoLlego.monto)} · Llegó y no se completó: ${pesos(a.uso.llegoSinCompletar.monto)}`}
+            etiqueta="Crédito que no se usó"
+            valor={pesos(a.uso.sinUsar.monto)}
+            cambio={<Cambio actual={a.uso.sinUsar.monto} anterior={p.uso.sinUsar.monto} mejor="baja" />}
+            nota={`No fueron a la tienda: ${pesos(a.uso.noFueron.monto)} · Fueron y no compraron: ${pesos(a.uso.fueronSinComprar.monto)}`}
           />
           <Indicador
-            etiqueta="De aprobación a desembolso"
+            etiqueta="Días para desembolsar"
             valor={dias(a.uso.diasADesembolso)}
             cambio={<Cambio actual={a.uso.diasADesembolso} anterior={p.uso.diasADesembolso} mejor="baja" />}
             nota={
-              d.velocidad.antes !== null && d.velocidad.conPaydesk !== null
-                ? `Mediana. Antes de Paydesk: ${dias(d.velocidad.antes)} · Con Paydesk: ${dias(d.velocidad.conPaydesk)}`
-                : "Mediana"
+              <>
+                La mitad de los créditos tarda esto o menos.
+                {d.antesDePaydesk.diasADesembolso !== null && <> Antes de Paydesk: {dias(d.antesDePaydesk.diasADesembolso)}.</>}
+              </>
             }
           />
         </div>
@@ -339,7 +328,7 @@ function Contenido({ d }: { d: ResultadoImpacto }) {
 
       <Pregunta
         numero={4}
-        titulo="¿Las tiendas lo adoptan?"
+        titulo="¿Las tiendas lo usan?"
         descripcion="Una tienda está activa si subió un documento o validó un vale en el periodo."
       >
         <div className="imp-indicadores">
@@ -347,17 +336,17 @@ function Contenido({ d }: { d: ResultadoImpacto }) {
             etiqueta="Tiendas activas"
             valor={`${a.adopcion.tiendasActivas} de ${a.adopcion.tiendasHabilitadas}`}
             cambio={<Cambio actual={a.adopcion.tiendasActivas} anterior={p.adopcion.tiendasActivas} />}
-            nota="Sobre las tiendas con usuarios invitados"
+            nota="De las tiendas que tienen usuarios"
             destacado
           />
           <Indicador
-            etiqueta="Créditos con cotización en Paydesk"
+            etiqueta="Créditos con cotización subida"
             valor={pct(a.adopcion.cotizacion.pct)}
             cambio={<Cambio actual={a.adopcion.cotizacion.pct} anterior={p.adopcion.cotizacion.pct} puntos />}
             nota={`${a.adopcion.cotizacion.conCotizacion} de ${a.adopcion.cotizacion.liberados} créditos liberados`}
           />
           <Indicador
-            etiqueta="Personas que lo usaron"
+            etiqueta="Personas que entraron"
             valor={num(personas(a))}
             cambio={<Cambio actual={personas(a)} anterior={personas(p)} />}
             nota={`${num(a.adopcion.personasTienda)} de tienda · ${num(a.adopcion.personasAsesor)} asesores de ventas`}
@@ -365,27 +354,27 @@ function Contenido({ d }: { d: ResultadoImpacto }) {
         </div>
         {d.tiendasSinActividad.length > 0 && (
           <p className="imp-sin-actividad">
-            <strong>Sin actividad en el periodo:</strong> {d.tiendasSinActividad.join(", ")}.
+            <strong>Sin actividad:</strong> {d.tiendasSinActividad.join(", ")}.
           </p>
         )}
       </Pregunta>
 
-      <Card titulo="Por tienda" descripcion="Del periodo elegido, ordenadas por monto desembolsado.">
+      <Card titulo="Por tienda" descripcion="Del periodo elegido, de la que más crédito desembolsó a la que menos.">
         <div className="adm-tabla-wrap">
           <table className="adm-tabla">
             <thead>
               <tr>
                 <th>Tienda</th>
-                <th className="num">Desembolsado</th>
+                <th className="num">Crédito desembolsado</th>
                 <th className="num">Créditos</th>
-                <th className="num" title="Vale validado en caja + comprobante de entrega, por monto">
-                  Control completo
+                <th className="num" title="Vale validado en caja y comprobante de entrega">
+                  Bajo control
                 </th>
-                <th className="num" title="Vales usados entre los que se usaron o murieron sin usarse">
+                <th className="num" title="Se les desembolsó o validaron su vale, contra los que se cancelaron sin usarlo">
                   Usaron su crédito
                 </th>
-                <th className="num" title="Mediana, de aprobación a desembolso">
-                  Días a desembolso
+                <th className="num" title="La mitad de los créditos tarda esto o menos">
+                  Días para desembolsar
                 </th>
                 <th>Actividad</th>
               </tr>
@@ -397,7 +386,7 @@ function Contenido({ d }: { d: ResultadoImpacto }) {
                   <td className="num">{pesos(t.desembolsado.monto)}</td>
                   <td className="num">{t.desembolsado.creditos}</td>
                   <td className="num">{pct(t.pctControl)}</td>
-                  <td className="num">{pct(t.tasaDisposicion)}</td>
+                  <td className="num">{pct(t.tasaUso)}</td>
                   <td className="num">{t.diasADesembolso === null ? "—" : Math.round(t.diasADesembolso)}</td>
                   <td>{t.activa ? <Badge tono="ok">Activa</Badge> : <Badge tono="warn">Sin actividad</Badge>}</td>
                 </tr>
@@ -407,10 +396,7 @@ function Contenido({ d }: { d: ResultadoImpacto }) {
         </div>
       </Card>
 
-      <p className="adm-field__ayuda">
-        Los montos son el monto aprobado de cada crédito, según HubSpot. Los documentos rechazados cuentan desde que
-        existe la verificación automática, y las personas, mientras se conserve la medición de uso.
-      </p>
+      <p className="adm-field__ayuda">Los montos son el monto aprobado de cada crédito en HubSpot.</p>
     </>
   );
 }

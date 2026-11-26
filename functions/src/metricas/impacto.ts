@@ -7,7 +7,7 @@ import { mediana } from "./calcular";
  *
  * 1. ¿Cuánto crédito se desembolsa? (todos los desembolsos y la venta en caja)
  * 2. ¿Cumple su objetivo de control? (vale validado en caja + comprobante)
- * 3. ¿El crédito se usa y llega más rápido? (disposición, días, crédito perdido)
+ * 3. ¿Los clientes usan su crédito y qué tan rápido? (créditos usados, crédito que no se usó, días)
  * 4. ¿Las tiendas lo adoptan? (tiendas y personas activas, cotizaciones)
  *
  * Cada bloque se calcula para el periodo elegido y para el periodo
@@ -99,14 +99,24 @@ export interface BloqueImpacto {
     valesDeOtraTienda: number;
     codigosInexistentes: number;
   };
+  /**
+   * Solo créditos aprobados desde el arranque de su tienda, igual que el
+   * control: los anteriores también reciben vale, pero su venta se cerró
+   * fuera de Paydesk y nadie lo iba a escanear.
+   */
   uso: {
+    /** Mediana de días de aprobación a desembolso de los desembolsados en el periodo. */
     diasADesembolso: number | null;
-    /** Vales que se usaron / vales que se usaron o murieron sin usarse en el periodo. */
-    tasaDisposicion: number | null;
-    valesUsados: number;
-    noAprovechado: Monto;
-    clienteNoLlego: Monto;
-    llegoSinCompletar: Monto;
+    /** usados / (usados + sinUsar); null sin ninguno. */
+    tasaUso: number | null;
+    /** Se desembolsaron o validaron su vale en caja en el periodo. */
+    usados: Monto;
+    /** Se cancelaron en el periodo sin desembolsarse ni validar su vale. */
+    sinUsar: Monto;
+    /** De los sin usar: nadie escaneó su vale (o no alcanzó a tener uno). */
+    noFueron: Monto;
+    /** De los sin usar: alguien escaneó su vale y no terminó en venta. */
+    fueronSinComprar: Monto;
   };
   adopcion: {
     tiendasActivas: number;
@@ -133,7 +143,7 @@ export interface TiendaFila {
   desembolsado: Monto;
   pctControl: number | null;
   diasADesembolso: number | null;
-  tasaDisposicion: number | null;
+  tasaUso: number | null;
   activa: boolean;
 }
 
@@ -141,8 +151,8 @@ export interface ResultadoImpacto {
   dias: number;
   actual: BloqueImpacto;
   anterior: BloqueImpacto;
-  /** Mediana de días de aprobación a desembolso, de todo el historial. */
-  velocidad: { antes: number | null; creditosAntes: number; conPaydesk: number | null; creditosConPaydesk: number };
+  /** Mediana de días de aprobación a desembolso de los créditos anteriores al arranque, de todo el historial. */
+  antesDePaydesk: { diasADesembolso: number | null; creditos: number };
   meses: MesImpacto[];
   tiendas: TiendaFila[];
   /** Habilitadas sin ninguna acción en el periodo, para ir a buscarlas. */
@@ -183,30 +193,24 @@ const pctMonto = (parte: Monto, base: Monto): number | null =>
   base.creditos === 0 ? null : base.monto > 0 ? parte.monto / base.monto : parte.creditos / base.creditos;
 
 /**
- * Los datos ya cruzados una sola vez: qué vales tiene cada deal, cuáles
- * son reemisiones, de qué tienda arranca cada uno. Lo comparten el
- * periodo actual, el anterior, los meses y la tabla por tienda.
+ * Los datos ya cruzados una sola vez: qué vales tiene cada deal y de qué
+ * tienda arranca cada uno. Lo comparten el periodo actual, el anterior,
+ * los meses y la tabla por tienda.
  */
 class Indice {
   readonly tiendas: Map<string, TiendaImpacto>;
   readonly valesPorDeal = new Map<string, ValeImpacto[]>();
-  readonly dealPorId = new Map<string, DealImpacto>();
-  /** Códigos que otro vale reemplazó: su cancelación no es crédito perdido. */
-  readonly reemplazados = new Set<string>();
 
   constructor(
     readonly deals: DealImpacto[],
     readonly vales: ValeImpacto[],
     tiendas: TiendaImpacto[],
-    readonly ahora: number,
   ) {
     this.tiendas = new Map(tiendas.map((t) => [t.concesionarioId, t]));
-    for (const d of deals) this.dealPorId.set(d.dealId, d);
     for (const v of vales) {
       const lista = this.valesPorDeal.get(v.dealId) ?? [];
       lista.push(v);
       this.valesPorDeal.set(v.dealId, lista);
-      if (v.reemplazaA) this.reemplazados.add(v.reemplazaA);
     }
   }
 
@@ -226,19 +230,6 @@ class Indice {
 
   conValeUsado(d: DealImpacto): boolean {
     return (this.valesPorDeal.get(d.dealId) ?? []).some((v) => v.estado === "utilizado");
-  }
-
-  /**
-   * Cuándo murió un vale sin usarse, o null si no murió: venció (sigue
-   * emitido con la fecha pasada) o se canceló sin que lo reemplazara otro.
-   * La cancelación no guarda fecha en el vale; se toma la del deal.
-   */
-  muerte(v: ValeImpacto): string | null {
-    if (v.estado === "emitido") return Date.parse(v.venceEn) <= this.ahora ? v.venceEn : null;
-    if (v.estado === "cancelado" && !this.reemplazados.has(v.codigo)) {
-      return this.dealPorId.get(v.dealId)?.canceladoFecha ?? v.emitidoEn;
-    }
-    return null;
   }
 
   desembolsados(r: Rango, tienda?: string): DealImpacto[] {
@@ -279,30 +270,36 @@ class Indice {
     return { base, completo, sinVale, sinComprobante, pct: pctMonto(completo, base) };
   }
 
-  disposicion(r: Rango, tienda?: string) {
-    let usados = 0;
-    const clienteNoLlego = cero();
-    const llegoSinCompletar = cero();
-    for (const v of this.vales) {
-      if (tienda && v.concesionarioId !== tienda) continue;
-      if (v.estado === "utilizado") {
-        if (enRango(v.consumidoEn, r)) usados++;
-        continue;
+  /**
+   * Si los clientes usan su crédito: de los créditos de Paydesk que se
+   * resolvieron en el periodo, cuántos se usaron (se desembolsaron o
+   * validaron su vale en caja) y cuántos se cancelaron sin usarse. Un vale
+   * vencido no cuenta como crédito perdido mientras el crédito siga vivo:
+   * el cliente pudo comprar sin que la tienda escaneara el vale, y eso es
+   * falta de control (bloque 2), no crédito sin usar.
+   */
+  usoDelCredito(r: Rango, tienda?: string) {
+    const usados = cero();
+    const noFueron = cero();
+    const fueronSinComprar = cero();
+    for (const d of this.deals) {
+      if (!d.concesionarioId || (tienda && d.concesionarioId !== tienda) || !this.esDePaydesk(d)) continue;
+      const vales = this.valesPorDeal.get(d.dealId) ?? [];
+      const fechasUso = [
+        ...(d.cancelado ? [] : [d.desembolsoFecha]),
+        ...vales.filter((v) => v.estado === "utilizado").map((v) => v.consumidoEn),
+      ]
+        .filter((f): f is string => !!f)
+        .sort();
+      if (fechasUso.length > 0) {
+        if (enRango(fechasUso[0], r)) sumar(usados, this.monto(d));
+      } else if (d.cancelado && enRango(d.canceladoFecha, r)) {
+        sumar(vales.some((v) => v.lecturasTotal > 0) ? fueronSinComprar : noFueron, this.monto(d));
       }
-      if (!enRango(this.muerte(v), r)) continue;
-      sumar(v.lecturasTotal > 0 ? llegoSinCompletar : clienteNoLlego, v.montoAutorizado ?? 0);
     }
-    const perdidos = clienteNoLlego.creditos + llegoSinCompletar.creditos;
-    return {
-      usados,
-      tasa: usados + perdidos === 0 ? null : usados / (usados + perdidos),
-      clienteNoLlego,
-      llegoSinCompletar,
-      noAprovechado: {
-        creditos: perdidos,
-        monto: clienteNoLlego.monto + llegoSinCompletar.monto,
-      },
-    };
+    const sinUsar = { creditos: noFueron.creditos + fueronSinComprar.creditos, monto: noFueron.monto + fueronSinComprar.monto };
+    const resueltos = usados.creditos + sinUsar.creditos;
+    return { usados, sinUsar, noFueron, fueronSinComprar, tasa: resueltos ? usados.creditos / resueltos : null };
   }
 }
 
@@ -341,7 +338,7 @@ function bloque(
   }
 
   const control = idx.control(desembolsados);
-  const disp = idx.disposicion(r);
+  const uso = idx.usoDelCredito(r);
 
   const eventosRango = eventos.filter((e) => enRango(e.en, r));
   const intentosRango = intentos.filter((i) => enRango(i.en, r));
@@ -377,12 +374,12 @@ function bloque(
       codigosInexistentes: intentosRango.filter((i) => i.motivo === "no-existe").length,
     },
     uso: {
-      diasADesembolso: idx.diasADesembolso(desembolsados),
-      tasaDisposicion: disp.tasa,
-      valesUsados: disp.usados,
-      noAprovechado: disp.noAprovechado,
-      clienteNoLlego: disp.clienteNoLlego,
-      llegoSinCompletar: disp.llegoSinCompletar,
+      diasADesembolso: idx.diasADesembolso(desembolsados.filter((d) => idx.esDePaydesk(d))),
+      tasaUso: uso.tasa,
+      usados: uso.usados,
+      sinUsar: uso.sinUsar,
+      noFueron: uso.noFueron,
+      fueronSinComprar: uso.fueronSinComprar,
     },
     adopcion: {
       tiendasActivas: activas.size,
@@ -414,7 +411,7 @@ export function calcularImpacto(params: {
 }): ResultadoImpacto {
   const ahora = (params.ahora ?? new Date()).getTime();
   const { dias } = params;
-  const idx = new Indice(params.deals, params.vales, params.tiendas, ahora);
+  const idx = new Indice(params.deals, params.vales, params.tiendas);
   const actual: Rango = { desde: ahora - dias * DIA_MS, hasta: ahora };
   const anterior: Rango = { desde: ahora - 2 * dias * DIA_MS, hasta: actual.desde };
 
@@ -424,12 +421,11 @@ export function calcularImpacto(params: {
   const personasAnterior = 2 * dias <= params.diasRetencionUso ? params.personas : null;
   const bAnterior = bloque(idx, params.eventos, params.intentos, personasAnterior, anterior);
 
-  // Velocidad antes y con Paydesk, de todo el historial: el periodo solo
-  // no alcanza para comparar, y la fecha de arranque ya parte en dos.
+  // Antes de Paydesk, de todo el historial: es el punto de comparación
+  // de los días a desembolso, y no cambia con el periodo.
   const todos: Rango = { desde: -Infinity, hasta: Infinity };
   const historicos = idx.desembolsados(todos);
   const antes = historicos.filter((d) => !idx.esDePaydesk(d));
-  const con = historicos.filter((d) => idx.esDePaydesk(d));
 
   // Los últimos N meses calendario, incluido el actual.
   const nMeses = params.meses ?? 12;
@@ -467,8 +463,8 @@ export function calcularImpacto(params: {
       nombre: idx.tiendas.get(id)?.nombre ?? id,
       desembolsado,
       pctControl: idx.control(ds).pct,
-      diasADesembolso: idx.diasADesembolso(ds),
-      tasaDisposicion: idx.disposicion(actual, id).tasa,
+      diasADesembolso: idx.diasADesembolso(ds.filter((d) => idx.esDePaydesk(d))),
+      tasaUso: idx.usoDelCredito(actual, id).tasa,
       activa: activas.has(id),
     };
   });
@@ -488,12 +484,7 @@ export function calcularImpacto(params: {
     dias,
     actual: bActual,
     anterior: bAnterior,
-    velocidad: {
-      antes: idx.diasADesembolso(antes),
-      creditosAntes: antes.length,
-      conPaydesk: idx.diasADesembolso(con),
-      creditosConPaydesk: con.length,
-    },
+    antesDePaydesk: { diasADesembolso: idx.diasADesembolso(antes), creditos: antes.length },
     meses,
     tiendas,
     tiendasSinActividad,

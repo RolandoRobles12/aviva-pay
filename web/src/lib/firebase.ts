@@ -903,11 +903,11 @@ export interface BloqueImpacto {
   };
   uso: {
     diasADesembolso: number | null;
-    tasaDisposicion: number | null;
-    valesUsados: number;
-    noAprovechado: MontoImpacto;
-    clienteNoLlego: MontoImpacto;
-    llegoSinCompletar: MontoImpacto;
+    tasaUso: number | null;
+    usados: MontoImpacto;
+    sinUsar: MontoImpacto;
+    noFueron: MontoImpacto;
+    fueronSinComprar: MontoImpacto;
   };
   adopcion: {
     tiendasActivas: number;
@@ -922,7 +922,7 @@ export interface ResultadoImpacto {
   dias: number;
   actual: BloqueImpacto;
   anterior: BloqueImpacto;
-  velocidad: { antes: number | null; creditosAntes: number; conPaydesk: number | null; creditosConPaydesk: number };
+  antesDePaydesk: { diasADesembolso: number | null; creditos: number };
   meses: { mes: string; desembolsado: MontoImpacto; pctControl: number | null }[];
   tiendas: {
     concesionarioId: string;
@@ -930,7 +930,7 @@ export interface ResultadoImpacto {
     desembolsado: MontoImpacto;
     pctControl: number | null;
     diasADesembolso: number | null;
-    tasaDisposicion: number | null;
+    tasaUso: number | null;
     activa: boolean;
   }[];
   tiendasSinActividad: string[];
