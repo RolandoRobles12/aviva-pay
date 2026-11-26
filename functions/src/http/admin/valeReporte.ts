@@ -11,22 +11,7 @@ import {
   getCancelStagesDefaults,
   setCancelStages,
 } from "../../firestore/cancelStagesRepository";
-import { valeVencido } from "../../vale/validar";
-
-/**
- * El estado de un vale para efectos del reporte. `vencido` no es un
- * estado guardado —se deriva de la fecha— así que se calcula aquí, igual
- * que lo hace la caja al validar.
- */
-function estadoParaReporte(vale: {
-  estado: string;
-  venceEn: string;
-  emitidoEn: FirebaseFirestore.Timestamp;
-}): "vigente" | "utilizado" | "vencido" | "cancelado" {
-  if (vale.estado === "utilizado") return "utilizado";
-  if (vale.estado === "cancelado") return "cancelado";
-  return valeVencido(vale as never) ? "vencido" : "vigente";
-}
+import { calcularReporteVales } from "../../vale/reporte";
 
 /**
  * El reporte de vales: qué tanto del crédito liberado se está ejerciendo,
@@ -56,85 +41,7 @@ export const adminValeReporte = onCall({ region: "us-central1" }, async (request
     concesionarios.map((c) => [c.concesionarioId, c.nombre]),
   );
 
-  const totales = { vigente: 0, utilizado: 0, vencido: 0, cancelado: 0 };
-  let montoAutorizadoUtilizado = 0;
-  let montoDispuesto = 0;
-  let montoNuncaGastado = 0;
-  // Entre los que murieron sin usarse, ¿el cliente llegó siquiera al
-  // mostrador? Es el corte que cambia qué se hace al respecto: si casi
-  // nadie llegó, el problema está antes de la tienda y se ataca con
-  // recordatorios; si llegaron y no se completó, el problema está en la
-  // caja. La expiración no tiene etapa propia en HubSpot, así que este
-  // hecho es lo más cerca que se puede estar del motivo sin inventarlo.
-  let muertosNuncaLeidos = 0;
-  let muertosLeidosSinUsar = 0;
-
-  const porTienda = new Map<
-    string,
-    {
-      concesionarioId: string;
-      tienda: string;
-      vigente: number;
-      utilizado: number;
-      vencido: number;
-      cancelado: number;
-      montoDispuesto: number;
-      montoNuncaGastado: number;
-    }
-  >();
-
-  for (const vale of vales) {
-    const estado = estadoParaReporte(vale);
-    totales[estado] += 1;
-
-    const fila = porTienda.get(vale.concesionarioId) ?? {
-      concesionarioId: vale.concesionarioId,
-      tienda: nombrePorTienda.get(vale.concesionarioId) ?? vale.concesionarioId,
-      vigente: 0,
-      utilizado: 0,
-      vencido: 0,
-      cancelado: 0,
-      montoDispuesto: 0,
-      montoNuncaGastado: 0,
-    };
-    fila[estado] += 1;
-
-    if (estado === "utilizado") {
-      montoAutorizadoUtilizado += vale.montoAutorizado ?? 0;
-      montoDispuesto += vale.montoDispuesto ?? 0;
-      fila.montoDispuesto += vale.montoDispuesto ?? 0;
-    }
-
-    // Vencido o cancelado sin haberse usado: crédito liberado que nadie
-    // ejerció. Un cancelado por reemisión no cuenta como perdido — lo
-    // reemplazó otro vale, y ese otro ya aparece con su propio estado.
-    if (estado === "vencido" || (estado === "cancelado" && !vale.reemplazaA)) {
-      montoNuncaGastado += vale.montoAutorizado ?? 0;
-      fila.montoNuncaGastado += vale.montoAutorizado ?? 0;
-      if (vale.lecturasTotal > 0) muertosLeidosSinUsar += 1;
-      else muertosNuncaLeidos += 1;
-    }
-
-    porTienda.set(vale.concesionarioId, fila);
-  }
-
-  return {
-    totales,
-    sinUsar: {
-      nuncaLeidos: muertosNuncaLeidos,
-      leidosSinUsar: muertosLeidosSinUsar,
-    },
-    montos: {
-      autorizadoDeUtilizados: montoAutorizadoUtilizado,
-      dispuesto: montoDispuesto,
-      /** Lo que se vendió por encima del crédito autorizado. */
-      excedente: montoDispuesto - montoAutorizadoUtilizado,
-      nuncaGastado: montoNuncaGastado,
-    },
-    porTienda: [...porTienda.values()].sort((a, b) =>
-      a.tienda.localeCompare(b.tienda, "es"),
-    ),
-  };
+  return calcularReporteVales(vales, nombrePorTienda);
 });
 
 /**
