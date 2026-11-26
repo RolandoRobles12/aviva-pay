@@ -28,6 +28,7 @@ import { DiccionarioPage } from "./pages/admin/DiccionarioPage";
 import { InicioPage } from "./pages/admin/InicioPage";
 import { CancelacionPage } from "./pages/admin/CancelacionPage";
 import { MetricasPage } from "./pages/admin/MetricasPage";
+import { ImpactoPage } from "./pages/admin/ImpactoPage";
 import { RevisionPage } from "./pages/admin/RevisionPage";
 import { BitacoraPage } from "./pages/admin/BitacoraPage";
 import { EstadoPage } from "./pages/admin/EstadoPage";
@@ -137,6 +138,7 @@ export function App() {
         <Route path="tiendas/:concesionarioId" element={<ConcesionarioPreviewPage />} />
         <Route path="vales" element={<ValesPage />} />
         <Route path="reporte-vales" element={<ReporteValesPage />} />
+        <Route path="impacto" element={<ImpactoPage />} />
         <Route path="metricas" element={<MetricasPage />} />
         <Route path="uso" element={<UsoPage />} />
         <Route path="uso/grabaciones" element={<UsoGrabacionesPage />} />

@@ -58,13 +58,15 @@ export function Columnas({
   columnas,
   formato = (v) => v.toLocaleString("es-MX"),
   cadaEtiqueta = 1,
+  vacio = "Sin uso en este periodo.",
 }: {
   columnas: { etiqueta: string; valor: number; titulo?: string }[];
   formato?: (v: number) => string;
   cadaEtiqueta?: number;
+  vacio?: string;
 }) {
   const max = Math.max(...columnas.map((c) => c.valor), 0);
-  if (columnas.length === 0 || max === 0) return <p className="adm-field__ayuda">Sin uso en este periodo.</p>;
+  if (columnas.length === 0 || max === 0) return <p className="adm-field__ayuda">{vacio}</p>;
   return (
     <div className="uso-columnas" role="img" aria-label="Gráfica de columnas">
       <span className="uso-columnas__max">{formato(max)}</span>

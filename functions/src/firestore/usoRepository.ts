@@ -341,3 +341,22 @@ export async function limpiarVencidos(config: Pick<UsoConfig, "diasInteracciones
   }
   return { interacciones, grabaciones };
 }
+
+/**
+ * Quién usó el portal desde una fecha (uid, perfil y cuándo), sin los
+ * eventos: para contar personas activas en "Impacto" sin traer cada lote
+ * completo.
+ */
+export async function actividadDesde(
+  desde: Date,
+): Promise<Array<{ uid: string; perfil: Perfil; en: string }>> {
+  const snap = await getFirestore()
+    .collection(COL_INTERACCIONES)
+    .where("desde", ">=", Timestamp.fromDate(desde))
+    .select("uid", "perfil", "desde")
+    .get();
+  return snap.docs.map((d) => {
+    const l = d.data() as Pick<LoteDoc, "uid" | "perfil" | "desde">;
+    return { uid: l.uid, perfil: l.perfil, en: l.desde.toDate().toISOString() };
+  });
+}

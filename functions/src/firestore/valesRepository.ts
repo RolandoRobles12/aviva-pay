@@ -278,3 +278,18 @@ export async function listarVales(): Promise<PayDeskVale[]> {
   const snap = await valesCollection().get();
   return snap.docs.map((doc) => doc.data() as PayDeskVale);
 }
+
+/** Los intentos fallidos desde una fecha, para "Impacto". Solo lo que se cuenta. */
+export async function intentosDesde(
+  desde: Date,
+): Promise<Array<{ concesionarioId: string | null; motivo: ValeIntentoFallido["motivo"]; en: string }>> {
+  const snap = await getFirestore()
+    .collection(INTENTOS)
+    .where("en", ">=", Timestamp.fromDate(desde))
+    .select("concesionarioId", "motivo", "en")
+    .get();
+  return snap.docs.map((doc) => {
+    const d = doc.data() as Pick<ValeIntentoFallido, "concesionarioId" | "motivo" | "en">;
+    return { concesionarioId: d.concesionarioId ?? null, motivo: d.motivo, en: d.en.toDate().toISOString() };
+  });
+}

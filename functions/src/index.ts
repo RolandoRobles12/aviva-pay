@@ -38,6 +38,7 @@ export { adminMigrarLigasArchivos } from "./http/admin/migrarLigas";
 export { adminEstadoSistema } from "./http/admin/estado";
 export { adminListBitacora } from "./http/admin/bitacora";
 export { adminMetricas } from "./http/admin/metricas";
+export { adminImpacto } from "./http/admin/impacto";
 export { getArchivoUrl } from "./http/getArchivoUrl";
 export {
   adminUsoResumen,
