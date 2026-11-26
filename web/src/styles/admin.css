@@ -1568,3 +1568,115 @@
     justify-content: space-between;
   }
 }
+
+/* --- Impacto -------------------------------------------------------------
+   Cuatro preguntas, pocos números grandes y su cambio contra el periodo
+   anterior. El cambio va con flecha y en palabras: el color es un segundo
+   canal, nunca el único. Ver pages/admin/ImpactoPage.tsx. */
+
+.imp-num {
+  display: inline-grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  margin-right: 0.55rem;
+  border-radius: 999px;
+  background: var(--verde-musgo);
+  color: var(--blanco);
+  font-size: 0.85rem;
+  vertical-align: 0.1em;
+}
+
+.imp-indicadores {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.imp-ind {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+  padding: 0.95rem 1.05rem;
+  border: 1px solid var(--adm-borde);
+  border-radius: var(--adm-radio);
+}
+
+.imp-ind--destacado {
+  background: color-mix(in srgb, var(--verde-musgo) 5%, var(--blanco));
+  border-color: color-mix(in srgb, var(--verde-musgo) 22%, transparent);
+}
+
+.imp-ind__etiqueta {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--adm-texto-suave);
+}
+
+.imp-ind__valor {
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--verde-musgo);
+  overflow-wrap: anywhere;
+}
+
+.imp-ind__nota {
+  font-size: 0.85rem;
+  color: var(--adm-texto-suave);
+}
+
+.imp-cambio {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.imp-cambio--bueno {
+  color: var(--verde-accion);
+}
+
+.imp-cambio--malo {
+  color: var(--adm-rojo);
+}
+
+.imp-cambio--neutro {
+  color: var(--adm-texto-suave);
+  font-weight: 500;
+}
+
+.imp-cambio__vs {
+  font-weight: 400;
+  color: var(--adm-texto-suave);
+}
+
+.imp-detalle {
+  margin: 0.5rem 0 0;
+}
+
+.imp-lista {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.imp-lista strong {
+  font-size: 1.1rem;
+  color: var(--verde-musgo);
+}
+
+.imp-sin-actividad {
+  margin: 0.75rem 0 0;
+  font-size: 0.9rem;
+  color: var(--adm-texto-suave);
+}
+
+.imp-lista .imp-cambio {
+  display: block;
+  font-size: 0.8rem;
+}

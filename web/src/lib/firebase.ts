@@ -876,3 +876,65 @@ export const adminSetUsoConfigCallable = httpsCallable<
   },
   UsoConfig
 >(functions, "adminSetUsoConfig");
+
+// --- Impacto (ver functions/src/metricas/impacto.ts) ---
+
+export interface MontoImpacto {
+  creditos: number;
+  monto: number;
+}
+
+export interface BloqueImpacto {
+  credito: {
+    desembolsado: MontoImpacto;
+    ticketPromedio: number | null;
+    ventaEnCaja: number;
+    ventaArribaDelCredito: number;
+  };
+  control: {
+    base: MontoImpacto;
+    completo: MontoImpacto;
+    pct: number | null;
+    sinVale: MontoImpacto;
+    sinComprobante: MontoImpacto;
+    subidasRechazadas: number;
+    valesDeOtraTienda: number;
+    codigosInexistentes: number;
+  };
+  uso: {
+    diasADesembolso: number | null;
+    tasaDisposicion: number | null;
+    valesUsados: number;
+    noAprovechado: MontoImpacto;
+    clienteNoLlego: MontoImpacto;
+    llegoSinCompletar: MontoImpacto;
+  };
+  adopcion: {
+    tiendasActivas: number;
+    tiendasHabilitadas: number;
+    cotizacion: { conCotizacion: number; liberados: number; pct: number | null };
+    personasTienda: number | null;
+    personasAsesor: number | null;
+  };
+}
+
+export interface ResultadoImpacto {
+  dias: number;
+  actual: BloqueImpacto;
+  anterior: BloqueImpacto;
+  velocidad: { antes: number | null; creditosAntes: number; conPaydesk: number | null; creditosConPaydesk: number };
+  meses: { mes: string; desembolsado: MontoImpacto; pctControl: number | null }[];
+  tiendas: {
+    concesionarioId: string;
+    nombre: string;
+    desembolsado: MontoImpacto;
+    pctControl: number | null;
+    diasADesembolso: number | null;
+    tasaDisposicion: number | null;
+    activa: boolean;
+  }[];
+  tiendasSinActividad: string[];
+  avisos: { sinArranque: boolean; desembolsosSinMonto: number };
+}
+
+export const adminImpactoCallable = httpsCallable<{ dias: number }, ResultadoImpacto>(functions, "adminImpacto");

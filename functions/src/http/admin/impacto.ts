@@ -1,0 +1,89 @@
+import { onCall } from "firebase-functions/v2/https";
+import { assertAdmin } from "../../auth/adminGuard";
+import { dealsCollection } from "../../firestore/dealsRepository";
+import { eventosDesde } from "../../firestore/eventosDocumentoRepository";
+import { listConcesionarios } from "../../firestore/concesionariosRepository";
+import { getRolloutFresh, resolveRolloutForStore } from "../../firestore/rolloutRepository";
+import { intentosDesde, listarVales } from "../../firestore/valesRepository";
+import { actividadDesde, getUsoConfig } from "../../firestore/usoRepository";
+import { calcularImpacto, type DealImpacto } from "../../metricas/impacto";
+
+const PERIODOS = [30, 90, 180, 365];
+const DIA_MS = 86_400_000;
+
+const iso = (t: FirebaseFirestore.Timestamp | null | undefined) => t?.toDate().toISOString() ?? null;
+
+/**
+ * "Impacto": lo que Paydesk le cambia al negocio, del periodo elegido
+ * contra el anterior de la misma duración. Ver metricas/impacto.ts.
+ * Cualquier admin.
+ */
+export const adminImpacto = onCall<{ dias?: number }>(
+  { region: "us-central1", memory: "1GiB", timeoutSeconds: 120 },
+  async (request) => {
+    assertAdmin(request);
+    const pedido = Math.round(Number(request.data?.dias));
+    const dias = PERIODOS.includes(pedido) ? pedido : 90;
+    const ahora = new Date();
+    // Desde el inicio del periodo anterior: con eso se calculan los dos.
+    const desde = new Date(ahora.getTime() - 2 * dias * DIA_MS);
+
+    const [dealsSnap, vales, concesionarios, rollout, eventos, intentos, personas, usoConfig] = await Promise.all([
+      dealsCollection()
+        .select(
+          "dealId",
+          "concesionarioId",
+          "cancelado",
+          "fechaSolicitud",
+          "montoAprobado",
+          "creditoLiberadoFecha",
+          "cotizacionEstatus",
+          "comprobanteEntregaEstatus",
+          "desembolsoFecha",
+          "canceladoFecha",
+        )
+        .get(),
+      listarVales(),
+      listConcesionarios(),
+      getRolloutFresh(),
+      eventosDesde(desde),
+      intentosDesde(desde),
+      actividadDesde(desde),
+      getUsoConfig(),
+    ]);
+
+    const deals = dealsSnap.docs.map((d) => ({ ...(d.data() as DealImpacto), dealId: d.id }));
+
+    return calcularImpacto({
+      dias,
+      ahora,
+      diasRetencionUso: usoConfig.diasInteracciones,
+      deals,
+      vales: vales.map((v) => ({
+        codigo: v.codigo,
+        dealId: v.dealId,
+        concesionarioId: v.concesionarioId,
+        estado: v.estado,
+        montoAutorizado: v.montoAutorizado,
+        montoDispuesto: v.montoDispuesto,
+        emitidoEn: iso(v.emitidoEn),
+        consumidoEn: iso(v.consumidoEn),
+        ultimaLecturaEn: iso(v.ultimaLecturaEn),
+        venceEn: v.venceEn,
+        lecturasTotal: v.lecturasTotal ?? 0,
+        reemplazaA: v.reemplazaA ?? null,
+      })),
+      tiendas: concesionarios.map((c) => ({
+        concesionarioId: c.concesionarioId,
+        nombre: c.nombre,
+        rolloutDesde: resolveRolloutForStore(rollout, c.rolloutDesde),
+        habilitada: (c.usuarios ?? []).length > 0,
+      })),
+      eventos: eventos
+        .filter((e) => e.en)
+        .map((e) => ({ concesionarioId: e.concesionarioId, resultado: e.resultado, en: e.en.toDate().toISOString() })),
+      intentos,
+      personas,
+    });
+  },
+);
