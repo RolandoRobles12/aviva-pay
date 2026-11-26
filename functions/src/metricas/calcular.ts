@@ -1,30 +1,21 @@
 import type { ResultadoEvento } from "../firestore/eventosDocumentoRepository";
 
 /**
- * Métricas por tienda para que Aviva vea patrones, no casos sueltos:
- * cuánto tarda un crédito de aprobación a desembolso, qué tanto caen sus
- * documentos en revisión o se rechazan, y cuánto tarda Aviva en atender
- * sus revisiones. Pura (sin Firestore) para poder probarla.
+ * Documentos por tienda (/admin/revision/tiendas), para que quien revisa
+ * documentos vea patrones, no casos sueltos: cuántos sube cada tienda, qué
+ * tanto caen en revisión o se rechazan, y cuánto tarda Aviva en atender sus
+ * revisiones. Lo del negocio (desembolsos, días, control) está en
+ * metricas/negocio.ts. Pura (sin Firestore) para poder probarla.
  */
-export interface DealParaMetricas {
-  concesionarioId: string | null;
-  cancelado?: boolean;
-  fechaSolicitud: string | null;
-  desembolsoFecha: string | null;
-}
-
 export interface EventoParaMetricas {
   concesionarioId: string | null;
   resultado: ResultadoEvento;
   minutosEnRevision?: number | null;
 }
 
-export interface MetricasTienda {
+export interface DocumentosTienda {
   concesionarioId: string;
   nombre: string;
-  solicitudes: number;
-  desembolsadas: number;
-  diasADesembolso: number | null;
   documentos: number;
   aceptados: number;
   enRevision: number;
@@ -45,22 +36,16 @@ export function mediana(valores: number[]): number | null {
   return o.length % 2 ? o[m] : (o[m - 1] + o[m]) / 2;
 }
 
-const DIA_MS = 86_400_000;
 /** Con menos documentos que esto, una tasa no dice nada. */
 const MIN_DOCUMENTOS = 3;
 
-export function calcularMetricas(
-  deals: DealParaMetricas[],
+export function calcularDocumentosPorTienda(
   eventos: EventoParaMetricas[],
   nombres: Map<string, string>,
-  desde: Date,
-): { tiendas: MetricasTienda[]; global: Omit<MetricasTienda, "concesionarioId" | "nombre" | "alertas"> } {
-  const crear = (id: string): MetricasTienda => ({
+): { tiendas: DocumentosTienda[]; global: Omit<DocumentosTienda, "concesionarioId" | "nombre" | "alertas"> } {
+  const crear = (id: string): DocumentosTienda => ({
     concesionarioId: id,
     nombre: nombres.get(id) ?? id,
-    solicitudes: 0,
-    desembolsadas: 0,
-    diasADesembolso: null,
     documentos: 0,
     aceptados: 0,
     enRevision: 0,
@@ -72,35 +57,14 @@ export function calcularMetricas(
     minutosAtencion: null,
     alertas: [],
   });
-  const porTienda = new Map<string, MetricasTienda>();
+  const porTienda = new Map<string, DocumentosTienda>();
   const tienda = (id: string) => {
     let t = porTienda.get(id);
     if (!t) porTienda.set(id, (t = crear(id)));
     return t;
   };
-  const dias = new Map<string, number[]>();
   const atencion = new Map<string, number[]>();
-  const todosDias: number[] = [];
   const todaAtencion: number[] = [];
-
-  for (const d of deals) {
-    if (!d.concesionarioId || d.cancelado) continue;
-    const enPeriodo = d.fechaSolicitud && Date.parse(d.fechaSolicitud) >= desde.getTime();
-    const desembolsoEnPeriodo = d.desembolsoFecha && Date.parse(d.desembolsoFecha) >= desde.getTime();
-    if (!enPeriodo && !desembolsoEnPeriodo) continue;
-    const t = tienda(d.concesionarioId);
-    if (enPeriodo) t.solicitudes++;
-    if (desembolsoEnPeriodo) {
-      t.desembolsadas++;
-      if (d.fechaSolicitud) {
-        const n = (Date.parse(d.desembolsoFecha!) - Date.parse(d.fechaSolicitud)) / DIA_MS;
-        if (n >= 0) {
-          (dias.get(d.concesionarioId) ?? dias.set(d.concesionarioId, []).get(d.concesionarioId)!).push(n);
-          todosDias.push(n);
-        }
-      }
-    }
-  }
 
   for (const e of eventos) {
     if (!e.concesionarioId) continue;
@@ -129,7 +93,7 @@ export function calcularMetricas(
     }
   }
 
-  const completar = (t: Omit<MetricasTienda, "concesionarioId" | "nombre" | "alertas">) => {
+  const completar = (t: Omit<DocumentosTienda, "concesionarioId" | "nombre" | "alertas">) => {
     // Subidas: lo que la tienda intentó subir (aceptado, en revisión o rechazado al subir).
     t.documentos = t.aceptados + t.enRevision + t.rechazadosAuto;
     t.tasaRevision = t.documentos ? t.enRevision / t.documentos : null;
@@ -138,15 +102,13 @@ export function calcularMetricas(
 
   const global = crear("global");
   for (const t of porTienda.values()) {
-    t.diasADesembolso = mediana(dias.get(t.concesionarioId) ?? []);
     t.minutosAtencion = mediana(atencion.get(t.concesionarioId) ?? []);
     completar(t);
-    for (const k of ["solicitudes", "desembolsadas", "aceptados", "enRevision", "rechazadosAuto", "aprobadosAdmin", "rechazadosAdmin"] as const) {
+    for (const k of ["aceptados", "enRevision", "rechazadosAuto", "aprobadosAdmin", "rechazadosAdmin"] as const) {
       global[k] += t[k];
     }
   }
   completar(global);
-  global.diasADesembolso = mediana(todosDias);
   global.minutosAtencion = mediana(todaAtencion);
 
   for (const t of porTienda.values()) {
@@ -158,16 +120,11 @@ export function calcularMetricas(
     if (t.rechazadosAuto + t.rechazadosAdmin >= MIN_DOCUMENTOS) {
       t.alertas.push(`${t.rechazadosAuto + t.rechazadosAdmin} documentos rechazados`);
     }
-    if (t.diasADesembolso !== null && global.diasADesembolso && t.desembolsadas >= MIN_DOCUMENTOS) {
-      if (t.diasADesembolso >= 2 * global.diasADesembolso) {
-        t.alertas.push(`tarda ${Math.round(t.diasADesembolso)} días en desembolsar (mediana)`);
-      }
-    }
   }
 
   const { concesionarioId: _c, nombre: _n, alertas: _a, ...globalSinId } = global;
   const tiendas = [...porTienda.values()].sort(
-    (a, b) => b.alertas.length - a.alertas.length || b.documentos - a.documentos || b.solicitudes - a.solicitudes,
+    (a, b) => b.alertas.length - a.alertas.length || b.documentos - a.documentos || a.nombre.localeCompare(b.nombre, "es"),
   );
   return { tiendas, global: globalSinId };
 }

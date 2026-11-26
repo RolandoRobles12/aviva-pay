@@ -15,6 +15,7 @@ import {
   MensajeInline,
   Notice,
   PageHeader,
+  Tabs,
 } from "../../components/admin/ui";
 
 const TIPO: Record<RevisionPendiente["tipo"], string> = {
@@ -252,6 +253,18 @@ function Tarjeta({ r, onResuelta }: { r: RevisionPendiente; onResuelta: (texto: 
   );
 }
 
+/** "Por revisar" y "Por tienda": la bandeja y cómo le va a cada tienda con sus documentos. */
+export function TabsRevision() {
+  return (
+    <Tabs
+      items={[
+        { to: "/admin/revision", label: "Por revisar" },
+        { to: "/admin/revision/tiendas", label: "Por tienda" },
+      ]}
+    />
+  );
+}
+
 /**
  * Bandeja de los documentos que la verificación automática no pudo dar por
  * buenos. Aprobar uno lo aplica igual que si hubiera pasado solo (HubSpot
@@ -282,6 +295,7 @@ export function RevisionPage() {
         titulo="Revisión de documentos"
         descripcion="Documentos en los que la verificación automática encontró algo que no cuadra. Mientras no los resuelvas, la tienda los ve “En revisión”."
       />
+      <TabsRevision />
       {aviso && <Notice tono="ok">{aviso}</Notice>}
       {error && <Notice tono="error">{error}</Notice>}
       {revisiones === null && !error && <Cargando texto="Cargando documentos..." />}

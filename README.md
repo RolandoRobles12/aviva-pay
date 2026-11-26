@@ -4,7 +4,7 @@ El portal donde Aviva y las tiendas aliadas (hoy Construrama) siguen y comprueba
 
 - **La tienda** ve a sus clientes y en qué etapa va cada crédito, sube la cotización y el comprobante de entrega firmado, y en caja valida el código de un solo uso del cliente antes de entregarle material.
 - **Aviva** recibe cada documento verificado automáticamente con Claude; lo sospechoso queda en revisión para un administrador y se avisa en Slack. Todo se escribe de vuelta en HubSpot, que es la fuente de verdad.
-- **El panel de administración** maneja tiendas y sus usuarios, revisión de documentos, vales, impacto en el negocio, métricas por tienda y configuración sin desplegar (etapas, campos de HubSpot, verificación, notificaciones), con dos roles: super admin y operador.
+- **El panel de administración** maneja tiendas y sus usuarios, revisión de documentos, vales, métricas del negocio y configuración sin desplegar (etapas, campos de HubSpot, verificación, notificaciones), con dos roles: super admin y operador.
 
 Ver el requerimiento original en [`docs/requerimiento.md`](docs/requerimiento.md) y el diseño actual en [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
@@ -55,7 +55,7 @@ Rutas:
 - `/ayuda` — la misma capacitación, abierta y sin sesión, para mandarla antes de invitar a una tienda; `/ayuda/asesores`, la del asesor de ventas
 - `/vale/:token` — el vale del cliente final, sin sesión (le llega por WhatsApp)
 - `/admin` — panel de Aviva, con menú lateral (en celular, botón "Menú"). Empieza en **Inicio** (`/admin/inicio`), que resume lo que hay que atender.
-  - Día a día (todos los admins): Revisión de documentos, Tiendas, Vales (buscar un vale / reporte), Impacto (lo que Paydesk le cambia al negocio, para stakeholders), Métricas y Uso del portal (cómo usan Paydesk las tiendas y los asesores, con grabaciones de sesión; ver "Uso del portal" en `docs/ARCHITECTURE.md`).
+  - Día a día (todos los admins): Revisión de documentos (por revisar / por tienda), Tiendas, Vales (buscar un vale / reporte), Métricas (lo que Paydesk le cambia al negocio, también para stakeholders) y Uso del portal (cómo usan Paydesk las tiendas y los asesores, con grabaciones de sesión; ver "Uso del portal" en `docs/ARCHITECTURE.md`).
   - Configuración (solo super admin): Verificación de documentos, Avisos en Slack, Etapas del crédito (incluye de dónde sale la fecha de disposición), Conexión con HubSpot (campos, fechas de etapa, cancelaciones y nombres de columnas), Administradores y Estado del sistema (estado e historial de cambios).
 
 Los componentes y estilos del panel están en `web/src/components/admin/ui.tsx` y `web/src/styles/admin.css`; las pantallas nuevas deben armarse con ellos.

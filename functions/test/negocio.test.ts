@@ -1,17 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
-  calcularImpacto,
-  type DealImpacto,
-  type TiendaImpacto,
-  type ValeImpacto,
-} from "../src/metricas/impacto";
+  calcularMetricasNegocio,
+  type DealNegocio,
+  type TiendaNegocio,
+  type ValeNegocio,
+} from "../src/metricas/negocio";
 
 const AHORA = new Date("2026-06-30T12:00:00Z");
 // 30 días: actual = 31 may → 30 jun; anterior = 1 may → 31 may.
 const EN_ACTUAL = "2026-06-15T12:00:00Z";
 const EN_ANTERIOR = "2026-05-15T12:00:00Z";
 
-function deal(p: Partial<DealImpacto> & { dealId: string }): DealImpacto {
+function deal(p: Partial<DealNegocio> & { dealId: string }): DealNegocio {
   return {
     concesionarioId: "a",
     cancelado: false,
@@ -26,7 +26,7 @@ function deal(p: Partial<DealImpacto> & { dealId: string }): DealImpacto {
   };
 }
 
-function vale(p: Partial<ValeImpacto> & { codigo: string; dealId: string }): ValeImpacto {
+function vale(p: Partial<ValeNegocio> & { codigo: string; dealId: string }): ValeNegocio {
   return {
     concesionarioId: "a",
     estado: "emitido",
@@ -42,14 +42,14 @@ function vale(p: Partial<ValeImpacto> & { codigo: string; dealId: string }): Val
   };
 }
 
-const TIENDAS: TiendaImpacto[] = [
+const TIENDAS: TiendaNegocio[] = [
   { concesionarioId: "a", nombre: "Tienda A", rolloutDesde: "2026-05-01", habilitada: true },
   { concesionarioId: "b", nombre: "Tienda B", rolloutDesde: "2026-05-01", habilitada: true },
   { concesionarioId: "c", nombre: "Tienda C", rolloutDesde: null, habilitada: false },
 ];
 
-function calcular(deals: DealImpacto[], vales: ValeImpacto[] = [], extra: Partial<Parameters<typeof calcularImpacto>[0]> = {}) {
-  return calcularImpacto({
+function calcular(deals: DealNegocio[], vales: ValeNegocio[] = [], extra: Partial<Parameters<typeof calcularMetricasNegocio>[0]> = {}) {
+  return calcularMetricasNegocio({
     deals,
     vales,
     tiendas: TIENDAS,
@@ -63,7 +63,7 @@ function calcular(deals: DealImpacto[], vales: ValeImpacto[] = [], extra: Partia
   });
 }
 
-describe("calcularImpacto · crédito y control", () => {
+describe("calcularMetricasNegocio · crédito y control", () => {
   it("control completo = vale usado + comprobante, medido en pesos y solo sobre créditos de Paydesk", () => {
     const deals = [
       // Completo: vale usado y comprobante.
@@ -101,7 +101,7 @@ describe("calcularImpacto · crédito y control", () => {
   });
 
   it("sin fecha de arranque no hay base de control y lo avisa", () => {
-    const r = calcularImpacto({
+    const r = calcularMetricasNegocio({
       deals: [deal({ dealId: "1", desembolsoFecha: EN_ACTUAL })],
       vales: [],
       tiendas: [{ concesionarioId: "a", nombre: "A", rolloutDesde: null, habilitada: true }],
@@ -147,40 +147,63 @@ describe("calcularImpacto · crédito y control", () => {
   });
 });
 
-describe("calcularImpacto · uso del crédito y velocidad", () => {
-  it("disposición: usados contra muertos sin usarse; una reemisión no es crédito perdido", () => {
-    const deals = [deal({ dealId: "4", cancelado: true, canceladoFecha: EN_ACTUAL })];
+describe("calcularMetricasNegocio · uso del crédito y velocidad", () => {
+  it("usado = desembolsado o vale validado; sin usar = cancelado sin nada de eso; solo créditos de Paydesk", () => {
+    const deals = [
+      // Usado: desembolsado sin que escanearan el vale (el vale venció).
+      deal({ dealId: "1", desembolsoFecha: EN_ACTUAL }),
+      // Usado: validó su vale, aún sin desembolso.
+      deal({ dealId: "2" }),
+      // Cancelado sin que nadie escaneara el vale.
+      deal({ dealId: "3", montoAprobado: 5_000, cancelado: true, canceladoFecha: EN_ACTUAL }),
+      // Cancelado después de que escanearon el vale y no compró.
+      deal({ dealId: "4", montoAprobado: 8_000, cancelado: true, canceladoFecha: EN_ACTUAL }),
+      // Vale vencido pero crédito vivo: todavía no se resuelve, no cuenta.
+      deal({ dealId: "5" }),
+      // Anterior al arranque, cancelado: no cuenta.
+      deal({ dealId: "6", fechaSolicitud: "2026-04-01T00:00:00Z", cancelado: true, canceladoFecha: EN_ACTUAL }),
+      // Usado en el periodo anterior.
+      deal({ dealId: "7", desembolsoFecha: EN_ANTERIOR }),
+    ];
     const vales = [
-      vale({ codigo: "usado", dealId: "1", estado: "utilizado", consumidoEn: EN_ACTUAL }),
-      // Venció sin que nadie lo leyera.
-      vale({ codigo: "vencido", dealId: "2", montoAutorizado: 5_000, venceEn: EN_ACTUAL }),
-      // Reemitido: el viejo se canceló y lo reemplazó "nuevo".
-      vale({ codigo: "viejo", dealId: "3", estado: "cancelado" }),
-      vale({ codigo: "nuevo", dealId: "3", reemplazaA: "viejo" }),
-      // Crédito cancelado después de que el cliente llegó a la caja.
-      vale({ codigo: "cancelado", dealId: "4", estado: "cancelado", montoAutorizado: 8_000, lecturasTotal: 2 }),
+      vale({ codigo: "v1", dealId: "1", venceEn: "2026-06-04T00:00:00Z" }),
+      vale({ codigo: "v2", dealId: "2", estado: "utilizado", consumidoEn: EN_ACTUAL }),
+      vale({ codigo: "v3", dealId: "3", estado: "cancelado" }),
+      vale({ codigo: "v4", dealId: "4", estado: "cancelado", lecturasTotal: 2 }),
+      vale({ codigo: "v5", dealId: "5", venceEn: "2026-06-04T00:00:00Z" }),
     ];
     const r = calcular(deals, vales);
-    expect(r.actual.uso.valesUsados).toBe(1);
-    expect(r.actual.uso.tasaDisposicion).toBeCloseTo(1 / 3);
-    expect(r.actual.uso.noAprovechado).toEqual({ creditos: 2, monto: 13_000 });
-    expect(r.actual.uso.clienteNoLlego).toEqual({ creditos: 1, monto: 5_000 });
-    expect(r.actual.uso.llegoSinCompletar).toEqual({ creditos: 1, monto: 8_000 });
+    expect(r.actual.uso.usados).toEqual({ creditos: 2, monto: 20_000 });
+    expect(r.actual.uso.sinUsar).toEqual({ creditos: 2, monto: 13_000 });
+    expect(r.actual.uso.noFueron).toEqual({ creditos: 1, monto: 5_000 });
+    expect(r.actual.uso.fueronSinComprar).toEqual({ creditos: 1, monto: 8_000 });
+    expect(r.actual.uso.tasaUso).toBe(0.5);
+    expect(r.anterior.uso.usados.creditos).toBe(1);
   });
 
-  it("días a desembolso del periodo, y antes contra con Paydesk de todo el historial", () => {
+  it("un crédito usado en un periodo no se vuelve a contar cuando se desembolsa en el siguiente", () => {
+    const deals = [deal({ dealId: "1", desembolsoFecha: EN_ACTUAL })];
+    const vales = [vale({ codigo: "v1", dealId: "1", estado: "utilizado", consumidoEn: EN_ANTERIOR })];
+    const r = calcular(deals, vales);
+    expect(r.actual.uso.usados.creditos).toBe(0);
+    expect(r.anterior.uso.usados.creditos).toBe(1);
+  });
+
+  it("días a desembolso solo de créditos de Paydesk; antes de Paydesk, de todo el historial", () => {
     const deals = [
       deal({ dealId: "1", fechaSolicitud: "2026-06-01T12:00:00Z", desembolsoFecha: "2026-06-05T12:00:00Z" }),
       deal({ dealId: "2", fechaSolicitud: "2026-06-01T12:00:00Z", desembolsoFecha: "2026-06-07T12:00:00Z" }),
-      deal({ dealId: "3", fechaSolicitud: "2026-01-01T12:00:00Z", desembolsoFecha: "2026-01-21T12:00:00Z" }),
+      // Anterior al arranque, desembolsado en el periodo: no entra en los días del periodo.
+      deal({ dealId: "3", fechaSolicitud: "2026-04-01T12:00:00Z", desembolsoFecha: "2026-06-10T12:00:00Z" }),
+      deal({ dealId: "4", fechaSolicitud: "2026-01-01T12:00:00Z", desembolsoFecha: "2026-01-21T12:00:00Z" }),
     ];
     const r = calcular(deals);
     expect(r.actual.uso.diasADesembolso).toBe(5);
-    expect(r.velocidad).toEqual({ antes: 20, creditosAntes: 1, conPaydesk: 5, creditosConPaydesk: 2 });
+    expect(r.antesDePaydesk).toEqual({ diasADesembolso: 45, creditos: 2 });
   });
 });
 
-describe("calcularImpacto · adopción", () => {
+describe("calcularMetricasNegocio · adopción", () => {
   it("tiendas activas, cotización en Paydesk y personas", () => {
     const deals = [
       deal({ dealId: "1", creditoLiberadoFecha: EN_ACTUAL, cotizacionEstatus: "completado" }),
@@ -213,7 +236,7 @@ describe("calcularImpacto · adopción", () => {
   });
 });
 
-describe("calcularImpacto · meses y tiendas", () => {
+describe("calcularMetricasNegocio · meses y tiendas", () => {
   it("serie de 12 meses en hora de México y tabla por tienda ordenada por monto", () => {
     const deals = [
       // 1 jun 03:00 UTC = 31 may en México.
@@ -232,7 +255,7 @@ describe("calcularImpacto · meses y tiendas", () => {
     expect(r.meses[11].pctControl).toBeCloseTo(0.8);
 
     expect(r.tiendas.map((t) => t.nombre)).toEqual(["Tienda B", "Tienda A"]);
-    expect(r.tiendas[0]).toMatchObject({ pctControl: 1, tasaDisposicion: 1, activa: true });
+    expect(r.tiendas[0]).toMatchObject({ pctControl: 1, tasaUso: 1, activa: true });
     expect(r.tiendas[1]).toMatchObject({ desembolsado: { creditos: 2, monto: 15_000 }, pctControl: 0, activa: false });
   });
 });

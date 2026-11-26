@@ -6,19 +6,19 @@ import { listConcesionarios } from "../../firestore/concesionariosRepository";
 import { getRolloutFresh, resolveRolloutForStore } from "../../firestore/rolloutRepository";
 import { intentosDesde, listarVales } from "../../firestore/valesRepository";
 import { actividadDesde, getUsoConfig } from "../../firestore/usoRepository";
-import { calcularImpacto, type DealImpacto } from "../../metricas/impacto";
+import { calcularMetricasNegocio, type DealNegocio } from "../../metricas/negocio";
 
-const PERIODOS = [30, 90, 180, 365];
+const PERIODOS = [7, 15, 30, 90, 180, 365];
 const DIA_MS = 86_400_000;
 
 const iso = (t: FirebaseFirestore.Timestamp | null | undefined) => t?.toDate().toISOString() ?? null;
 
 /**
- * "Impacto": lo que Paydesk le cambia al negocio, del periodo elegido
- * contra el anterior de la misma duración. Ver metricas/impacto.ts.
+ * Métricas del negocio (/admin/metricas): lo que Paydesk le cambia al negocio, del periodo elegido
+ * contra el anterior de la misma duración. Ver metricas/negocio.ts.
  * Cualquier admin.
  */
-export const adminImpacto = onCall<{ dias?: number }>(
+export const adminMetricasNegocio = onCall<{ dias?: number }>(
   { region: "us-central1", memory: "1GiB", timeoutSeconds: 120 },
   async (request) => {
     assertAdmin(request);
@@ -52,9 +52,9 @@ export const adminImpacto = onCall<{ dias?: number }>(
       getUsoConfig(),
     ]);
 
-    const deals = dealsSnap.docs.map((d) => ({ ...(d.data() as DealImpacto), dealId: d.id }));
+    const deals = dealsSnap.docs.map((d) => ({ ...(d.data() as DealNegocio), dealId: d.id }));
 
-    return calcularImpacto({
+    return calcularMetricasNegocio({
       dias,
       ahora,
       diasRetencionUso: usoConfig.diasInteracciones,

@@ -23,7 +23,6 @@ const DIA_A_DIA: ItemMenu[] = [
   { to: "/admin/revision", label: "Revisión de documentos", conteo: "revisiones" },
   { to: "/admin/tiendas", label: "Tiendas" },
   { to: "/admin/vales", label: "Vales", incluye: ["/admin/reporte-vales"] },
-  { to: "/admin/impacto", label: "Impacto" },
   { to: "/admin/metricas", label: "Métricas" },
   { to: "/admin/uso", label: "Uso del portal" },
 ];
