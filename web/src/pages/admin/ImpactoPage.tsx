@@ -5,6 +5,8 @@ import { Badge, Card, Cargando, Notice, PageHeader } from "../../components/admi
 import { BarrasHorizontales, Columnas } from "../../components/admin/graficas";
 
 const PERIODOS = [
+  { dias: 7, label: "Última semana" },
+  { dias: 15, label: "Últimos 15 días" },
   { dias: 30, label: "Últimos 30 días" },
   { dias: 90, label: "Últimos 90 días" },
   { dias: 180, label: "Últimos 6 meses" },

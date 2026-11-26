@@ -8,7 +8,7 @@ import { intentosDesde, listarVales } from "../../firestore/valesRepository";
 import { actividadDesde, getUsoConfig } from "../../firestore/usoRepository";
 import { calcularImpacto, type DealImpacto } from "../../metricas/impacto";
 
-const PERIODOS = [30, 90, 180, 365];
+const PERIODOS = [7, 15, 30, 90, 180, 365];
 const DIA_MS = 86_400_000;
 
 const iso = (t: FirebaseFirestore.Timestamp | null | undefined) => t?.toDate().toISOString() ?? null;
