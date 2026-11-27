@@ -7,7 +7,7 @@ import { mediana } from "./calcular";
  * (/admin/uso): responde cuatro preguntas —
  *
  * 1. ¿Cuánto crédito se desembolsa? (todos los desembolsos y la venta en caja)
- * 2. ¿El crédito está bajo control? (vale validado en caja + comprobante)
+ * 2. ¿Cumple su objetivo de control? (vale validado en caja + comprobante)
  * 3. ¿Los clientes usan su crédito? (créditos usados, crédito que no se usó, días para desembolsar)
  * 4. ¿Las tiendas lo usan? (tiendas y personas activas, cotizaciones)
  *
