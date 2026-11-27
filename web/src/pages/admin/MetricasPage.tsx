@@ -176,14 +176,14 @@ export function MetricasPage() {
 function Contenido({ d }: { d: ResultadoNegocio }) {
   const { actual: a, anterior: p } = d;
   const ultimoMes = d.meses[d.meses.length - 1]?.mes;
-  const sinControl = (b: BloqueNegocio) => b.control.base.monto - b.control.completo.monto;
+  const controlIncompleto = (b: BloqueNegocio) => b.control.base.monto - b.control.completo.monto;
 
   return (
     <>
       {d.avisos.sinArranque && (
         <Notice tono="warn" titulo="Falta la fecha en que las tiendas empezaron a usar Paydesk">
           <p>
-            Sin esa fecha no se puede medir el control ni el uso del crédito. Ponla en{" "}
+            Sin esa fecha no se puede medir el control ni si los clientes usan su crédito. Ponla en{" "}
             <Link to="/admin/tiendas">Tiendas</Link>.
           </p>
         </Notice>
@@ -230,7 +230,7 @@ function Contenido({ d }: { d: ResultadoNegocio }) {
             return {
               etiqueta: MESES[Number(mes) - 1],
               valor: m.desembolsado.monto,
-              titulo: `${MESES[Number(mes) - 1]} ${anio}${m.mes === ultimoMes ? " (en curso)" : ""} · ${creditos(m.desembolsado)} · ${pct(m.pctControl)} bajo control`,
+              titulo: `${MESES[Number(mes) - 1]} ${anio}${m.mes === ultimoMes ? " (en curso)" : ""} · ${creditos(m.desembolsado)} · ${pct(m.pctControl)} con control completo`,
             };
           })}
           formato={pesos}
@@ -240,12 +240,12 @@ function Contenido({ d }: { d: ResultadoNegocio }) {
 
       <Pregunta
         numero={2}
-        titulo="¿El crédito está bajo control?"
-        descripcion="Un crédito está bajo control cuando la tienda validó el vale en caja y subió el comprobante de entrega."
+        titulo="¿Cumple su objetivo de control?"
+        descripcion="Un crédito tiene control completo cuando la tienda validó el vale en caja y subió el comprobante de entrega."
       >
         <div className="imp-indicadores">
           <Indicador
-            etiqueta="Crédito bajo control"
+            etiqueta="Control completo"
             valor={pct(a.control.pct)}
             cambio={<Cambio actual={a.control.pct} anterior={p.control.pct} puntos />}
             nota={
@@ -256,9 +256,9 @@ function Contenido({ d }: { d: ResultadoNegocio }) {
             destacado
           />
           <Indicador
-            etiqueta="Crédito sin control"
-            valor={pesos(sinControl(a))}
-            cambio={<Cambio actual={sinControl(a)} anterior={sinControl(p)} mejor="baja" />}
+            etiqueta="Control incompleto"
+            valor={pesos(controlIncompleto(a))}
+            cambio={<Cambio actual={controlIncompleto(a)} anterior={controlIncompleto(p)} mejor="baja" />}
             nota={creditos({ creditos: a.control.base.creditos - a.control.completo.creditos, monto: 0 })}
           />
         </div>
@@ -371,7 +371,7 @@ function Contenido({ d }: { d: ResultadoNegocio }) {
                 <th className="num">Crédito desembolsado</th>
                 <th className="num">Créditos</th>
                 <th className="num" title="Vale validado en caja y comprobante de entrega">
-                  Bajo control
+                  Control completo
                 </th>
                 <th className="num" title="Se les desembolsó o validaron su vale, contra los que se cancelaron sin usarlo">
                   Usaron su crédito
