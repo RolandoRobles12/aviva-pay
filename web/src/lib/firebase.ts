@@ -917,7 +917,8 @@ export interface BloqueNegocio {
 }
 
 export interface ResultadoNegocio {
-  dias: number;
+  /** ISO; `hasta` excluido. */
+  periodo: { actual: { desde: string; hasta: string }; anterior: { desde: string; hasta: string } };
   actual: BloqueNegocio;
   anterior: BloqueNegocio;
   antesDePaydesk: { diasADesembolso: number | null; creditos: number };
@@ -935,4 +936,10 @@ export interface ResultadoNegocio {
   avisos: { sinArranque: boolean; desembolsosSinMonto: number };
 }
 
-export const adminMetricasNegocioCallable = httpsCallable<{ dias: number }, ResultadoNegocio>(functions, "adminMetricasNegocio");
+/** Ver functions/src/metricas/periodos.ts. */
+export type PeriodoMetricas = "semana" | "semana-pasada" | "quincena" | "quincena-pasada" | "30" | "90" | "180" | "365";
+
+export const adminMetricasNegocioCallable = httpsCallable<{ periodo: PeriodoMetricas }, ResultadoNegocio>(
+  functions,
+  "adminMetricasNegocio",
+);

@@ -5,6 +5,7 @@ import {
   type TiendaNegocio,
   type ValeNegocio,
 } from "../src/metricas/negocio";
+import { resolverPeriodo } from "../src/metricas/periodos";
 
 const AHORA = new Date("2026-06-30T12:00:00Z");
 // 30 días: actual = 31 may → 30 jun; anterior = 1 may → 31 may.
@@ -56,7 +57,7 @@ function calcular(deals: DealNegocio[], vales: ValeNegocio[] = [], extra: Partia
     eventos: [],
     intentos: [],
     personas: [],
-    dias: 30,
+    ...resolverPeriodo("30", AHORA),
     diasRetencionUso: 365,
     ahora: AHORA,
     ...extra,
@@ -108,7 +109,7 @@ describe("calcularMetricasNegocio · crédito y control", () => {
       eventos: [],
       intentos: [],
       personas: [],
-      dias: 30,
+      ...resolverPeriodo("30", AHORA),
       diasRetencionUso: 365,
       ahora: AHORA,
     });
@@ -230,7 +231,7 @@ describe("calcularMetricasNegocio · adopción", () => {
   });
 
   it("no compara personas contra un periodo que la medición ya borró", () => {
-    const r = calcular([], [], { dias: 365, diasRetencionUso: 365 });
+    const r = calcular([], [], { ...resolverPeriodo("365", AHORA), diasRetencionUso: 365 });
     expect(r.actual.adopcion.personasTienda).toBe(0);
     expect(r.anterior.adopcion.personasTienda).toBeNull();
   });

@@ -7,26 +7,25 @@ import { getRolloutFresh, resolveRolloutForStore } from "../../firestore/rollout
 import { intentosDesde, listarVales } from "../../firestore/valesRepository";
 import { actividadDesde, getUsoConfig } from "../../firestore/usoRepository";
 import { calcularMetricasNegocio, type DealNegocio } from "../../metricas/negocio";
+import { esPeriodo, resolverPeriodo } from "../../metricas/periodos";
 
-const PERIODOS = [7, 15, 30, 90, 180, 365];
-const DIA_MS = 86_400_000;
 
 const iso = (t: FirebaseFirestore.Timestamp | null | undefined) => t?.toDate().toISOString() ?? null;
 
 /**
  * Métricas del negocio (/admin/metricas): lo que Paydesk le cambia al negocio, del periodo elegido
- * contra el anterior de la misma duración. Ver metricas/negocio.ts.
+ * contra el anterior. Ver metricas/negocio.ts y metricas/periodos.ts.
  * Cualquier admin.
  */
-export const adminMetricasNegocio = onCall<{ dias?: number }>(
+export const adminMetricasNegocio = onCall<{ periodo?: string }>(
   { region: "us-central1", memory: "1GiB", timeoutSeconds: 120 },
   async (request) => {
     assertAdmin(request);
-    const pedido = Math.round(Number(request.data?.dias));
-    const dias = PERIODOS.includes(pedido) ? pedido : 90;
+    const periodo = esPeriodo(request.data?.periodo) ? request.data!.periodo : "90";
     const ahora = new Date();
+    const { actual, anterior } = resolverPeriodo(periodo, ahora);
     // Desde el inicio del periodo anterior: con eso se calculan los dos.
-    const desde = new Date(ahora.getTime() - 2 * dias * DIA_MS);
+    const desde = new Date(anterior.desde);
 
     const [dealsSnap, vales, concesionarios, rollout, eventos, intentos, personas, usoConfig] = await Promise.all([
       dealsCollection()
@@ -55,7 +54,8 @@ export const adminMetricasNegocio = onCall<{ dias?: number }>(
     const deals = dealsSnap.docs.map((d) => ({ ...(d.data() as DealNegocio), dealId: d.id }));
 
     return calcularMetricasNegocio({
-      dias,
+      actual,
+      anterior,
       ahora,
       diasRetencionUso: usoConfig.diasInteracciones,
       deals,

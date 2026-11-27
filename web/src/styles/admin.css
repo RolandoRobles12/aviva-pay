@@ -1686,3 +1686,13 @@
   font-size: 0.9rem;
   color: var(--adm-texto-suave);
 }
+
+.imp-periodo {
+  margin: 0 0 1rem;
+  font-size: 0.95rem;
+  color: var(--adm-texto-suave);
+}
+
+.imp-periodo strong {
+  color: var(--negro-off);
+}

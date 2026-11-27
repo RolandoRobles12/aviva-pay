@@ -1,17 +1,34 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { adminMetricasNegocioCallable, type BloqueNegocio, type MontoNegocio, type ResultadoNegocio } from "../../lib/firebase";
+import {
+  adminMetricasNegocioCallable,
+  type PeriodoMetricas,
+  type BloqueNegocio, type MontoNegocio, type ResultadoNegocio } from "../../lib/firebase";
 import { Badge, Card, Cargando, Notice, PageHeader } from "../../components/admin/ui";
 import { BarrasHorizontales, Columnas } from "../../components/admin/graficas";
 
-const PERIODOS = [
-  { dias: 7, label: "Última semana" },
-  { dias: 15, label: "Últimos 15 días" },
-  { dias: 30, label: "Últimos 30 días" },
-  { dias: 90, label: "Últimos 90 días" },
-  { dias: 180, label: "Últimos 6 meses" },
-  { dias: 365, label: "Último año" },
+const PERIODOS: { valor: PeriodoMetricas; label: string }[] = [
+  { valor: "semana", label: "Esta semana" },
+  { valor: "semana-pasada", label: "Semana pasada" },
+  { valor: "quincena", label: "Esta quincena" },
+  { valor: "quincena-pasada", label: "Quincena pasada" },
+  { valor: "30", label: "Últimos 30 días" },
+  { valor: "90", label: "Últimos 90 días" },
+  { valor: "180", label: "Últimos 6 meses" },
+  { valor: "365", label: "Último año" },
 ];
+
+const fechaCorta = new Intl.DateTimeFormat("es-MX", { timeZone: "America/Mexico_City", day: "numeric", month: "short" });
+
+/**
+ * "17 nov – 23 nov". `hasta` viene excluido; para mostrarlo se toma el
+ * último instante que sí entra, así una semana cerrada termina en domingo.
+ */
+function rango(r: { desde: string; hasta: string }): string {
+  const desde = fechaCorta.format(new Date(r.desde));
+  const hasta = fechaCorta.format(new Date(Date.parse(r.hasta) - 1));
+  return desde === hasta ? desde : `${desde} – ${hasta}`;
+}
 
 const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 
@@ -22,7 +39,12 @@ function pesos(v: number): string {
 }
 
 const pct = (v: number | null) => (v === null ? "—" : `${Math.round(v * 100)}%`);
-const dias = (v: number | null) => (v === null ? "—" : `${Math.round(v)} días`);
+/** Con un decimal abajo de 10: con números redondeados, "3 días ▲ 39%" parece un error. */
+const dias = (v: number | null) => {
+  if (v === null) return "—";
+  const n = v < 10 ? Math.round(v * 10) / 10 : Math.round(v);
+  return `${n.toLocaleString("es-MX")} ${n === 1 ? "día" : "días"}`;
+};
 const num = (v: number | null) => (v === null ? "—" : v.toLocaleString("es-MX"));
 const creditos = (m: MontoNegocio) => `${m.creditos.toLocaleString("es-MX")} ${m.creditos === 1 ? "crédito" : "créditos"}`;
 
@@ -134,7 +156,7 @@ function BaseControl({ desembolsados, base }: { desembolsados: number; base: num
  * functions/src/metricas/negocio.ts.
  */
 export function MetricasPage() {
-  const [periodo, setPeriodo] = useState(90);
+  const [periodo, setPeriodo] = useState<PeriodoMetricas>("90");
   const [datos, setDatos] = useState<ResultadoNegocio | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -142,7 +164,7 @@ export function MetricasPage() {
     let cancelado = false;
     setDatos(null);
     setError(null);
-    adminMetricasNegocioCallable({ dias: periodo })
+    adminMetricasNegocioCallable({ periodo })
       .then((r) => !cancelado && setDatos(r.data))
       .catch((e) => !cancelado && setError(e instanceof Error ? e.message : "No se pudieron calcular las métricas."));
     return () => {
@@ -154,11 +176,11 @@ export function MetricasPage() {
     <section>
       <PageHeader
         titulo="Métricas"
-        descripcion="Cómo le va al negocio con Paydesk. Cada número se compara con el periodo anterior del mismo largo."
+        descripcion="Cómo le va al negocio con Paydesk. Cada número se compara con el periodo anterior."
         acciones={
-          <select aria-label="Periodo" value={periodo} onChange={(e) => setPeriodo(Number(e.target.value))}>
+          <select aria-label="Periodo" value={periodo} onChange={(e) => setPeriodo(e.target.value as PeriodoMetricas)}>
             {PERIODOS.map((p) => (
-              <option key={p.dias} value={p.dias}>
+              <option key={p.valor} value={p.valor}>
                 {p.label}
               </option>
             ))}
@@ -180,6 +202,9 @@ function Contenido({ d }: { d: ResultadoNegocio }) {
 
   return (
     <>
+      <p className="imp-periodo">
+        <strong>{rango(d.periodo.actual)}</strong> comparado con {rango(d.periodo.anterior)}
+      </p>
       {d.avisos.sinArranque && (
         <Notice tono="warn" titulo="Falta la fecha en que las tiendas empezaron a usar Paydesk">
           <p>
@@ -390,7 +415,7 @@ function Contenido({ d }: { d: ResultadoNegocio }) {
                   <td className="num">{t.desembolsado.creditos}</td>
                   <td className="num">{pct(t.pctControl)}</td>
                   <td className="num">{pct(t.tasaUso)}</td>
-                  <td className="num">{t.diasADesembolso === null ? "—" : Math.round(t.diasADesembolso)}</td>
+                  <td className="num">{dias(t.diasADesembolso)}</td>
                   <td>{t.activa ? <Badge tono="ok">Activa</Badge> : <Badge tono="warn">Sin actividad</Badge>}</td>
                 </tr>
               ))}

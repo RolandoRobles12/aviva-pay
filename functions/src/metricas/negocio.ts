@@ -1,4 +1,5 @@
 import { mediana } from "./calcular";
+import type { Rango } from "./periodos";
 
 /**
  * Métricas del negocio (/admin/metricas): lo que Paydesk le cambia al
@@ -149,7 +150,8 @@ export interface TiendaFila {
 }
 
 export interface ResultadoNegocio {
-  dias: number;
+  /** ISO; `hasta` excluido. */
+  periodo: { actual: { desde: string; hasta: string }; anterior: { desde: string; hasta: string } };
   actual: BloqueNegocio;
   anterior: BloqueNegocio;
   /** Mediana de días de aprobación a desembolso de los créditos anteriores al arranque, de todo el historial. */
@@ -172,11 +174,6 @@ const formatoMes = new Intl.DateTimeFormat("en-CA", { timeZone: ZONA, year: "num
 
 function mesDe(iso: string): string {
   return formatoMes.format(new Date(iso)).slice(0, 7);
-}
-
-interface Rango {
-  desde: number;
-  hasta: number;
 }
 
 function enRango(iso: string | null | undefined, r: Rango): boolean {
@@ -404,22 +401,22 @@ export function calcularMetricasNegocio(params: {
   intentos: IntentoNegocio[];
   /** Actividad de personas desde el inicio del periodo anterior. */
   personas: ActividadPersona[];
-  dias: number;
+  /** El periodo elegido y contra cuál se compara (ver periodos.ts). */
+  actual: Rango;
+  anterior: Rango;
   /** Cuántos días hacia atrás se conserva la medición de uso. */
   diasRetencionUso: number;
   ahora?: Date;
   meses?: number;
 }): ResultadoNegocio {
   const ahora = (params.ahora ?? new Date()).getTime();
-  const { dias } = params;
   const idx = new Indice(params.deals, params.vales, params.tiendas);
-  const actual: Rango = { desde: ahora - dias * DIA_MS, hasta: ahora };
-  const anterior: Rango = { desde: ahora - 2 * dias * DIA_MS, hasta: actual.desde };
+  const { actual, anterior } = params;
 
   const bActual = bloque(idx, params.eventos, params.intentos, params.personas, actual);
   // Si el periodo anterior ya se borró de la medición de uso, sus personas
   // saldrían en cero y la comparación diría que la adopción se disparó.
-  const personasAnterior = 2 * dias <= params.diasRetencionUso ? params.personas : null;
+  const personasAnterior = anterior.desde >= ahora - params.diasRetencionUso * DIA_MS ? params.personas : null;
   const bAnterior = bloque(idx, params.eventos, params.intentos, personasAnterior, anterior);
 
   // Antes de Paydesk, de todo el historial: es el punto de comparación
@@ -482,7 +479,10 @@ export function calcularMetricasNegocio(params: {
     .sort((a, b) => a.localeCompare(b, "es"));
 
   return {
-    dias,
+    periodo: {
+      actual: { desde: new Date(actual.desde).toISOString(), hasta: new Date(actual.hasta).toISOString() },
+      anterior: { desde: new Date(anterior.desde).toISOString(), hasta: new Date(anterior.hasta).toISOString() },
+    },
     actual: bActual,
     anterior: bAnterior,
     antesDePaydesk: { diasADesembolso: idx.diasADesembolso(antes), creditos: antes.length },
